@@ -76,6 +76,7 @@ class GalleryLiteRtBackend(private val context: Context) : LlmInferenceBackend {
                 val engineConfig = EngineConfig(
                     modelPath = resolvedPath,
                     backend = backend,
+                    maxNumTokens = if (isTensorTpuModelFile) null else 2048,
                     cacheDir = cacheDir
                 )
                 val newEngine = Engine(engineConfig)
@@ -102,6 +103,7 @@ class GalleryLiteRtBackend(private val context: Context) : LlmInferenceBackend {
                     val fallbackEngineConfig = EngineConfig(
                         modelPath = standardGpuModel.absolutePath,
                         backend = Backend.GPU(),
+                        maxNumTokens = 2048,
                         cacheDir = cacheDir
                     )
                     val newEngine = Engine(fallbackEngineConfig)
