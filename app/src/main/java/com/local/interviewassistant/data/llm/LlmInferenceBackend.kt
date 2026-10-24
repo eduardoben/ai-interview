@@ -4,7 +4,8 @@ import android.content.Context
 import com.google.mediapipe.tasks.genai.llminference.LlmInference
 import com.google.mediapipe.tasks.genai.llminference.ProgressListener
 import com.local.interviewassistant.core.model.AppConfig
-import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 
 sealed interface LlmStreamEvent {
     data class PartialToken(val tokenChunk: String, val accumulatedText: String, val ttftMs: Long) : LlmStreamEvent
@@ -24,12 +25,24 @@ class MediaPipeLiteRtBackend(private val context: Context) : LlmInferenceBackend
     private var llmInference: LlmInference? = null
     private var isGpuNpuAccelerated: Boolean = false
     
-    private val isGenerating = AtomicBoolean(false)
+    private var isGenerating = false
+    private val generationLock = ReentrantLock()
+    private val generationCondition = generationLock.newCondition()
+
     @Volatile private var currentGenerationId = 0
 
     private fun waitForCompletion() {
-        while (isGenerating.get()) {
-            Thread.sleep(50)
+        generationLock.withLock {
+            while (isGenerating) {
+                generationCondition.await()
+            }
+        }
+    }
+
+    private fun setGenerating(generating: Boolean) = generationLock.withLock {
+        isGenerating = generating
+        if (!generating) {
+            generationCondition.signalAll()
         }
     }
 
@@ -100,7 +113,7 @@ class MediaPipeLiteRtBackend(private val context: Context) : LlmInferenceBackend
         }
 
         val genId = ++currentGenerationId
-        isGenerating.set(true)
+        setGenerating(true)
 
         try {
             val progressListener = ProgressListener<String> { partialResult, done ->
@@ -108,7 +121,7 @@ class MediaPipeLiteRtBackend(private val context: Context) : LlmInferenceBackend
                     onPartialResult(partialResult ?: "", done)
                 }
                 if (done) {
-                    isGenerating.set(false)
+                    setGenerating(false)
                 }
             }
             val future = inference.generateResponseAsync(prompt, progressListener)
@@ -121,14 +134,14 @@ class MediaPipeLiteRtBackend(private val context: Context) : LlmInferenceBackend
                             onError(e)
                         }
                     } finally {
-                        isGenerating.set(false)
+                        setGenerating(false)
                     }
                 },
             ) { command ->
                 Thread(command).start()
             }
         } catch (e: Exception) {
-            isGenerating.set(false)
+            setGenerating(false)
             onError(e)
         }
     }
