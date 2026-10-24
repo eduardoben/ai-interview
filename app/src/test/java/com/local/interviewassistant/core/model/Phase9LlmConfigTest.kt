@@ -69,4 +69,22 @@ class Phase9LlmConfigTest {
         assertEquals("TopK should clamp to 100", 100, validated2.topK)
         assertEquals("MaxTokens should clamp to 64", 64, validated2.maxTokens)
     }
+
+    @Test
+    fun testUpdateLlmConfigValidatesInput() {
+        val config = AppConfig(File("tmp"))
+
+        val invalidConfig = LlmGenerationConfig(
+            temperature = 2.0f,
+            topK = 200,
+            maxTokens = 1000,
+            interviewContext = "   Role   "
+        )
+
+        config.updateLlmConfig(invalidConfig)
+
+        assertEquals("Temperature should be clamped", 1.0f, config.temperature)
+        assertEquals("TopK should be clamped", 100, config.topK)
+        assertEquals("MaxTokens should be clamped", 512, config.maxTokens)
+    }
 }
