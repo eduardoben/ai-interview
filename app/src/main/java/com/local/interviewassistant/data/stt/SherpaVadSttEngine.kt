@@ -25,7 +25,8 @@ class SherpaVadSttEngine(
     val isSpeechActive: StateFlow<Boolean> = _isSpeechActive.asStateFlow()
 
     private val mutex = Mutex()
-    private var audioBuffer = FloatArray(0)
+    private var audioBuffer = FloatArray(maxOf(2048, config.vadWindowSizeSamples * 4))
+    private var bufferSize = 0
 
     private val windowDurationSec = config.vadWindowSizeSamples.toFloat() / config.sampleRateHz.toFloat()
     private val minSpeechFrames = kotlin.math.ceil(config.minSpeechDurationSec / windowDurationSec).toInt().coerceAtLeast(1)
@@ -41,14 +42,25 @@ class SherpaVadSttEngine(
 
     suspend fun processAudioChunk(samples: FloatArray) {
         mutex.withLock {
-            val newBuffer = FloatArray(audioBuffer.size + samples.size)
-            audioBuffer.copyInto(newBuffer)
-            samples.copyInto(newBuffer, audioBuffer.size)
-            audioBuffer = newBuffer
+            val requiredCapacity = bufferSize + samples.size
+            if (requiredCapacity > audioBuffer.size) {
+                val newCapacity = maxOf(requiredCapacity, audioBuffer.size * 2)
+                val newBuffer = FloatArray(newCapacity)
+                System.arraycopy(audioBuffer, 0, newBuffer, 0, bufferSize)
+                audioBuffer = newBuffer
+            }
 
-            while (audioBuffer.size >= config.vadWindowSizeSamples) {
+            System.arraycopy(samples, 0, audioBuffer, bufferSize, samples.size)
+            bufferSize += samples.size
+
+            while (bufferSize >= config.vadWindowSizeSamples) {
                 val window = audioBuffer.copyOfRange(0, config.vadWindowSizeSamples)
-                audioBuffer = audioBuffer.copyOfRange(config.vadWindowSizeSamples, audioBuffer.size)
+
+                val remaining = bufferSize - config.vadWindowSizeSamples
+                if (remaining > 0) {
+                    System.arraycopy(audioBuffer, config.vadWindowSizeSamples, audioBuffer, 0, remaining)
+                }
+                bufferSize = remaining
                 
                 processWindow(window)
             }
@@ -107,7 +119,7 @@ class SherpaVadSttEngine(
 
     suspend fun reset() {
         mutex.withLock {
-            audioBuffer = FloatArray(0)
+            bufferSize = 0
             speechFrameCount = 0
             silenceFrameCount = 0
             hasValidSpeech = false
