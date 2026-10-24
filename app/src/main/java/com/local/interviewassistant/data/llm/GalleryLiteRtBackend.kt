@@ -76,7 +76,7 @@ class GalleryLiteRtBackend(private val context: Context) : LlmInferenceBackend {
                 val engineConfig = EngineConfig(
                     modelPath = resolvedPath,
                     backend = backend,
-                    maxNumTokens = if (isTensorTpuModelFile) null else 2048,
+                    maxNumTokens = if (isTensorTpuModelFile) null else config.maxTokens,
                     cacheDir = cacheDir
                 )
                 val newEngine = Engine(engineConfig)
