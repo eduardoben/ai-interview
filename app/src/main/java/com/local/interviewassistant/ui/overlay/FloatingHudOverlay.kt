@@ -144,18 +144,20 @@ fun FloatingHudOverlay(
             ) {
                 InterviewCategory.entries.forEach { category ->
                     val isSelected = uiState.selectedCategory == category
-                    FilterChip(
-                        selected = isSelected,
-                        onClick = { onSelectCategory(category) },
-                        label = { Text(category.displayName, fontSize = 10.sp) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = Color(0xFF03DAC5),
-                            selectedLabelColor = Color.Black,
-                            containerColor = Color(0xFF263238),
-                            labelColor = Color.White
-                        ),
-                        modifier = Modifier.height(26.dp)
-                    )
+                    key(category) {
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = { onSelectCategory(category) },
+                            label = { Text(category.displayName, fontSize = 10.sp) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Color(0xFF03DAC5),
+                                selectedLabelColor = Color.Black,
+                                containerColor = Color(0xFF263238),
+                                labelColor = Color.White
+                            ),
+                            modifier = Modifier.height(26.dp)
+                        )
+                    }
                 }
             }
 
