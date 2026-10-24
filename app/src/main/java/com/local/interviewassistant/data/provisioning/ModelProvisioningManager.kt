@@ -52,6 +52,9 @@ class HttpUrlStreamFetcher : StreamFetcher {
             if (!authToken.isNullOrEmpty()) {
                 val currentHost = try { u.toURI().host } catch (_: Exception) { null }
                 if (redirectCount == 0 || (initialHost != null && initialHost.equals(currentHost, ignoreCase = true))) {
+                    if (u.protocol.equals("http", ignoreCase = true)) {
+                        throw IOException("Insecure connection: Cannot send bearer token over HTTP")
+                    }
                     connection.setRequestProperty("Authorization", "Bearer $authToken")
                 }
             }

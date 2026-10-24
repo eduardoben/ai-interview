@@ -190,4 +190,15 @@ class Phase7ProvisioningTest {
         assertTrue(report.allPresent)
         assertEquals(6, report.files.size)
     }
+
+    @Test
+    fun testHttpUrlStreamFetcherRejectsHttpWithAuthToken() {
+        val fetcher = HttpUrlStreamFetcher()
+        try {
+            fetcher.openStream("http://example.com/model.bin", "secret-token", {})
+            org.junit.Assert.fail("Expected IOException to be thrown for HTTP URL with auth token")
+        } catch (e: IOException) {
+            assertTrue(e.message?.contains("Insecure connection") == true)
+        }
+    }
 }
