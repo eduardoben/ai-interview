@@ -26,14 +26,24 @@ class GalleryLiteRtBackend(private val context: Context) : LlmInferenceBackend {
     private var fallbackBackend: MediaPipeLiteRtBackend? = null
     @Volatile private var currentAppConfig: AppConfig? = null
 
+    // LITERTLM THREAD SERIALIZATION
+    // All LiteRT operations must be synchronized on this single thread to avoid
+    // 'Input tensor not found' or JVM/JNI corruption errors.
     private val liteRtDispatcher = Executors.newSingleThreadExecutor { runnable ->
-        Thread(runnable, "LiteRT-Accelerator-Thread")
+        Thread(runnable, "LiteRT-GPU-Thread")
     }.asCoroutineDispatcher()
 
     private val isGenerating = AtomicBoolean(false)
     @Volatile private var currentGenerationId = 0
 
     override fun initialize(config: AppConfig) {
+        // We must perform all LiteRT operations on the single thread
+        kotlinx.coroutines.runBlocking(liteRtDispatcher) {
+            initializeInternal(config)
+        }
+    }
+
+    private fun initializeInternal(config: AppConfig) {
         val modelFile = config.activeLlmModelFile
         if (!modelFile.exists() || modelFile.length() <= 0L) {
             throw IllegalStateException("LLM model file missing at ${modelFile.absolutePath}")
@@ -53,30 +63,22 @@ class GalleryLiteRtBackend(private val context: Context) : LlmInferenceBackend {
                 modelFile.name.contains("tpu", ignoreCase = true) ||
                 modelFile.name.contains("npu", ignoreCase = true)
 
-        val nativeLibDir = context.applicationInfo.nativeLibraryDir
         val cacheDir = context.cacheDir.absolutePath
-
-        val attemptBackends = mutableListOf<Pair<Backend, String>>()
-
-        if (isTensorTpuModelFile) {
-            attemptBackends.add(Backend.NPU(nativeLibraryDir = nativeLibDir) to "TPU (Tensor NPU)")
-            attemptBackends.add(Backend.NPU() to "System NPU")
-        } else if (config.useGpuDelegate) {
-            attemptBackends.add(Backend.GPU() to "GPU")
-            attemptBackends.add(Backend.CPU() to "CPU")
-        } else {
-            attemptBackends.add(Backend.CPU() to "CPU")
-        }
+        val attemptBackends = BackendResolver.getFallbackSequence(context, isTensorTpuModelFile, config.useGpuDelegate)
 
         var initializedEngine: Engine? = null
         val errors = mutableListOf<String>()
 
+        // LITERTLM TENSOR DIMENSION FIX
+        // Ensure maxNumTokens = null for baked TPU models, and 2048 for CPU/GPU.
+        // DO NOT use config.maxTokens (which is standard response size), 
+        // as the EdgeTPU/GPU compiler requires the exact dimension defined at compile time.
         for ((backend, label) in attemptBackends) {
             try {
                 val engineConfig = EngineConfig(
                     modelPath = resolvedPath,
                     backend = backend,
-                    maxNumTokens = if (isTensorTpuModelFile) null else config.maxTokens,
+                    maxNumTokens = if (isTensorTpuModelFile) null else 2048,
                     cacheDir = cacheDir
                 )
                 val newEngine = Engine(engineConfig)
@@ -250,7 +252,8 @@ class GalleryLiteRtBackend(private val context: Context) : LlmInferenceBackend {
     override fun close() {
         currentGenerationId++
         currentAppConfig = null
-        CoroutineScope(liteRtDispatcher).launch {
+        // Ensure this happens on the correct thread, synchronously to avoid race condition if another thread calls initialize immediately after
+        kotlinx.coroutines.runBlocking(liteRtDispatcher) {
             closeSynchronously()
         }
     }

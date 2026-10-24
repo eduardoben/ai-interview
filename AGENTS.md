@@ -8,19 +8,27 @@ This document serves as the authoritative technical context guide for AI Coding 
 
 ### A. JNI Thread Serialization Rule (CRITICAL)
 - **Constraint:** LiteRT-LM (`com.google.ai.edge.litertlm`) JNI C++ functions (`Engine.initialize()`, `Engine.createConversation()`, `Conversation.sendMessageAsync()`, `Conversation.cancelProcess()`, and `Conversation.close()`) are NOT thread-safe for concurrent calls.
-- **Rule:** ALL LiteRT operations in [`LiteRtGemmaEngine.kt`](file:///app/src/main/java/com/local/interviewassistant/data/llm/LiteRtGemmaEngine.kt) and [`GalleryLiteRtBackend.kt`](file:///app/src/main/java/com/local/interviewassistant/data/llm/GalleryLiteRtBackend.kt) MUST be serialized on a dedicated single-threaded dispatcher (`LiteRT-GPU-Thread` created via `Executors.newSingleThreadExecutor()`). Never invoke JNI methods on `Dispatchers.Main` or concurrent IO pools.
+- **Rule:** ALL LiteRT operations in [`LiteRtGemmaEngine.kt`](file:///app/src/main/java/com/local/interviewassistant/data/llm/LiteRtGemmaEngine.kt) and [`GalleryLiteRtBackend.kt`](file:///app/src/main/java/com/local/interviewassistant/data/llm/GalleryLiteRtBackend.kt) MUST be serialized on a dedicated single-threaded dispatcher (`LiteRT-GPU-Thread` created via `Executors.newSingleThreadExecutor().asCoroutineDispatcher()`).
+  - **Generation:** Use `.flowOn(liteRtDispatcher)` to confine downstream native emissions.
+  - **Synchronous Actions:** Methods like `close()` or `initialize()` in Java/Kotlin classes MUST safely route to the accelerator thread using `kotlinx.coroutines.runBlocking(liteRtDispatcher) { ... }` or equivalent, to prevent JNI heap corruption. Never invoke JNI methods directly on `Dispatchers.Main` or concurrent IO pools.
 
 ### B. Hardware Delegation & Model Signature Rules
 1. **Pixel Tensor TPU Models (`*_Google_Tensor_*.litertlm`):**
+   - **NPU Dispatch Library (CRITICAL):** LiteRT-LM requires `libLiteRtDispatch_GoogleTensor.so` inside `context.applicationInfo.nativeLibraryDir`. The Maven artifact `litertlm-android` does NOT package this library; it is bundled in `app/src/main/jniLibs/arm64-v8a/` and extracted via `packaging { jniLibs { useLegacyPackaging = true } }`.
    - Must use `Backend.NPU(nativeLibraryDir = context.applicationInfo.nativeLibraryDir)` as primary backend.
    - Must pass `maxNumTokens = null` during `EngineConfig` creation to preserve baked-in AOT EdgeTPU tensor shape dimensions.
    - Must pass `samplerConfig = null` in `ConversationConfig` so LiteRT JNI uses the model's baked-in EdgeTPU sampler graph.
+   - File size for Tensor G5 is ~3.11 GB (3,113,545,589 bytes). AOT TPU graphs cannot execute on GPU/CPU backends.
 2. **Standard GPU Models (`gemma-4-E2B-it.litertlm`):**
    - Must use `Backend.GPU()` (OpenCL/Vulkan delegate) with `Backend.CPU()` fallback.
-   - Uses `maxNumTokens = 2048` for dynamic sequence context allocation.
+   - Uses `maxNumTokens = 2048` for dynamic sequence context allocation. (CRITICAL: Do NOT pass `config.maxTokens` to `EngineConfig.maxNumTokens` for GPU models, as this causes a dimension mismatch and results in `Input tensor not found` exceptions.)
+   - File size is ~2.58 GB (2,588,147,712 bytes).
 
-### C. Fail-Safe Fallback Contract
-- If a TPU model fails NPU tensor allocation (e.g., missing vendor driver on non-Pixel device or emulator), [`GalleryLiteRtBackend`](file:///app/src/main/java/com/local/interviewassistant/data/llm/GalleryLiteRtBackend.kt) automatically checks if `gemma-4-E2B-it.litertlm` (GPU variant) exists on disk and seamlessly initializes `gemma-4-E2B-it.litertlm` on `Backend.GPU()`.
+### C. Fail-Safe Fallback Contract & Error Handling
+- **Catch `Throwable`:** Native `Engine.initialize()` operations must catch `Throwable` (not just `Exception`) to intercept JNI `LinkageError` and `UnsatisfiedLinkError` failures without crashing or bypassing fallbacks.
+- **Error Accumulation:** Detailed error traces per backend (`NPU`, `GPU`, `CPU`) are preserved in `LiteRtGemmaEngine` for actionable debugging.
+- **Masquerade Protection:** If a TPU model fails NPU allocation, the GPU fallback verifies that the fallback file on disk is an authentic GPU model (different size and name), preventing redundant failure loops when files are mislabeled.
+- **Dynamic System Prompt:** If `systemPrompt` is omitted in `LiteRtGemmaEngine`, `generateAnswerStream()` automatically injects `config.llmConfig.value.promptStyle.systemInstruction` and `interviewContext`.
 
 ---
 
@@ -38,7 +46,8 @@ This document serves as the authoritative technical context guide for AI Coding 
 
 ### 3. LLM Engine & Backend
 - **`GalleryLiteRtBackend`**: Manages LiteRT `Engine` and `Conversation` sessions, supporting NPU and GPU delegation with clean synchronous resource teardown (`closeSynchronously()`).
-- **`LiteRtGemmaEngine`**: Wraps backend generation into a Kotlin `Flow<LlmStreamEvent>` emitting `PartialToken`, `Completed`, and `Error` events with TTFT latency tracking.
+- **`LiteRtGemmaEngine`**: Wraps backend generation into a Kotlin `Flow<LlmStreamEvent>` emitting `PartialToken`, `Completed`, and `Error` events with TTFT latency tracking and dynamic system prompt fallback.
+- **Native Shims (`libLiteRtDispatch_GoogleTensor.so`)**: Placed in `app/src/main/jniLibs/arm64-v8a/` to enable hardware-accelerated EdgeTPU execution on Tensor G3/G4/G5 SoCs.
 
 ### 4. Service & Pipeline Coordinator
 - **`AssistantPipelineCoordinator`**: State machine driving Audio -> STT -> Question Detection -> Gemma Stream -> Copilot UI state.

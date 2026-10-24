@@ -99,13 +99,17 @@ class ModelProvisioningManager(
     suspend fun downloadAllModels(
         hfBearerToken: String? = null
     ): Result<AppConfig.ModelValidationReport> = withContext(Dispatchers.IO) {
+        val isTpuTarget = config.activeLlmModelFile.name.contains("Tensor", ignoreCase = true) ||
+                config.activeLlmModelFile.name.contains("tpu", ignoreCase = true)
+        val defaultLlmUrl = if (isTpuTarget) AppConfig.DEFAULT_TPU_LLM_URL else AppConfig.DEFAULT_LLM_URL
+
         val allModels = listOf(
             config.vadModelFile to AppConfig.VAD_URL,
             config.sttEncoderFile to AppConfig.STT_ENCODER_URL,
             config.sttDecoderFile to AppConfig.STT_DECODER_URL,
             config.sttJoinerFile to AppConfig.STT_JOINER_URL,
             config.sttTokensFile to AppConfig.STT_TOKENS_URL,
-            config.activeLlmModelFile to AppConfig.DEFAULT_LLM_URL
+            config.activeLlmModelFile to defaultLlmUrl
         )
 
         val missingModels = allModels.filter { (file, _) -> !file.exists() || file.length() <= 0L }

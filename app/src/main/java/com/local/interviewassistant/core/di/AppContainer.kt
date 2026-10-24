@@ -69,12 +69,7 @@ class AppContainer private constructor(private val context: Context) {
     fun createSttEngine(): SherpaVadSttEngine = SherpaVadSttEngine(appConfig, SherpaOnnxRuntimeBackend())
 
     fun createLlmEngine(): LiteRtGemmaEngine {
-        val backend = try {
-            com.local.interviewassistant.data.llm.GalleryLiteRtBackend(context)
-        } catch (_: Throwable) {
-            MediaPipeLiteRtBackend(context)
-        }
-        return LiteRtGemmaEngine(appConfig, backend)
+        return LiteRtGemmaEngine(context, appConfig)
     }
 
     fun createPipelineCoordinator(scope: CoroutineScope): AssistantPipelineCoordinator {

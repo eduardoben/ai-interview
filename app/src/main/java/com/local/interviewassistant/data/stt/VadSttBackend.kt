@@ -51,7 +51,8 @@ class SherpaOnnxRuntimeBackend : VadSttBackend {
             val vadConfig = VadModelConfig()
             vadConfig.sileroVadModelConfig = sileroConfig
             vadConfig.sampleRate = config.sampleRateHz
-            vadConfig.numThreads = 1
+            vadConfig.numThreads = 2 // Isolate to efficiency cores
+            vadConfig.provider = "cpu" // Enforce CPU provider to avoid NPU/GPU driver contention
             vadConfig.debug = false
             
             val vad = Vad(config = vadConfig)
@@ -64,7 +65,8 @@ class SherpaOnnxRuntimeBackend : VadSttBackend {
             val modelConfig = OnlineModelConfig()
             modelConfig.transducer = transducerConfig
             modelConfig.tokens = config.sttTokensFile.absolutePath
-            modelConfig.numThreads = 1
+            modelConfig.numThreads = 2 // Isolate to efficiency cores
+            modelConfig.provider = "cpu" // Enforce CPU provider to avoid NPU/GPU driver contention
             modelConfig.debug = false
             
             val featConfig = FeatureConfig()

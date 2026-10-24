@@ -79,7 +79,7 @@ android {
     defaultConfig {
         applicationId = "com.local.interviewassistant"
         minSdk = 34
-        targetSdk = 35
+        targetSdk = 37
         versionCode = 1
         versionName = "1.0"
 
@@ -113,6 +113,7 @@ android {
     packaging {
         jniLibs {
             useLegacyPackaging = true
+            pickFirsts += listOf("**/libc++_shared.so", "**/libOpenCL.so")
         }
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -141,6 +142,9 @@ dependencies {
     
     implementation(libs.mediapipe.tasks.genai)
     implementation(libs.litertlm.android)
+    implementation(libs.aicore)
+    implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.androidx.datastore.preferences)
     implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.aar"))))
 
     testImplementation(libs.junit)

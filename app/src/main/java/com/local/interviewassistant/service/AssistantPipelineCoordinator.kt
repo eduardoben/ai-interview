@@ -196,6 +196,11 @@ class AssistantPipelineCoordinator(
                     interviewContext = category.contextSnippet
                 )
             )
+            // Trigger a clean restart to apply the new system instruction and release TPU buffers
+            scope.launch {
+                llmEngine.release()
+                llmEngine.initialize()
+            }
         }
     }
 
