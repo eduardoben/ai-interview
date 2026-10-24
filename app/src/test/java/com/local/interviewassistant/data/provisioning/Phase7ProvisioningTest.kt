@@ -190,4 +190,70 @@ class Phase7ProvisioningTest {
         assertTrue(report.allPresent)
         assertEquals(6, report.files.size)
     }
+
+    @Test
+    fun testDownloadLlmModelWithValidExtension() = runTest {
+        val modelsDir = tempFolder.newFolder("models_llm_valid_extension")
+        val appConfig = AppConfig(modelsDir)
+        val customUrl = "https://example.com/models/custom-model.litertlm"
+        val fakeContent = "fake custom litertlm content".toByteArray()
+
+        val fetcher = FakeStreamFetcher(mapOf(customUrl to fakeContent))
+        val provisioningManager = ModelProvisioningManager(appConfig, fetcher)
+
+        val result = provisioningManager.downloadLlmModel(customUrl = customUrl)
+
+        assertTrue(result.isSuccess)
+        val expectedFile = File(modelsDir, "custom-model.litertlm")
+        assertTrue(expectedFile.exists())
+        assertEquals(fakeContent.size.toLong(), expectedFile.length())
+        assertEquals(expectedFile.absolutePath, appConfig.llmConfig.value.selectedModelPath)
+
+        val state = provisioningManager.state.value
+        assertTrue(state is ProvisioningState.Completed)
+    }
+
+    @Test
+    fun testDownloadLlmModelWithInvalidExtensionFallsBackToActiveModelName() = runTest {
+        val modelsDir = tempFolder.newFolder("models_llm_invalid_extension")
+        val appConfig = AppConfig(modelsDir)
+        val customUrl = "https://example.com/models/custom-model.invalid"
+        val fakeContent = "fake custom litertlm content".toByteArray()
+
+        val fetcher = FakeStreamFetcher(mapOf(customUrl to fakeContent))
+        val provisioningManager = ModelProvisioningManager(appConfig, fetcher)
+
+        val result = provisioningManager.downloadLlmModel(customUrl = customUrl)
+
+        assertTrue(result.isSuccess)
+        val expectedFile = appConfig.activeLlmModelFile // the default
+        assertTrue(expectedFile.exists())
+        assertEquals(fakeContent.size.toLong(), expectedFile.length())
+        assertEquals(expectedFile.absolutePath, appConfig.llmConfig.value.selectedModelPath)
+
+        val state = provisioningManager.state.value
+        assertTrue(state is ProvisioningState.Completed)
+    }
+
+    @Test
+    fun testDownloadLlmModelFailureCleansUpPartFile() = runTest {
+        val modelsDir = tempFolder.newFolder("models_llm_fail")
+        val appConfig = AppConfig(modelsDir)
+        val customUrl = "https://example.com/models/fail-model.litertlm"
+
+        val fetcher = FakeStreamFetcher(failingUrl = customUrl)
+        val provisioningManager = ModelProvisioningManager(appConfig, fetcher)
+
+        val result = provisioningManager.downloadLlmModel(customUrl = customUrl)
+
+        assertTrue(result.isFailure)
+        val expectedFile = File(modelsDir, "fail-model.litertlm")
+        val partFile = File(modelsDir, "${expectedFile.name}.part")
+        assertFalse("Target file should not exist on failure", expectedFile.exists())
+        assertFalse("Part file should be deleted on failure", partFile.exists())
+
+        val state = provisioningManager.state.value
+        assertTrue(state is ProvisioningState.Error)
+        assertEquals(expectedFile.name, (state as ProvisioningState.Error).fileName)
+    }
 }
