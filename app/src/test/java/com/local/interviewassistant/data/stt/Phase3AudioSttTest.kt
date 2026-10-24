@@ -11,6 +11,7 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
+import java.io.FileOutputStream
 
 class Phase3AudioSttTest {
 
@@ -155,5 +156,63 @@ class Phase3AudioSttTest {
         assertEquals(1, completedQuestions.size)
 
         job.cancel()
+    }
+
+    @Test
+    fun testBackendAcceptWaveformUninitialized() {
+        val backend = SherpaOnnxRuntimeBackend()
+        val samples = FloatArray(10) { 0f }
+        val result = backend.acceptWaveform(samples, 16000)
+        assertFalse(result)
+    }
+
+    @Test
+    fun testBackendInitializationErrorWithMissingFiles() = runTest {
+        val backend = SherpaOnnxRuntimeBackend()
+        val tempDir = File.createTempFile("models_missing", "")
+        tempDir.delete()
+        tempDir.mkdir()
+
+        try {
+            val emptyConfig = AppConfig(tempDir)
+            val result = backend.initialize(emptyConfig)
+            assertTrue(result.isFailure)
+            assertEquals("Missing STT/VAD model files on disk", result.exceptionOrNull()?.message)
+        } finally {
+            tempDir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun testBackendInitializationErrorWithIncompleteFiles() = runTest {
+        val backend = SherpaOnnxRuntimeBackend()
+        val tempDir = File.createTempFile("models_inc", "")
+        tempDir.delete()
+        tempDir.mkdir()
+
+        try {
+            val config = AppConfig(tempDir)
+
+            // create small files (1 byte) to pass allPresent but fail size check
+            createDummyFile(config.vadModelFile, 1)
+            createDummyFile(config.sttEncoderFile, 1)
+            createDummyFile(config.sttDecoderFile, 1)
+            createDummyFile(config.sttJoinerFile, 1)
+            createDummyFile(config.sttTokensFile, 1)
+            createDummyFile(config.activeLlmModelFile, 1)
+
+            val result = backend.initialize(config)
+            assertTrue(result.isFailure)
+            assertEquals("Incomplete or downloading STT model files on disk", result.exceptionOrNull()?.message)
+        } finally {
+            tempDir.deleteRecursively()
+        }
+    }
+
+    private fun createDummyFile(file: File, sizeBytes: Int) {
+        FileOutputStream(file).use { out ->
+            val data = ByteArray(sizeBytes)
+            out.write(data)
+        }
     }
 }
