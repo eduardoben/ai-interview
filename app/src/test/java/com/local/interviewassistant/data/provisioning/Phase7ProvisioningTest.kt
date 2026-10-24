@@ -190,4 +190,29 @@ class Phase7ProvisioningTest {
         assertTrue(report.allPresent)
         assertEquals(6, report.files.size)
     }
+
+    @Test
+    fun testResetStateRestoresIdleState() = runTest {
+        val modelsDir = tempFolder.newFolder("models_reset_state_test")
+        val appConfig = AppConfig(modelsDir)
+        val fakeContent = "valid model binary content payload".toByteArray()
+
+        val contentMap = mapOf(
+            AppConfig.VAD_URL to fakeContent,
+            AppConfig.STT_ENCODER_URL to fakeContent,
+            AppConfig.STT_DECODER_URL to fakeContent,
+            AppConfig.STT_JOINER_URL to fakeContent,
+            AppConfig.STT_TOKENS_URL to fakeContent,
+            AppConfig.DEFAULT_LLM_URL to fakeContent
+        )
+
+        val fetcher = FakeStreamFetcher(contentMap)
+        val provisioningManager = ModelProvisioningManager(appConfig, fetcher)
+
+        provisioningManager.downloadAllModels()
+        assertTrue(provisioningManager.state.value is ProvisioningState.Completed)
+
+        provisioningManager.resetState()
+        assertTrue(provisioningManager.state.value is ProvisioningState.Idle)
+    }
 }
