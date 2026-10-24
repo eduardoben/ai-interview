@@ -21,6 +21,7 @@ class Phase3AudioSttTest {
         var isSpeechNext = false
         var currentPartial = ""
         var currentFinal = ""
+        var isReleased = false
 
         override suspend fun initialize(config: AppConfig): Result<Unit> = Result.success(Unit)
 
@@ -37,7 +38,9 @@ class Phase3AudioSttTest {
             return result
         }
 
-        override fun release() {}
+        override fun release() {
+            isReleased = true
+        }
     }
 
     @Test
@@ -155,5 +158,15 @@ class Phase3AudioSttTest {
         assertEquals(1, completedQuestions.size)
 
         job.cancel()
+    }
+
+    @Test
+    fun testReleaseDelegatesToBackend() {
+        val fakeBackend = FakeVadSttBackend()
+        val engine = SherpaVadSttEngine(dummyConfig, fakeBackend)
+
+        engine.release()
+
+        assertTrue(fakeBackend.isReleased)
     }
 }
