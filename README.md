@@ -185,5 +185,30 @@ I/LiteRtGemmaEngine: Successfully initialized LiteRT engine on backend 'GPU' for
 
 ---
 
+## 🌿 Version Control & Branching Strategy
+
+This repository uses a two-branch workflow with Semantic Versioning and Annotated Git Tags:
+
+- **`main`**: Protected, production-ready branch. Releases and tags (`v1.3.0`, `v1.4.0`) are created here.
+- **`dev`**: Active feature development, experimentation, and bug fixes.
+
+### Release Checklist:
+```bash
+# 1. Merge dev into main
+git checkout main && git merge dev
+
+# 2. Update app/build.gradle.kts (versionCode/versionName) and CHANGELOG.md
+git commit -am "chore(release): bump version to v1.4.0"
+
+# 3. Tag release and push
+git tag -a v1.4.0 -m "Release v1.4.0: <Summary of changes>"
+git push origin main --tags
+
+# 4. Keep dev synced with release commit
+git checkout dev && git merge main && git push origin dev
+```
+
+---
+
 ## 📄 License
 This project is released under the **MIT License**.

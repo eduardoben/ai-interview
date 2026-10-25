@@ -76,3 +76,44 @@ This document serves as the authoritative technical context guide for AI Coding 
 
 2. **Testing:**
    - Always run `./gradlew testDebugUnitTest` to verify unit test assertions after modifying domain models or pipeline state logic.
+
+---
+
+## 4. Version Control & Release Strategy 🌿
+
+This project follows a **Two-Branch (`main` + `dev`) GitFlow with Annotated Git Tags & Semantic Versioning**.
+
+### A. Branch Responsibilities
+- **`main` (Production / Stable):**
+  - Always clean, compilable, and tested.
+  - No incomplete or experimental features are committed directly to `main`.
+  - Every release cut on `main` receives an annotated Git tag (e.g., `v1.3.0`).
+- **`dev` (Active Development & Integration):**
+  - Daily working branch for new features, experiments, model adjustments, and bug fixes.
+  - Tested on-device or via unit tests before merging into `main`.
+
+### B. Release Workflow Checklist
+When cutting a new release (e.g., `v1.4.0`):
+1. **Merge `dev` into `main`:**
+   ```bash
+   git checkout main
+   git merge dev
+   ```
+2. **Bump Android Version & Update Changelog:**
+   - Update `versionCode` and `versionName` in [`app/build.gradle.kts`](file:///app/build.gradle.kts).
+   - Document new additions, changes, fixes, and verification in [`CHANGELOG.md`](file:///CHANGELOG.md).
+   ```bash
+   git add app/build.gradle.kts CHANGELOG.md
+   git commit -m "chore(release): bump version to v1.4.0"
+   ```
+3. **Create Annotated Git Tag & Push:**
+   ```bash
+   git tag -a v1.4.0 -m "Release v1.4.0: <Summary of changes>"
+   git push origin main --tags
+   ```
+4. **Sync Back to `dev`:**
+   ```bash
+   git checkout dev
+   git merge main
+   git push origin dev
+   ```
