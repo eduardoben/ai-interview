@@ -103,6 +103,7 @@ class MainActivity : ComponentActivity() {
                         onOpenOverlaySettingsClick = { requestOverlayPermission() },
                         onRefreshDiskCheckClick = { refreshStatus() },
                         onDownloadSpeechModelsClick = { downloadSpeechModels() },
+                        onDownloadOfflineRescorerClick = { downloadOfflineRescorer() },
                         onDownloadLlmModelClick = { customUrl, token -> downloadLlmModel(customUrl, token) },
                         onImportLlmFileClick = { openDocumentLauncher.launch(arrayOf("*/*")) },
                         onCancelDownloadClick = { cancelOngoingProvisioning() },
@@ -150,6 +151,14 @@ class MainActivity : ComponentActivity() {
         downloadJob?.cancel()
         downloadJob = lifecycleScope.launch {
             AppContainer.getInstance(this@MainActivity).provisioningManager.downloadMissingSpeechModels()
+        }
+    }
+
+    private fun downloadOfflineRescorer() {
+        downloadJob?.cancel()
+        downloadJob = lifecycleScope.launch {
+            AppContainer.getInstance(this@MainActivity).provisioningManager.downloadOfflineRescorerModel()
+            refreshStatus()
         }
     }
 

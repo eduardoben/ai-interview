@@ -103,6 +103,14 @@ class ModelProvisioningManager(
                 config.activeLlmModelFile.name.contains("tpu", ignoreCase = true)
         val defaultLlmUrl = if (isTpuTarget) AppConfig.DEFAULT_TPU_LLM_URL else AppConfig.DEFAULT_LLM_URL
 
+        val isSttVersionOutdated = !config.sttModelVersionFile.exists() ||
+                try { config.sttModelVersionFile.readText().trim() != AppConfig.STT_MODEL_VERSION } catch (_: Throwable) { true }
+        if (isSttVersionOutdated) {
+            listOf(config.sttEncoderFile, config.sttDecoderFile, config.sttJoinerFile, config.sttTokensFile)
+                .forEach { try { it.delete() } catch (_: Exception) {} }
+            try { config.sttModelVersionFile.delete() } catch (_: Exception) {}
+        }
+
         val allModels = listOf(
             config.vadModelFile to AppConfig.VAD_URL,
             config.sttEncoderFile to AppConfig.STT_ENCODER_URL,
@@ -114,6 +122,7 @@ class ModelProvisioningManager(
 
         val missingModels = allModels.filter { (file, _) -> !file.exists() || file.length() <= 0L }
         if (missingModels.isEmpty()) {
+            try { config.sttModelVersionFile.writeText(AppConfig.STT_MODEL_VERSION) } catch (_: Exception) {}
             val report = config.validateModelsOnDisk()
             _state.value = ProvisioningState.Completed(report)
             return@withContext Result.success(report)
@@ -141,6 +150,7 @@ class ModelProvisioningManager(
         }
 
         val report = config.validateModelsOnDisk()
+        try { config.sttModelVersionFile.writeText(AppConfig.STT_MODEL_VERSION) } catch (_: Exception) {}
         _state.value = ProvisioningState.Completed(report)
         Result.success(report)
     }
@@ -154,11 +164,60 @@ class ModelProvisioningManager(
             config.sttTokensFile to AppConfig.STT_TOKENS_URL
         )
 
-        if (forceUpgrade) {
+        val versionMatches = config.sttModelVersionFile.exists() &&
+                try { config.sttModelVersionFile.readText().trim() == AppConfig.STT_MODEL_VERSION } catch (_: Throwable) { false }
+
+        // Automatically trigger upgrade if forceUpgrade requested or if local .stt_version is outdated or missing
+        val shouldForceUpgrade = forceUpgrade || !versionMatches
+
+        if (shouldForceUpgrade) {
             speechModels.forEach { (file, _) -> try { file.delete() } catch (_: Exception) {} }
+            try { config.sttModelVersionFile.delete() } catch (_: Exception) {}
         }
 
         val missingModels = speechModels.filter { (file, _) -> !file.exists() || file.length() <= 0L }
+        if (missingModels.isEmpty()) {
+            try { config.sttModelVersionFile.writeText(AppConfig.STT_MODEL_VERSION) } catch (_: Exception) {}
+            val report = config.validateModelsOnDisk()
+            _state.value = ProvisioningState.Completed(report)
+            return@withContext Result.success(report)
+        }
+
+        val totalCount = missingModels.size
+        for ((index, pair) in missingModels.withIndex()) {
+            val (targetFile, url) = pair
+            val fileName = targetFile.name
+            try {
+                downloadOrCopyToFile(
+                    fileName = fileName,
+                    targetFile = targetFile,
+                    completedFilesCount = index,
+                    totalFilesCount = totalCount
+                ) { onTotalBytes ->
+                    fetcher.openStream(url, null, onTotalBytes)
+                }
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                val errorMsg = e.message ?: "Failed to download $fileName"
+                _state.value = ProvisioningState.Error(fileName, errorMsg)
+                return@withContext Result.failure(e)
+            }
+        }
+
+        try { config.sttModelVersionFile.writeText(AppConfig.STT_MODEL_VERSION) } catch (_: Exception) {}
+        val report = config.validateModelsOnDisk()
+        _state.value = ProvisioningState.Completed(report)
+        Result.success(report)
+    }
+
+    suspend fun downloadOfflineRescorerModel(): Result<AppConfig.ModelValidationReport> = withContext(Dispatchers.IO) {
+        val rescorerModels = listOf(
+            config.offlineWhisperEncoderFile to AppConfig.WHISPER_TINY_ENCODER_URL,
+            config.offlineWhisperDecoderFile to AppConfig.WHISPER_TINY_DECODER_URL,
+            config.offlineWhisperTokensFile to AppConfig.WHISPER_TINY_TOKENS_URL
+        )
+
+        val missingModels = rescorerModels.filter { (file, _) -> !file.exists() || file.length() <= 0L }
         if (missingModels.isEmpty()) {
             val report = config.validateModelsOnDisk()
             _state.value = ProvisioningState.Completed(report)

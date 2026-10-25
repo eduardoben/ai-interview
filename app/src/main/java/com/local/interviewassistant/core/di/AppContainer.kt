@@ -10,6 +10,7 @@ import com.local.interviewassistant.data.audio.MicrophoneAudioCaptureSource
 import com.local.interviewassistant.data.llm.LiteRtGemmaEngine
 import com.local.interviewassistant.data.llm.MediaPipeLiteRtBackend
 import com.local.interviewassistant.data.provisioning.ModelProvisioningManager
+import com.local.interviewassistant.data.stt.SherpaOfflineWhisperRescorer
 import com.local.interviewassistant.data.stt.SherpaOnnxRuntimeBackend
 import com.local.interviewassistant.data.stt.SherpaVadSttEngine
 import com.local.interviewassistant.service.AssistantPipelineCoordinator
@@ -66,7 +67,11 @@ class AppContainer private constructor(private val context: Context) {
 
     fun createAudioSource(): AudioSource = MicrophoneAudioCaptureSource(appConfig)
 
-    fun createSttEngine(): SherpaVadSttEngine = SherpaVadSttEngine(appConfig, SherpaOnnxRuntimeBackend())
+    fun createSttEngine(): SherpaVadSttEngine = SherpaVadSttEngine(
+        config = appConfig,
+        backend = SherpaOnnxRuntimeBackend(),
+        offlineRescorer = SherpaOfflineWhisperRescorer(),
+    )
 
     fun createLlmEngine(): LiteRtGemmaEngine {
         return LiteRtGemmaEngine(context, appConfig)

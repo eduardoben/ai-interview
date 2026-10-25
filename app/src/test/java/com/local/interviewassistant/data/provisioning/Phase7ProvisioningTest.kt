@@ -256,4 +256,28 @@ class Phase7ProvisioningTest {
         assertTrue(state is ProvisioningState.Error)
         assertEquals(expectedFile.name, (state as ProvisioningState.Error).fileName)
     }
+
+    @Test
+    fun testDownloadOfflineRescorerModel() = runTest {
+        val modelsDir = tempFolder.newFolder("rescorer_test")
+        val appConfig = AppConfig(modelsDir)
+        val fakeContent = "rescorer content".toByteArray()
+        val contentMap = mapOf(
+            AppConfig.WHISPER_TINY_ENCODER_URL to fakeContent,
+            AppConfig.WHISPER_TINY_DECODER_URL to fakeContent,
+            AppConfig.WHISPER_TINY_TOKENS_URL to fakeContent
+        )
+
+        val fetcher = FakeStreamFetcher(contentMap)
+        val provisioningManager = ModelProvisioningManager(appConfig, fetcher)
+
+        assertFalse(appConfig.hasOfflineRescorer())
+        val result = provisioningManager.downloadOfflineRescorerModel()
+
+        assertTrue(result.isSuccess)
+        assertTrue(appConfig.hasOfflineRescorer())
+        assertTrue(appConfig.offlineWhisperEncoderFile.exists())
+        assertTrue(appConfig.offlineWhisperDecoderFile.exists())
+        assertTrue(appConfig.offlineWhisperTokensFile.exists())
+    }
 }

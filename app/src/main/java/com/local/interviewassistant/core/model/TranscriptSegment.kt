@@ -24,11 +24,11 @@ data class TranscriptSegment(
                 "what", "how", "why", "when", "where", "which", "who", "whom", "whose",
                 "can ", "could ", "would ", "should ", "is ", "are ", "does ", "do ", "did ", "has ", "have ",
                 "explain", "describe", "tell", "walk", "design", "implement", "compare", "difference",
-                "define", "discuss", "give", "brief",
+                "define", "discuss", "give", "brief", "talk about", "share an example", "in your opinion",
             )
 
             if (questionStarters.any { lowerText.startsWith(it) || lowerText.contains(" $it") }) return true
-            if (lowerText.contains("what's") || lowerText.contains("how's") || lowerText.contains("difference between")) return true
+            if (lowerText.contains("what's") || lowerText.contains("how's") || lowerText.contains("difference between") || lowerText.contains("tell me about")) return true
             return normalizedText.length >= 24
         }
 }

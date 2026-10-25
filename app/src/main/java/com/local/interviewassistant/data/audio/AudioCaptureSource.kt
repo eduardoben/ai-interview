@@ -60,7 +60,7 @@ class MicrophoneAudioCaptureSource(private val config: AppConfig) : AudioSource 
             }
 
             val sessionId = audioRecord.audioSessionId
-            if (sessionId != 0) {
+            if (config.enableHardwareAudioEffects && sessionId != 0) {
                 if (NoiseSuppressor.isAvailable()) {
                     try {
                         noiseSuppressor = NoiseSuppressor.create(sessionId)

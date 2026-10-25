@@ -36,6 +36,7 @@ fun DashboardScreen(
     onOpenOverlaySettingsClick: () -> Unit,
     onRefreshDiskCheckClick: () -> Unit,
     onDownloadSpeechModelsClick: () -> Unit,
+    onDownloadOfflineRescorerClick: () -> Unit = {},
     onDownloadLlmModelClick: (customUrl: String, token: String?) -> Unit,
     onImportLlmFileClick: () -> Unit,
     onCancelDownloadClick: () -> Unit,
@@ -86,6 +87,7 @@ fun DashboardScreen(
                 onUpdateLlmConfig = onUpdateLlmConfig,
                 onRefreshDiskCheckClick = onRefreshDiskCheckClick,
                 onDownloadSpeechModelsClick = onDownloadSpeechModelsClick,
+                onDownloadOfflineRescorerClick = onDownloadOfflineRescorerClick,
                 onDownloadLlmModelClick = onDownloadLlmModelClick,
                 onImportLlmFileClick = onImportLlmFileClick,
                 onCancelDownloadClick = onCancelDownloadClick
@@ -282,6 +284,7 @@ private fun ModelsCard(
     onUpdateLlmConfig: (LlmGenerationConfig) -> Unit,
     onRefreshDiskCheckClick: () -> Unit,
     onDownloadSpeechModelsClick: () -> Unit,
+    onDownloadOfflineRescorerClick: () -> Unit,
     onDownloadLlmModelClick: (customUrl: String, token: String?) -> Unit,
     onImportLlmFileClick: () -> Unit,
     onCancelDownloadClick: () -> Unit,
@@ -478,6 +481,36 @@ private fun ModelsCard(
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3700B3))
             ) {
                 Text("Auto-Download Speech Models (VAD + STT)", fontSize = 12.sp, color = Color.White)
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xFF1B2838), RoundedCornerShape(8.dp))
+                    .padding(10.dp)
+            ) {
+                Text(
+                    text = "Phase 3 STT Architecture",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF03DAC5)
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "• Pass 1 (HUD): Streaming Zipformer (GigaSpeech 10k hrs, 0ms lag)\n• Grammar: 100+ Acronyms Truecased (API, SQL, Kotlin) + '?'\n• Pass 2 (Rescore): Optional Whisper tiny.en",
+                    fontSize = 10.sp,
+                    color = Color(0xFFECEFF1)
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                OutlinedButton(
+                    onClick = onDownloadOfflineRescorerClick,
+                    enabled = !isDownloading,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Download Whisper Rescorer (Optional ~103 MB)", fontSize = 11.sp, color = Color.White)
+                }
             }
 
             Spacer(modifier = Modifier.height(8.dp))

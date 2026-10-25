@@ -37,12 +37,23 @@ This document serves as the authoritative technical context guide for AI Coding 
 ### 1. `AppContainer.kt` & `AppConfig.kt`
 - **`AppContainer`**: Singleton DI container initialized with application context.
 - **`AppConfig`**: Manages model storage paths (`modelsRootDir`), URL constants, model validation reports, and Gemma prompt formatting (`formatGemmaPrompt`).
-- **`ensureHotwordsFile()`**: Generates `hotwords.txt` containing 70+ technical, behavioral, business, finance, and medical terms for Sherpa-ONNX beam search biasing.
+- **`ensureHotwordsFile()`**: Generates `hotwords.txt` containing 70+ technical, behavioral, business, finance, and medical terms formatted in lowercase matching Sherpa-ONNX's BPE vocabulary for `modified_beam_search` biasing.
 
-### 2. Audio Capture & STT Pipeline
-- **`MicrophoneAudioCaptureSource`**: Captures 16 kHz MONO PCM-16 float chunks and attaches Android hardware `NoiseSuppressor`, `AutomaticGainControl`, and `AcousticEchoCanceler` to `audioSessionId`.
-- **`SherpaOnnxRuntimeBackend`**: Wraps native `com.k2fsa.sherpa.onnx.Vad` (Silero VAD) and `com.k2fsa.sherpa.onnx.OnlineRecognizer` (Zipformer transducer). Uses `decodingMethod = "greedy_search"` with native endpointing enabled.
-- **`SherpaVadSttEngine`**: 32ms audio frame window manager, tracking speech/silence frames and emitting completed `TranscriptSegment` instances on utterance endpointing.
+### 2. Audio Capture & STT Pipeline (v1.3 - Phase 3)
+- **`MicrophoneAudioCaptureSource`**: Captures 16 kHz MONO PCM-16 float chunks. Bypasses aggressive hardware `NoiseSuppressor` and `AutomaticGainControl` by default to preserve unvoiced high frequencies (3 kHz – 8 kHz) essential for English consonant recognition.
+- **`VadSttBackend` / `SherpaOnnxRuntimeBackend`**: Wraps native `com.k2fsa.sherpa.onnx.Vad` (Silero VAD) and `com.k2fsa.sherpa.onnx.OnlineRecognizer` (Zipformer transducer).
+  - Uses multi-corpus conversational model trained on **GigaSpeech + LibriSpeech** (`csukuangfj/sherpa-onnx-streaming-zipformer-en-2023-06-21`, 10,000h+ conversational audio, ~187.8 MB encoder).
+  - Uses `decodingMethod = "modified_beam_search"` with `maxActivePaths = 4`, `blankPenalty = 1.0f`, and contextual hotwords (`hotwordsScore = 2.0f`).
+  - **BPE Unit Rule:** Explicitly sets `modelConfig.modelingUnit = "bpe"` and `modelConfig.bpeVocab = config.sttTokensFile.absolutePath` to enable native C++ hotword FST compilation without tokenizer mismatch warnings.
+  - Employs a 250ms pre-roll rolling buffer to gate speech into the transducer, preventing silence and background noise from corrupting the neural network's recurrent left-context memory.
+  - Flushes acoustic lookahead buffers on endpointing via `stream.inputFinished()` prior to final result extraction, and resets state natively via `rec.reset(stream)`.
+- **`SherpaVadSttEngine` (Two-Pass Architecture)**:
+  - **Pass 1 (Streaming):** 32ms audio frame window manager emitting low-latency partial word hypotheses to `partialTranscript` for the HUD overlay.
+  - **Pass 2 (Endpointing):** Upon utterance endpointing, the accumulated audio frames (capped at 30s) are optionally rescored via `OfflineRescorerBackend`.
+  - **Punctuation & Truecasing:** Every endpointed transcript is processed by `QuestionPunctuationEngine` before emission, ensuring technical acronyms (`API`, `REST`, `SQL`, `Kotlin`, `Room`, `MVVM`) and terminal `?` or `.` are restored.
+- **`QuestionPunctuationEngine`**: Zero-overhead (<1 ms) deterministic grammar & casing engine. Restores proper capitalization, fixes colloquial contractions, truecases 100+ technical acronyms and domain keywords, and classifies questions to append `?` so `TranscriptSegment.isLikelyQuestion` is triggered deterministically.
+- **`OfflineRescorerBackend` / `SherpaOfflineWhisperRescorer`**: Second-pass offline recognizer contract wrapping `com.k2fsa.sherpa.onnx.OfflineRecognizer` with `OfflineWhisperModelConfig` (int8 Whisper tiny.en). Falls back cleanly to Pass 1 streaming result if offline models are absent or disabled.
+- **`ModelProvisioningManager`**: Automates speech model lifecycle with `.stt_version` tracking (`STT_MODEL_VERSION = "2023-06-21-gigaspeech"`). Provides `downloadOfflineRescorerModel()` for optional high-accuracy second-pass ASR rescoring.
 
 ### 3. LLM Engine & Backend
 - **`GalleryLiteRtBackend`**: Manages LiteRT `Engine` and `Conversation` sessions, supporting NPU and GPU delegation with clean synchronous resource teardown (`closeSynchronously()`).

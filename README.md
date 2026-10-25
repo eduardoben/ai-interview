@@ -7,9 +7,10 @@ An on-device, real-time **AI Interview Copilot** for Android powered by **Sherpa
 ## 🌟 Key Features
 
 - **🎙️ Real-Time Speech Recognition (STT & VAD):**
-  - Continuous 16 kHz MONO audio recording using Android's `AudioRecord` with hardware-level `NoiseSuppressor`, `AutomaticGainControl`, and `AcousticEchoCanceler`.
-  - **Sherpa-ONNX Zipformer STT Engine** and **Silero VAD** processing 32ms audio frames in real time with automatic speech endpointing.
-  - **Universal Contextual Biasing (Hotwords):** Dynamic 70+ term dictionary covering software engineering, system design, business, finance, medicine, and university admissions.
+  - High-fidelity 16 kHz MONO audio capture via Android `AudioRecord` with hardware noise suppression / AGC bypass to preserve 3 kHz – 8 kHz unvoiced consonant acoustics (fricatives / plosives).
+  - **Conversational Multi-Corpus Zipformer STT:** Powered by Sherpa-ONNX streaming Zipformer trained on **GigaSpeech + LibriSpeech** (10,000+ hours of conversational interviews, talks, and podcasts; 187.8 MB model) and **Silero VAD** processing 32ms frames.
+  - **Transducer Context Gating & Lookahead Flushing:** 250ms pre-roll rolling buffer prevents ambient room noise from corrupting neural recurrent memory; trailing lookahead frames are flushed via `stream.inputFinished()` on endpointing to eliminate clipped sentence endings.
+  - **Universal Contextual Biasing (Hotwords):** Subword BPE FST trie matching 70+ technical, behavioral, business, and domain terms using `modified_beam_search` (`maxActivePaths = 4`, `blankPenalty = 1.0f`, `hotwordsScore = 2.0f`).
 
 - **⚡ Google LiteRT-LM Gemma 4 Candidate Copilot:**
   - **Pixel Tensor TPU/NPU Acceleration:** Direct southbound delegation to `Backend.NPU(nativeLibraryDir = context.applicationInfo.nativeLibraryDir)` for AOT EdgeTPU models (`gemma-4-E2B-it_Google_Tensor_G5.litertlm`). Bundles the native `libLiteRtDispatch_GoogleTensor.so` dispatch shim in `app/src/main/jniLibs/arm64-v8a/` to interface with the Pixel EdgeTPU HAL.
@@ -29,11 +30,12 @@ An on-device, real-time **AI Interview Copilot** for Android powered by **Sherpa
 
 ```mermaid
 graph TD
-    A["Microphone (AudioRecord + Hardware AudioFX)"] -->|16kHz PCM Float Stream| B["SherpaVadSttEngine (Silero VAD + Zipformer)"]
-    B -->|Partial / Final Transcripts| C["AssistantPipelineCoordinator"]
-    C -->|Detects Interview Question| D["LiteRtGemmaEngine (GalleryLiteRtBackend)"]
+    A["Microphone (AudioRecord - Direct Unfiltered)"] -->|16kHz PCM Float Stream| B["SherpaVadSttEngine (Silero VAD + GigaSpeech Zipformer)"]
+    B -->|Pass 1: Low-Latency Streaming Tokens| F["FloatingHudOverlay (Live Partial HUD)"]
+    B -->|Pass 2 Endpoint: Audio Buffer + Offline Rescorer / QuestionPunctuationEngine| C["AssistantPipelineCoordinator"]
+    C -->|Punctuated & Truecased Question| D["LiteRtGemmaEngine (GalleryLiteRtBackend)"]
     D -->|Pixel Tensor TPU / GPU Execution| E["Gemma 4 E2B IT Model"]
-    E -->|Streaming Token Flow| F["FloatingHudOverlay (System Overlay Window)"]
+    E -->|Streaming Answer Tokens| F
 ```
 
 ---
@@ -62,8 +64,10 @@ AIInterviewAssistant/
 │   │   │   │   │   └── LlmInferenceBackend.kt     # Backend Abstractions
 │   │   │   │   ├── provisioning/                  # Model Provisioning & Downloads
 │   │   │   │   └── stt/                           # Speech-To-Text & VAD Engines
-│   │   │   │       ├── SherpaOnnxRuntimeBackend.kt# Sherpa-ONNX Native JNI Recognizer
-│   │   │   │       └── SherpaVadSttEngine.kt      # VAD Framing & Utterance Endpointing
+│   │   │   │       ├── OfflineRescorerBackend.kt  # Phase 3: Whisper Offline Second-Pass Rescorer
+│   │   │   │       ├── QuestionPunctuationEngine.kt# Phase 3: Truecasing & Technical Punctuation Engine
+│   │   │   │       ├── VadSttBackend.kt           # Sherpa-ONNX Native JNI Recognizer
+│   │   │   │       └── SherpaVadSttEngine.kt      # Two-Pass VAD Framing & Utterance Endpointing
 │   │   │   ├── service/
 │   │   │   │   ├── AssistantForegroundService.kt  # Android Foreground Service
 │   │   │   │   ├── AssistantPipelineCoordinator.kt# Audio-STT-LLM Pipeline State Machine
@@ -80,6 +84,7 @@ AIInterviewAssistant/
 
 ## 📊 Model Variants & Hardware Targets
 
+### 1. LLM Models (Google LiteRT-LM Gemma 4 E2B IT)
 | Variant | Filename | Size on Disk | Target Backend | Optimal Hardware |
 |---|---|---|---|---|
 | **Pixel Tensor G5 TPU** | `gemma-4-E2B-it_Google_Tensor_G5.litertlm` | **~3.11 GB** (3,113,545,589 B) | `Backend.NPU` | Google Pixel 10 Pro / 10 Pro XL (Tensor G5) |
@@ -90,16 +95,29 @@ AIInterviewAssistant/
 > [!IMPORTANT]
 > **AOT Tensor TPU models** are pre-compiled specifically for the Pixel EdgeTPU and **cannot** execute on GPU/CPU backends. Always use the Universal GPU variant for non-Tensor hardware.
 
+### 2. Speech Models (Sherpa-ONNX & Silero VAD)
+| Component | Checkpoint / Source | Filename | Size on Disk | Purpose |
+|---|---|---|---|---|
+| **VAD Engine** | `deepghs/silero-vad-onnx` | `silero_vad.onnx` | **2.22 MB** | 32ms frame voice activity detection & onset gating |
+| **STT Encoder** | GigaSpeech + LibriSpeech (`2023-06-21`) | `encoder.onnx` | **187.82 MB** | 10,000h conversational speech acoustic modeling |
+| **STT Decoder** | Zipformer Transducer (`2023-06-21`) | `decoder.onnx` | **2.00 MB** | Predictor network |
+| **STT Joiner** | Zipformer Transducer (`2023-06-21`) | `joiner.onnx` | **0.25 MB** | Joint acoustic-predictor output layer |
+| **Tokens & Trie** | BPE Subword Tokenizer (`500 tokens`) | `tokens.txt` | **5.05 KB** | BPE subword vocabulary for beam search & hotwords |
+
 ---
 
 ## 🚀 Verified Benchmarks (Google Pixel 10 Pro XL)
 
-Measured live on a physical Pixel 10 Pro XL running Android 15 / 16:
+Measured live on physical Pixel 10 Pro XL hardware (Android 15 / 16, Google Tensor G5 SoC):
 
 - **NPU (Tensor G5 EdgeTPU) Execution:**
-  - **Time-to-First-Token (TTFT):** **276 ms**
-  - **Generation Speed:** **~19.8 – 20.0 tokens/second**
-  - **Memory Headroom:** ~3.7 GB available (LowMemory = false)
+  - **Time-to-First-Token (TTFT):** **215 ms – 276 ms**
+  - **Generation Speed:** **~19.6 – 20.0 tokens/second**
+  - **Memory Headroom:** ~3.0 – 3.7 GB available (LowMemory = false)
+- **Real-Time Streaming STT Execution:**
+  - **Acoustic Pre-Roll:** 250 ms rolling buffer gating quiescent silence.
+  - **Lookahead Flushing:** Zero word truncation on sentence endpointing.
+  - **Hotwords Biasing:** 70+ terms compiled into native BPE FST trie (`modified_beam_search`, `hotwordsScore = 2.0f`).
 - **GPU (OpenCL Delegate) Execution:**
   - **Partitioning:** 2068 of 2068 nodes mapped to `LITERT_CL` delegate.
 

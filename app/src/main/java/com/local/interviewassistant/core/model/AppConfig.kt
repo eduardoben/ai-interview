@@ -11,9 +11,19 @@ class AppConfig(val modelsRootDir: File) {
     val sttDecoderFile = File(modelsRootDir, "decoder.onnx")
     val sttJoinerFile = File(modelsRootDir, "joiner.onnx")
     val sttTokensFile = File(modelsRootDir, "tokens.txt")
+    val sttModelVersionFile = File(modelsRootDir, ".stt_version")
     val hotwordsFile = File(modelsRootDir, "hotwords.txt")
+    val offlineWhisperEncoderFile = File(modelsRootDir, "tiny.en-encoder.int8.onnx")
+    val offlineWhisperDecoderFile = File(modelsRootDir, "tiny.en-decoder.int8.onnx")
+    val offlineWhisperTokensFile = File(modelsRootDir, "tiny.en-tokens.txt")
     val llmModelFile = File(modelsRootDir, "gemma-4-E2B-it.litertlm")
     val tpuLlmModelFile = File(modelsRootDir, resolveTensorModelFileName())
+
+    fun hasOfflineRescorer(): Boolean {
+        return offlineWhisperEncoderFile.exists() && offlineWhisperEncoderFile.length() > 0L &&
+                offlineWhisperDecoderFile.exists() && offlineWhisperDecoderFile.length() > 0L &&
+                offlineWhisperTokensFile.exists() && offlineWhisperTokensFile.length() > 0L
+    }
 
     fun resolveTensorModelFileName(): String {
         val soc = try { android.os.Build.SOC_MODEL.lowercase().trim() } catch (_: Throwable) { "" }
@@ -26,48 +36,57 @@ class AppConfig(val modelsRootDir: File) {
         }
     }
 
-    fun ensureHotwordsFile(): File {
-        if (!hotwordsFile.exists() || hotwordsFile.length() <= 0L) {
+    fun ensureHotwordsFile(forceRefresh: Boolean = false): File {
+        val needsRefresh = forceRefresh || !hotwordsFile.exists() || hotwordsFile.length() <= 0L ||
+                try { hotwordsFile.readText().any { it.isUpperCase() } } catch (_: Throwable) { true }
+
+        if (needsRefresh) {
             val keywords = listOf(
                 // General, Behavioral & School / University Admissions
-                "BEHAVIORAL", "STRENGTHS", "WEAKNESSES", "LEADERSHIP", "ACHIEVEMENT", "CHALLENGE",
-                "CONFLICT", "RESOLUTION", "STAR", "SITUATION", "TASK", "ACTION", "RESULT",
-                "MOTIVATION", "COLLABORATION", "COMMUNICATION", "TEAMWORK", "ACADEMIC", "ADMISSIONS",
-                "RESEARCH", "CURRICULUM", "THESIS", "UNDERGRADUATE", "GRADUATE", "DISSERTATION",
-                "EXTRACURRICULAR", "EXPERIENCE", "PROJECT", "MANAGEMENT", "ORGANIZATION",
+                "behavioral", "strengths", "weaknesses", "leadership", "achievement", "challenge",
+                "conflict", "resolution", "star", "situation", "task", "action", "result",
+                "motivation", "collaboration", "communication", "teamwork", "academic", "admissions",
+                "research", "curriculum", "thesis", "undergraduate", "graduate", "dissertation",
+                "extracurricular", "experience", "project", "management", "organization",
                 
                 // Software, Engineering & Computer Science
-                "KOTLIN", "JAVA", "COROUTINES", "STATEFLOW", "SHAREDFLOW", "MUTABLESTATEFLOW",
-                "VIEWMODEL", "LIFECYCLE", "JETPACK", "COMPOSE", "DEPENDENCY", "INJECTION",
-                "HILT", "DAGGER", "ROOM", "RETROFIT", "OKHTTP", "SERIALIZATION",
-                "POLYMORPHISM", "INHERITANCE", "ENCAPSULATION", "ABSTRACTION", "INTERFACE",
-                "MULTITHREADING", "CONCURRENCY", "SYNCHRONIZED", "VOLATILE", "MUTEX",
-                "DISPATCHERS", "MAIN", "DEFAULT", "IO", "UNCONFINED", "SUSPEND",
-                "SOLID", "SINGLETON", "FACTORY", "OBSERVER", "REPOSITORY", "ARCHITECTURE",
-                "MVVM", "MVI", "CLEAN", "TESTING", "JUNIT", "MOCKK", "ESPRESSO",
-                "PLAYWRIGHT", "SELENIUM", "DOCKER", "KUBERNETES", "FASTAPI", "SPRING",
-                "BOOT", "PYTHON", "TYPESCRIPT", "JAVASCRIPT", "REACT", "ANGULAR",
-                "POSTGRESQL", "MYSQL", "MONGODB", "REDIS", "GRAPHQL", "REST", "API",
-                "MICROSERVICES", "KAFKA", "RABBITMQ", "CI", "CD", "GARBAGE", "COLLECTION",
-                "HEAP", "STACK", "MEMORY", "LEAK", "ALGORITHMS", "DATASTRUCTURES",
+                "kotlin", "java", "coroutines", "stateflow", "sharedflow", "mutablestateflow",
+                "viewmodel", "lifecycle", "jetpack", "compose", "dependency injection",
+                "hilt", "dagger", "room", "retrofit", "okhttp", "serialization",
+                "polymorphism", "inheritance", "encapsulation", "abstraction", "interface",
+                "multithreading", "concurrency", "synchronized", "volatile", "mutex",
+                "dispatchers", "main", "default", "io", "unconfined", "suspend",
+                "solid", "singleton", "factory", "observer", "repository", "architecture",
+                "mvvm", "mvi", "clean architecture", "testing", "junit", "mockk", "espresso",
+                "playwright", "selenium", "docker", "kubernetes", "fastapi", "spring boot",
+                "python", "typescript", "javascript", "react", "angular",
+                "postgresql", "mysql", "mongodb", "redis", "graphql", "rest api",
+                "microservices", "kafka", "rabbitmq", "ci cd", "garbage collection",
+                "heap", "stack", "memory leak", "algorithms", "data structures",
 
                 // Product, Business & Operations
-                "ROADMAP", "STAKEHOLDER", "METRICS", "KPI", "KPIS", "ANALYTICS",
-                "USEREXPERIENCE", "PRIORITIZATION", "AGILE", "SCRUM", "STRATEGY",
-                "OPPORTUNITY", "MARKET", "COMPETITOR", "REVENUE", "GROWTH",
+                "roadmap", "stakeholder", "metrics", "kpi", "kpis", "analytics",
+                "user experience", "prioritization", "agile", "scrum", "strategy",
+                "opportunity", "market", "competitor", "revenue", "growth",
 
                 // Finance, Economics & Consulting
-                "VALUATION", "EBITDA", "PROFITABILITY", "ROI", "BALANCESHEET",
-                "INCOMESTATEMENT", "CASHFLOW", "PORTFOLIO", "FINANCIAL", "MODELING",
-                "CAPITAL", "ASSETS", "EQUITY", "MARGIN",
+                "valuation", "ebitda", "profitability", "roi", "balance sheet",
+                "income statement", "cash flow", "portfolio", "financial modeling",
+                "capital", "assets", "equity", "margin",
 
                 // Medicine, Healthcare & Sciences
-                "CLINICAL", "PATIENT", "DIAGNOSIS", "TREATMENT", "PATHOLOGY",
-                "PHARMACOLOGY", "ANATOMY", "BIOLOGY", "ONCOLOGY", "CARDIOLOGY",
-                "SURGERY", "PRACTICE",
+                "clinical", "patient", "diagnosis", "treatment", "pathology",
+                "pharmacology", "anatomy", "biology", "oncology", "cardiology",
+                "surgery", "practice",
+
+                // Common Question & Interview conversational patterns
+                "tell me about", "what is the difference between",
+                "how do you handle", "can you explain", "walk me through",
+                "how does", "what are the advantages of", "why would you choose",
+                "what happens when", "how would you design"
             )
             try {
-                hotwordsFile.writeText(keywords.joinToString("\n"))
+                hotwordsFile.writeText(keywords.map { it.trim().lowercase() }.filter { it.isNotBlank() }.joinToString("\n"))
             } catch (_: Exception) {}
         }
         return hotwordsFile
@@ -93,6 +112,13 @@ class AppConfig(val modelsRootDir: File) {
     val minSilenceDurationSec: Float = 0.6f
     val minSpeechDurationSec: Float = 0.25f
     val minQuestionLengthChars: Int = 12
+
+    // STT Decoding & Beam Search Configuration (v1.1)
+    val sttDecodingMethod: String = "modified_beam_search"
+    val sttMaxActivePaths: Int = 4
+    val sttHotwordsScore: Float = 2.0f
+    val sttBlankPenalty: Float = 1.0f
+    val enableHardwareAudioEffects: Boolean = false
 
     private val _llmConfig = MutableStateFlow(LlmGenerationConfig())
     val llmConfig: StateFlow<LlmGenerationConfig> = _llmConfig
@@ -168,10 +194,14 @@ class AppConfig(val modelsRootDir: File) {
 
     companion object {
         const val VAD_URL = "https://huggingface.co/deepghs/silero-vad-onnx/resolve/main/silero_vad.onnx"
-        const val STT_ENCODER_URL = "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-en-2023-06-26/resolve/main/encoder-epoch-99-avg-1-chunk-16-left-128.int8.onnx"
-        const val STT_DECODER_URL = "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-en-2023-06-26/resolve/main/decoder-epoch-99-avg-1-chunk-16-left-128.onnx"
-        const val STT_JOINER_URL = "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-en-2023-06-26/resolve/main/joiner-epoch-99-avg-1-chunk-16-left-128.int8.onnx"
-        const val STT_TOKENS_URL = "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-en-2023-06-26/resolve/main/tokens.txt"
+        const val STT_MODEL_VERSION = "2023-06-21-gigaspeech"
+        const val STT_ENCODER_URL = "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-en-2023-06-21/resolve/main/encoder-epoch-99-avg-1.int8.onnx"
+        const val STT_DECODER_URL = "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-en-2023-06-21/resolve/main/decoder-epoch-99-avg-1.onnx"
+        const val STT_JOINER_URL = "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-en-2023-06-21/resolve/main/joiner-epoch-99-avg-1.int8.onnx"
+        const val STT_TOKENS_URL = "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-en-2023-06-21/resolve/main/tokens.txt"
+        const val WHISPER_TINY_ENCODER_URL = "https://huggingface.co/csukuangfj/sherpa-onnx-whisper-tiny.en/resolve/main/tiny.en-encoder.int8.onnx"
+        const val WHISPER_TINY_DECODER_URL = "https://huggingface.co/csukuangfj/sherpa-onnx-whisper-tiny.en/resolve/main/tiny.en-decoder.int8.onnx"
+        const val WHISPER_TINY_TOKENS_URL = "https://huggingface.co/csukuangfj/sherpa-onnx-whisper-tiny.en/resolve/main/tiny.en-tokens.txt"
         const val DEFAULT_LLM_URL = "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm"
         const val DEFAULT_TPU_LLM_URL = "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it_Google_Tensor_G5.litertlm"
     }
