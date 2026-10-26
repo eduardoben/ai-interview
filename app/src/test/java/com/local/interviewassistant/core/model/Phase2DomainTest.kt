@@ -106,18 +106,20 @@ class Phase2DomainTest {
         val baseDir = tempFolder.newFolder("models_dir")
         val config = AppConfig(baseDir)
 
-        // 3. Valid files with supported extensions and size > 0
+        // 3. Valid files with supported extension and size > 0
         val validFile1 = File(baseDir, "model1.litertlm").apply { writeText("data") }
-        val validFile2 = File(baseDir, "model2.bin").apply { writeText("data") }
 
-        // 4. Valid files with supported extensions but size == 0
-        val emptyFile = File(baseDir, "empty.task").apply { writeText("") }
+        // 4. Supported extension but size == 0
+        val emptyFile = File(baseDir, "empty.litertlm").apply { writeText("") }
 
-        // 5. Files with unsupported extensions
+        // 5. Unsupported extensions (legacy MediaPipe/TFLite formats are no longer runnable)
         val unsupportedFile = File(baseDir, "model.txt").apply { writeText("data") }
+        val legacyBin = File(baseDir, "model2.bin").apply { writeText("data") }
+        val legacyTask = File(baseDir, "model5.task").apply { writeText("data") }
+        val legacyTflite = File(baseDir, "model3.tflite").apply { writeText("data") }
 
         // 6. Case insensitivity of extensions
-        val uppercaseExtFile = File(baseDir, "model3.TFLITE").apply { writeText("data") }
+        val uppercaseExtFile = File(baseDir, "model6.LITERTLM").apply { writeText("data") }
 
         // 7. Subdirectories are traversed correctly
         val subDir = File(baseDir, "subdir").apply { mkdir() }
@@ -125,12 +127,14 @@ class Phase2DomainTest {
 
         val discoveredFiles = config.discoverLocalModels()
 
-        assertEquals(4, discoveredFiles.size)
+        assertEquals(3, discoveredFiles.size)
         assertTrue(discoveredFiles.contains(validFile1))
-        assertTrue(discoveredFiles.contains(validFile2))
         assertTrue(discoveredFiles.contains(uppercaseExtFile))
         assertTrue(discoveredFiles.contains(subDirFile))
         assertFalse(discoveredFiles.contains(emptyFile))
         assertFalse(discoveredFiles.contains(unsupportedFile))
+        assertFalse(discoveredFiles.contains(legacyBin))
+        assertFalse(discoveredFiles.contains(legacyTask))
+        assertFalse(discoveredFiles.contains(legacyTflite))
     }
 }

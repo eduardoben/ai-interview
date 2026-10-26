@@ -4,7 +4,7 @@ import com.local.interviewassistant.core.model.AssistantState
 import com.local.interviewassistant.core.model.CopilotUiState
 import com.local.interviewassistant.core.model.TranscriptSegment
 import com.local.interviewassistant.data.audio.AudioSource
-import com.local.interviewassistant.data.llm.LiteRtGemmaEngine
+import com.local.interviewassistant.data.llm.LlmEngine
 import com.local.interviewassistant.data.llm.LlmStreamEvent
 import com.local.interviewassistant.data.stt.SherpaVadSttEngine
 import kotlinx.coroutines.CoroutineScope
@@ -18,7 +18,7 @@ import kotlinx.coroutines.launch
 class AssistantPipelineCoordinator(
     private val audioSource: AudioSource,
     private val sttEngine: SherpaVadSttEngine,
-    private val llmEngine: LiteRtGemmaEngine,
+    private val llmEngine: LlmEngine,
     private val scope: CoroutineScope,
     private val appConfig: com.local.interviewassistant.core.model.AppConfig? = null,
 ) {

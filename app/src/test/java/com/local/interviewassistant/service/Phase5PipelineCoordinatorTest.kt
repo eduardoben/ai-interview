@@ -2,48 +2,59 @@ package com.local.interviewassistant.service
 
 import com.local.interviewassistant.core.model.AppConfig
 import com.local.interviewassistant.core.model.AssistantState
+import com.local.interviewassistant.core.model.TranscriptSegment
 import com.local.interviewassistant.data.audio.AudioSource
-import com.local.interviewassistant.data.llm.LiteRtGemmaEngine
-import com.local.interviewassistant.data.llm.LlmInferenceBackend
+import com.local.interviewassistant.data.llm.LlmEngine
+import com.local.interviewassistant.data.llm.LlmStreamEvent
 import com.local.interviewassistant.data.stt.SherpaVadSttEngine
 import com.local.interviewassistant.data.stt.VadSttBackend
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.setMain
-import kotlinx.coroutines.test.resetMain
-import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
-import org.junit.Before
-import org.junit.Ignore
 import org.junit.Test
 import java.io.File
 
-@Ignore("LiteRtGemmaEngine now initializes JNI Engine internally and natively on a dedicated dispatcher. Cannot be unit tested purely on JVM.")
 @OptIn(ExperimentalCoroutinesApi::class)
 class Phase5PipelineCoordinatorTest {
 
-    private val testDispatcher = StandardTestDispatcher()
-    private val testScope = TestScope(testDispatcher)
+    class FakeLlmEngine : LlmEngine {
+        private val _isInitialized = MutableStateFlow(false)
+        override val isInitialized: StateFlow<Boolean> = _isInitialized.asStateFlow()
+        var generateAnswerCalledWith = ""
+        var isReleased = false
 
-    @Before
-    fun setup() {
-        Dispatchers.setMain(testDispatcher)
-    }
+        override suspend fun initialize(): Result<Unit> {
+            _isInitialized.value = true
+            return Result.success(Unit)
+        }
 
-    @After
-    fun tearDown() {
-        Dispatchers.resetMain()
+        override fun generateAnswerStream(question: String): Flow<LlmStreamEvent> = flow {
+            generateAnswerCalledWith = question
+            emit(LlmStreamEvent.PartialToken("Answer", "Answer", 25L))
+            emit(LlmStreamEvent.Completed("Answer for $question", 25L, 75L))
+        }
+
+        override suspend fun release() {
+            _isInitialized.value = false
+            isReleased = true
+        }
     }
 
     @Test
-    fun testInitializationAndStart() = testScope.runTest {
+    fun testInitializationAndStart() = runTest {
+        val testDispatcher = StandardTestDispatcher(testScheduler)
+        val testScope = TestScope(testDispatcher)
+
         val fakeAudioSource = object : AudioSource {
             override fun audioStream(): Flow<FloatArray> = flow { }
         }
@@ -56,34 +67,34 @@ class Phase5PipelineCoordinatorTest {
             override fun release() {}
         }
 
-        val fakeLlmBackend = object : LlmInferenceBackend {
-            override fun initialize(config: AppConfig) {}
-            override fun generateAsync(prompt: String, onPartialResult: (String, Boolean) -> Unit, onError: (Throwable) -> Unit) {}
-            override fun cancel() {}
-            override fun close() {}
-        }
-
         val config = AppConfig(File("tmp"))
         val sttEngine = SherpaVadSttEngine(config, fakeVadSttBackend)
-        val llmEngine = LiteRtGemmaEngine(null!!, config)
+        val llmEngine = FakeLlmEngine()
 
         val coordinator = AssistantPipelineCoordinator(
             fakeAudioSource,
             sttEngine,
             llmEngine,
-            backgroundScope,
+            testScope,
+            config,
         )
         
         assertEquals(AssistantState.Idle, coordinator.state.value)
 
         coordinator.start()
-        advanceUntilIdle()
+        testScope.advanceUntilIdle()
 
         assertEquals(AssistantState.Listening, coordinator.state.value)
+        assertTrue(llmEngine.isInitialized.value)
+
+        coordinator.stop()
     }
 
     @Test
-    fun testTogglePause() = testScope.runTest {
+    fun testTogglePause() = runTest {
+        val testDispatcher = StandardTestDispatcher(testScheduler)
+        val testScope = TestScope(testDispatcher)
+
         val fakeAudioSource = object : AudioSource {
             override fun audioStream(): Flow<FloatArray> = flow { }
         }
@@ -94,40 +105,78 @@ class Phase5PipelineCoordinatorTest {
             override fun finalizeAndResetStream(): String = ""
             override fun release() {}
         }
-        val fakeLlmBackend = object : LlmInferenceBackend {
-            override fun initialize(config: AppConfig) {}
-            override fun generateAsync(prompt: String, onPartialResult: (String, Boolean) -> Unit, onError: (Throwable) -> Unit) {}
-            override fun cancel() {}
-            override fun close() {}
-        }
 
         val config = AppConfig(File("tmp"))
         val sttEngine = SherpaVadSttEngine(config, fakeVadSttBackend)
-        val llmEngine = LiteRtGemmaEngine(null!!, config)
+        val llmEngine = FakeLlmEngine()
 
         val coordinator = AssistantPipelineCoordinator(
             fakeAudioSource,
             sttEngine,
             llmEngine,
-            backgroundScope,
+            testScope,
+            config,
         )
 
         coordinator.start()
-        advanceUntilIdle()
-        
+        testScope.advanceUntilIdle()
         assertEquals(AssistantState.Listening, coordinator.state.value)
 
         coordinator.togglePause()
-        advanceUntilIdle()
-        
-        // Since test scheduler might not process the inner launch properly in this mocked setup,
-        // we at least verify the togglePause method doesn't throw.
-        assertTrue(true)
+        testScope.advanceUntilIdle()
+        assertEquals(AssistantState.Paused, coordinator.state.value)
+
+        coordinator.togglePause()
+        testScope.advanceUntilIdle()
+        assertEquals(AssistantState.Listening, coordinator.state.value)
+
+        coordinator.stop()
     }
 
     @Test
-    fun testClearCurrentAnswer() = testScope.runTest {
-        // Similar basic check to ensure no crashes
-        assertTrue(true)
+    fun testClearCurrentAnswer() = runTest {
+        val testDispatcher = StandardTestDispatcher(testScheduler)
+        val testScope = TestScope(testDispatcher)
+
+        val fakeAudioSource = object : AudioSource {
+            override fun audioStream(): Flow<FloatArray> = flow { }
+        }
+        val fakeVadSttBackend = object : VadSttBackend {
+            override suspend fun initialize(config: AppConfig): Result<Unit> = Result.success(Unit)
+            override fun acceptWaveform(samples: FloatArray, sampleRate: Int): Boolean = false
+            override fun getPartialTranscript(): String = ""
+            override fun finalizeAndResetStream(): String = ""
+            override fun release() {}
+        }
+
+        val config = AppConfig(File("tmp"))
+        val sttEngine = SherpaVadSttEngine(config, fakeVadSttBackend)
+        val llmEngine = FakeLlmEngine()
+
+        val coordinator = AssistantPipelineCoordinator(
+            fakeAudioSource,
+            sttEngine,
+            llmEngine,
+            testScope,
+            config,
+        )
+
+        coordinator.start()
+        testScope.advanceUntilIdle()
+
+        val segment = TranscriptSegment(text = "What is Kotlin?", isFinal = true)
+        coordinator.selectTranscriptSegmentForAnswer(segment)
+        testScope.advanceUntilIdle()
+
+        assertEquals("What is Kotlin?", coordinator.copilotUiState.value.activeQuestion)
+
+        coordinator.clearCurrentAnswer()
+        testScope.advanceUntilIdle()
+
+        assertEquals(AssistantState.Listening, coordinator.state.value)
+        assertNull(coordinator.copilotUiState.value.activeQuestion)
+        assertNull(coordinator.copilotUiState.value.activeAnswer)
+
+        coordinator.stop()
     }
 }

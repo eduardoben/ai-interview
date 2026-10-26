@@ -63,7 +63,11 @@ This document serves as the authoritative technical context guide for AI Coding 
 ### 4. Service & Pipeline Coordinator
 - **`AssistantPipelineCoordinator`**: State machine driving Audio -> STT -> Question Detection -> Gemma Stream -> Copilot UI state.
 - **`AssistantForegroundService`**: Android Foreground Service displaying ongoing notification and managing `WindowManager` overlay views.
+- **`ModelDownloadService`**: Foreground service (`FOREGROUND_SERVICE_TYPE_DATA_SYNC` + partial `WakeLock`) enabling uninterrupted background downloads of multi-gigabyte models when the screen turns off or the phone is locked.
 - **`FloatingHudOverlay`**: Draggable floating Compose window featuring live transcript history, quick-action mode chips, and response panel.
+
+### 5. Instrumentation & Real-Device Hardware Verification
+- **`RealDevicePipelineIntegrationTest`**: Grounded test suite verifying physical device specs (Pixel 10 Pro XL, Tensor G5, API 37), on-disk model layouts, sub-millisecond punctuation latency (<0.25ms), Sherpa-ONNX streaming Zipformer frame processing (<8ms), LiteRT EdgeTPU NPU execution via `libLiteRtDispatch_GoogleTensor.so`, and background service contracts.
 
 ---
 

@@ -3,44 +3,46 @@ package com.local.interviewassistant.service
 import com.local.interviewassistant.core.model.AppConfig
 import com.local.interviewassistant.core.model.TranscriptSegment
 import com.local.interviewassistant.data.audio.AudioSource
-import com.local.interviewassistant.data.llm.LiteRtGemmaEngine
-import com.local.interviewassistant.data.llm.LlmInferenceBackend
+import com.local.interviewassistant.data.llm.LlmEngine
+import com.local.interviewassistant.data.llm.LlmStreamEvent
 import com.local.interviewassistant.data.stt.SherpaVadSttEngine
 import com.local.interviewassistant.data.stt.VadSttBackend
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.setMain
-import kotlinx.coroutines.test.resetMain
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
-import org.junit.Before
-import org.junit.Ignore
 import org.junit.Test
 import java.io.File
 
-@Ignore("LiteRtGemmaEngine now initializes JNI Engine internally and natively on a dedicated dispatcher. Cannot be unit tested purely on JVM.")
 @OptIn(ExperimentalCoroutinesApi::class)
 class Phase8CopilotUiTest {
 
-    private val testDispatcher = StandardTestDispatcher()
-    private val testScope = TestScope(testDispatcher)
+    class FakeLlmEngine : LlmEngine {
+        private val _isInitialized = MutableStateFlow(false)
+        override val isInitialized: StateFlow<Boolean> = _isInitialized.asStateFlow()
 
-    @Before
-    fun setup() {
-        Dispatchers.setMain(testDispatcher)
-    }
+        override suspend fun initialize(): Result<Unit> {
+            _isInitialized.value = true
+            return Result.success(Unit)
+        }
 
-    @After
-    fun tearDown() {
-        Dispatchers.resetMain()
+        override fun generateAnswerStream(question: String): Flow<LlmStreamEvent> = flow {
+            emit(LlmStreamEvent.PartialToken("$question answer", "$question answer", 20L))
+            emit(LlmStreamEvent.Completed("$question answer", 20L, 60L))
+        }
+
+        override suspend fun release() {
+            _isInitialized.value = false
+        }
     }
 
     @Test
@@ -65,7 +67,10 @@ class Phase8CopilotUiTest {
     }
 
     @Test
-    fun testAnswerPersistsWhileSubsequentShortSpeechOccurs() = testScope.runTest {
+    fun testAnswerPersistsWhileSubsequentShortSpeechOccurs() = runTest {
+        val testDispatcher = StandardTestDispatcher(testScheduler)
+        val testScope = TestScope(testDispatcher)
+
         val fakeAudioSource = object : AudioSource {
             override fun audioStream(): Flow<FloatArray> = flow { }
         }
@@ -78,27 +83,24 @@ class Phase8CopilotUiTest {
             override fun release() {}
         }
 
-        val fakeLlmBackend = object : LlmInferenceBackend {
-            override fun initialize(config: AppConfig) {}
-            override fun generateAsync(prompt: String, onPartialResult: (String, Boolean) -> Unit, onError: (Throwable) -> Unit) {
-                onPartialResult("$prompt answer", true)
-            }
-            override fun cancel() {}
-            override fun close() {}
-        }
-
         val config = AppConfig(File("tmp"))
         val sttEngine = SherpaVadSttEngine(config, fakeVadSttBackend)
-        val llmEngine = LiteRtGemmaEngine(null!!, config)
+        val llmEngine = FakeLlmEngine()
 
-        val coordinator = AssistantPipelineCoordinator(fakeAudioSource, sttEngine, llmEngine, this)
+        val coordinator = AssistantPipelineCoordinator(
+            audioSource = fakeAudioSource,
+            sttEngine = sttEngine,
+            llmEngine = llmEngine,
+            scope = testScope,
+            appConfig = config,
+        )
         coordinator.start()
-        advanceUntilIdle()
+        testScope.advanceUntilIdle()
 
         // Instead of triggering completedQuestion natively, we force endpoint
         val segment = TranscriptSegment(text = "How does this work?", isFinal = true)
         coordinator.selectTranscriptSegmentForAnswer(segment)
-        advanceUntilIdle()
+        testScope.advanceUntilIdle()
         
         val stateAfterQuestion = coordinator.copilotUiState.value
         assertEquals("How does this work?", stateAfterQuestion.activeQuestion)
@@ -108,7 +110,10 @@ class Phase8CopilotUiTest {
     }
 
     @Test
-    fun testSelectTranscriptSegmentTriggersManualAnswer() = testScope.runTest {
+    fun testSelectTranscriptSegmentTriggersManualAnswer() = runTest {
+        val testDispatcher = StandardTestDispatcher(testScheduler)
+        val testScope = TestScope(testDispatcher)
+
         val fakeAudioSource = object : AudioSource {
             override fun audioStream(): Flow<FloatArray> = flow { }
         }
@@ -121,26 +126,23 @@ class Phase8CopilotUiTest {
             override fun release() {}
         }
 
-        val fakeLlmBackend = object : LlmInferenceBackend {
-            override fun initialize(config: AppConfig) {}
-            override fun generateAsync(prompt: String, onPartialResult: (String, Boolean) -> Unit, onError: (Throwable) -> Unit) {
-                onPartialResult("$prompt manual answer", true)
-            }
-            override fun cancel() {}
-            override fun close() {}
-        }
-
         val config = AppConfig(File("tmp"))
         val sttEngine = SherpaVadSttEngine(config, fakeVadSttBackend)
-        val llmEngine = LiteRtGemmaEngine(null!!, config)
+        val llmEngine = FakeLlmEngine()
 
-        val coordinator = AssistantPipelineCoordinator(fakeAudioSource, sttEngine, llmEngine, this)
+        val coordinator = AssistantPipelineCoordinator(
+            audioSource = fakeAudioSource,
+            sttEngine = sttEngine,
+            llmEngine = llmEngine,
+            scope = testScope,
+            appConfig = config,
+        )
         coordinator.start()
-        advanceUntilIdle()
+        testScope.advanceUntilIdle()
 
         val segment = TranscriptSegment(text = "Just a statement", isFinal = true)
         coordinator.selectTranscriptSegmentForAnswer(segment)
-        advanceUntilIdle()
+        testScope.advanceUntilIdle()
 
         val stateAfterSelect = coordinator.copilotUiState.value
         assertEquals("Just a statement", stateAfterSelect.activeQuestion)

@@ -58,7 +58,7 @@ class Phase3AudioSttTest {
         val engine = SherpaVadSttEngine(dummyConfig, fakeBackend)
 
         // Min speech frames = 8
-        // Min silence frames = 25
+        // Min silence frames = 38 (ceil(1.2s / 0.032s))
         val window = FloatArray(dummyConfig.vadWindowSizeSamples)
 
         // 1. Feed 10 frames of speech
@@ -83,7 +83,7 @@ class Phase3AudioSttTest {
             }
         }
 
-        repeat(25) {
+        repeat(40) {
             engine.processAudioChunk(window)
         }
 
@@ -118,7 +118,7 @@ class Phase3AudioSttTest {
             }
         }
 
-        repeat(25) {
+        repeat(40) {
             engine.processAudioChunk(window)
         }
 
@@ -316,7 +316,7 @@ class Phase3AudioSttTest {
         // Feed silence to trigger endpointing
         fakeBackend.isSpeechNext = false
         fakeBackend.currentFinal = "can you explain kotlin stateflow"
-        repeat(25) {
+        repeat(40) {
             engine.processAudioChunk(window)
         }
 
@@ -358,7 +358,7 @@ class Phase3AudioSttTest {
 
         fakeBackend.isSpeechNext = false
         fakeBackend.currentFinal = "what is clean architecture in kotlin"
-        repeat(25) {
+        repeat(40) {
             engine.processAudioChunk(window)
         }
 
@@ -385,11 +385,373 @@ class Phase3AudioSttTest {
 
         fakeBackend.isSpeechNext = false
         fakeBackend.currentFinal = "success"
-        repeat(25) {
+        repeat(40) {
             engine.processAudioChunk(window)
         }
 
         // Verify maxUtteranceWindows capped the buffer to ~30 seconds (30 / 0.032 = 937 windows * 512 = 479744 samples)
         assertTrue(fakeRescorer.recordedSamplesCount <= 1000 * dummyConfig.vadWindowSizeSamples)
     }
+
+    @Test
+    fun testPcm16ToFloatArrayEdgeCases() {
+        // Empty array
+        val emptyFloats = MicrophoneAudioCaptureSource.pcm16ToFloatArray(shortArrayOf(), 0)
+        assertEquals(0, emptyFloats.size)
+
+        // Extreme bounds and clamping
+        val extremes = shortArrayOf(Short.MIN_VALUE, Short.MAX_VALUE, 0, -1, 1, 16384, -16384)
+        val extremeFloats = MicrophoneAudioCaptureSource.pcm16ToFloatArray(extremes, extremes.size)
+        assertEquals(7, extremeFloats.size)
+        assertEquals(-1.0f, extremeFloats[0], 0.0001f) // Short.MIN_VALUE (-32768) / 32768.0 = -1.0
+        assertTrue("Short.MAX_VALUE should be within [-1.0, 1.0]", extremeFloats[1] in 0.999f..1.0f)
+        assertEquals(0.0f, extremeFloats[2], 0.0001f)
+        assertTrue("Values must be within [-1.0, 1.0]", extremeFloats.all { it in -1.0f..1.0f })
+
+        // Partial buffer read: buffer has 10 elements, but readCount is only 4
+        val partialPcm = ShortArray(10) { 16384 }
+        val partialFloats = MicrophoneAudioCaptureSource.pcm16ToFloatArray(partialPcm, 4)
+        assertEquals(4, partialFloats.size)
+        assertTrue(partialFloats.all { it == 0.5f })
+    }
+
+    @Test
+    fun testSubWindowAndSuperWindowAudioChunks() = runTest {
+        val fakeBackend = FakeVadSttBackend()
+        val engine = SherpaVadSttEngine(dummyConfig, fakeBackend)
+
+        fakeBackend.isSpeechNext = true
+        fakeBackend.currentPartial = "Testing arbitrary chunk sizes"
+
+        // Window size is 512 samples.
+        // Feed 5 chunks of 100 samples (total 500 samples) -> no window should be processed yet
+        repeat(5) {
+            engine.processAudioChunk(FloatArray(100))
+        }
+        assertFalse(engine.isSpeechActive.value)
+
+        // Feed another chunk of 25 samples (total 525 samples) -> 1 window of 512 processed, 13 samples remaining in buffer
+        engine.processAudioChunk(FloatArray(25))
+
+        // Feed a super-window chunk of 1337 samples:
+        // Remaining 13 + 1337 = 1350 samples -> 2 windows of 512 (1024) processed, 326 samples left
+        engine.processAudioChunk(FloatArray(1337))
+
+        // Feed remaining samples to reach total of 8 speech frames (minSpeechFrames)
+        repeat(5) {
+            engine.processAudioChunk(FloatArray(dummyConfig.vadWindowSizeSamples))
+        }
+
+        assertTrue(engine.isSpeechActive.value)
+        assertEquals("Testing arbitrary chunk sizes", engine.partialTranscript.value)
+    }
+
+    @Test
+    fun testContinuousSilenceNeverTriggersSpeech() = runTest {
+        val fakeBackend = FakeVadSttBackend()
+        val engine = SherpaVadSttEngine(dummyConfig, fakeBackend)
+        val window = FloatArray(dummyConfig.vadWindowSizeSamples)
+
+        fakeBackend.isSpeechNext = false
+
+        val completedQuestions = mutableListOf<String>()
+        @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+        val job = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            engine.completedQuestion.collect { (_, text) ->
+                completedQuestions.add(text)
+            }
+        }
+
+        // Feed 100 consecutive frames of silence
+        repeat(100) {
+            engine.processAudioChunk(window)
+        }
+
+        assertFalse(engine.isSpeechActive.value)
+        assertEquals("", engine.partialTranscript.value)
+        assertEquals(0, completedQuestions.size)
+
+        job.cancel()
+    }
+
+    @Test
+    fun testSpeechHesitationAndStutter() = runTest {
+        val fakeBackend = FakeVadSttBackend()
+        val engine = SherpaVadSttEngine(dummyConfig, fakeBackend)
+        val window = FloatArray(dummyConfig.vadWindowSizeSamples)
+
+        // Repeat 5 times: 4 frames of speech followed by 3 frames of silence
+        // Speech count should never reach 8 (minSpeechFrames) because it resets on silence
+        repeat(5) {
+            fakeBackend.isSpeechNext = true
+            repeat(4) { engine.processAudioChunk(window) }
+            assertFalse(engine.isSpeechActive.value)
+
+            fakeBackend.isSpeechNext = false
+            repeat(3) { engine.processAudioChunk(window) }
+            assertFalse(engine.isSpeechActive.value)
+        }
+
+        assertFalse(engine.isSpeechActive.value)
+        assertEquals("", engine.partialTranscript.value)
+    }
+
+    @Test
+    fun testShortUtteranceFilteredByMinQuestionLength() = runTest {
+        val fakeBackend = FakeVadSttBackend()
+        val engine = SherpaVadSttEngine(dummyConfig, fakeBackend)
+        val window = FloatArray(dummyConfig.vadWindowSizeSamples)
+
+        // Feed 10 frames of speech with short transcript (< 12 chars)
+        fakeBackend.isSpeechNext = true
+        fakeBackend.currentPartial = "Yes"
+        repeat(10) {
+            engine.processAudioChunk(window)
+        }
+        assertTrue(engine.isSpeechActive.value)
+
+        fakeBackend.isSpeechNext = false
+        fakeBackend.currentFinal = "Yes"
+
+        val completedQuestions = mutableListOf<String>()
+        @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+        val job = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            engine.completedQuestion.collect { (_, text) ->
+                completedQuestions.add(text)
+            }
+        }
+
+        // Feed silence to trigger endpointing
+        repeat(40) {
+            engine.processAudioChunk(window)
+        }
+
+        // State must be reset back to inactive
+        assertFalse(engine.isSpeechActive.value)
+        assertEquals("", engine.partialTranscript.value)
+        // But NO completedQuestion should be emitted because "Yes." length is 4 (< 12)
+        assertEquals(0, completedQuestions.size)
+
+        job.cancel()
+    }
+
+    @Test
+    fun testForceEndpointWhenIdleReturnsNull() = runTest {
+        val fakeBackend = FakeVadSttBackend()
+        val engine = SherpaVadSttEngine(dummyConfig, fakeBackend)
+
+        // Calling forceEndpoint when no speech has occurred
+        val segment = engine.forceEndpoint()
+        org.junit.Assert.assertNull(segment)
+        assertFalse(engine.isSpeechActive.value)
+    }
+
+    @Test
+    fun testResetMidSpeechClearsAllBuffersAndState() = runTest {
+        val fakeBackend = FakeVadSttBackend()
+        val engine = SherpaVadSttEngine(dummyConfig, fakeBackend)
+        val window = FloatArray(dummyConfig.vadWindowSizeSamples)
+
+        fakeBackend.isSpeechNext = true
+        fakeBackend.currentPartial = "Unfinished speech"
+        repeat(10) {
+            engine.processAudioChunk(window)
+        }
+        assertTrue(engine.isSpeechActive.value)
+        assertEquals("Unfinished speech", engine.partialTranscript.value)
+
+        // Invoke reset()
+        engine.reset()
+
+        assertFalse(engine.isSpeechActive.value)
+        assertEquals("", engine.partialTranscript.value)
+    }
+
+    @Test
+    fun testStreamingCandidateFallbackWhenFinalIsBlank() = runTest {
+        val fakeBackend = FakeVadSttBackend()
+        val engine = SherpaVadSttEngine(dummyConfig, fakeBackend)
+        val window = FloatArray(dummyConfig.vadWindowSizeSamples)
+
+        fakeBackend.isSpeechNext = true
+        fakeBackend.currentPartial = "How does garbage collection work in Kotlin"
+        repeat(10) {
+            engine.processAudioChunk(window)
+        }
+
+        // Simulate backend finalize returning blank "" but partial was present
+        fakeBackend.isSpeechNext = false
+        fakeBackend.currentFinal = ""
+
+        val completedQuestions = mutableListOf<String>()
+        @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+        val job = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            engine.completedQuestion.collect { (_, text) ->
+                completedQuestions.add(text)
+            }
+        }
+
+        repeat(40) {
+            engine.processAudioChunk(window)
+        }
+
+        assertEquals(1, completedQuestions.size)
+        assertEquals("How does garbage collection work in Kotlin?", completedQuestions.first())
+
+        job.cancel()
+    }
+
+    @Test
+    fun testRescorerExceptionGracefullyFallsBackToStreaming() = runTest {
+        val fakeBackend = FakeVadSttBackend()
+        val throwingRescorer = object : OfflineRescorerBackend {
+            override val isAvailable: Boolean = true
+            override suspend fun initialize(config: AppConfig): Result<Unit> = Result.success(Unit)
+            override fun rescoreUtterance(samples: FloatArray, sampleRate: Int): String? {
+                throw RuntimeException("Rescorer model corrupted")
+            }
+            override fun release() {}
+        }
+        val engine = SherpaVadSttEngine(dummyConfig, fakeBackend, throwingRescorer)
+        val window = FloatArray(dummyConfig.vadWindowSizeSamples)
+
+        fakeBackend.isSpeechNext = true
+        fakeBackend.currentPartial = "What is dependency injection"
+        repeat(10) {
+            engine.processAudioChunk(window)
+        }
+
+        fakeBackend.isSpeechNext = false
+        fakeBackend.currentFinal = "What is dependency injection"
+
+        val completedQuestions = mutableListOf<String>()
+        @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+        val job = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            engine.completedQuestion.collect { (_, text) ->
+                completedQuestions.add(text)
+            }
+        }
+
+        // Even though rescorer throws, engine should catch it and cleanly fall back
+        repeat(40) {
+            engine.processAudioChunk(window)
+        }
+
+        assertEquals(1, completedQuestions.size)
+        assertEquals("What is dependency injection?", completedQuestions.first())
+
+        job.cancel()
+    }
+
+    @Test
+    fun testRescorerBlankResultFallsBackToStreaming() = runTest {
+        val fakeBackend = FakeVadSttBackend()
+        val blankRescorer = FakeOfflineRescorer(isAvailable = true, rescoreResult = "   ")
+        val engine = SherpaVadSttEngine(dummyConfig, fakeBackend, blankRescorer)
+        val window = FloatArray(dummyConfig.vadWindowSizeSamples)
+
+        fakeBackend.isSpeechNext = true
+        fakeBackend.currentPartial = "What is dependency injection"
+        repeat(10) {
+            engine.processAudioChunk(window)
+        }
+
+        fakeBackend.isSpeechNext = false
+        fakeBackend.currentFinal = "What is dependency injection"
+
+        val completedQuestions = mutableListOf<String>()
+        @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+        val job = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            engine.completedQuestion.collect { (_, text) ->
+                completedQuestions.add(text)
+            }
+        }
+
+        repeat(40) {
+            engine.processAudioChunk(window)
+        }
+
+        assertEquals(1, completedQuestions.size)
+        assertEquals("What is dependency injection?", completedQuestions.first())
+
+        job.cancel()
+    }
+
+    @Test
+    fun testRescorerDisabledSkipsRescore() = runTest {
+        val fakeBackend = FakeVadSttBackend()
+        val disabledRescorer = FakeOfflineRescorer(isAvailable = false, rescoreResult = "Alternative text")
+        val engine = SherpaVadSttEngine(dummyConfig, fakeBackend, disabledRescorer)
+        val window = FloatArray(dummyConfig.vadWindowSizeSamples)
+
+        fakeBackend.isSpeechNext = true
+        fakeBackend.currentPartial = "What is clean architecture"
+        repeat(10) {
+            engine.processAudioChunk(window)
+        }
+
+        fakeBackend.isSpeechNext = false
+        fakeBackend.currentFinal = "What is clean architecture"
+
+        val completedQuestions = mutableListOf<String>()
+        @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+        val job = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            engine.completedQuestion.collect { (_, text) ->
+                completedQuestions.add(text)
+            }
+        }
+
+        repeat(40) {
+            engine.processAudioChunk(window)
+        }
+
+        // Disabled rescorer was not called; streaming final used
+        assertEquals(0, disabledRescorer.recordedSamplesCount)
+        assertEquals(1, completedQuestions.size)
+        assertEquals("What is clean architecture?", completedQuestions.first())
+
+        job.cancel()
+    }
+
+    @Test
+    fun testMultipleConsecutiveQuestionsInSession() = runTest {
+        val fakeBackend = FakeVadSttBackend()
+        val engine = SherpaVadSttEngine(dummyConfig, fakeBackend)
+        val window = FloatArray(dummyConfig.vadWindowSizeSamples)
+
+        val completedQuestions = mutableListOf<String>()
+        @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+        val job = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            engine.completedQuestion.collect { (_, text) ->
+                completedQuestions.add(text)
+            }
+        }
+
+        // Question 1
+        fakeBackend.isSpeechNext = true
+        fakeBackend.currentPartial = "what is kotlin"
+        repeat(10) { engine.processAudioChunk(window) }
+
+        fakeBackend.isSpeechNext = false
+        fakeBackend.currentFinal = "what is kotlin"
+        repeat(40) { engine.processAudioChunk(window) }
+
+        assertEquals(1, completedQuestions.size)
+        assertEquals("What is Kotlin?", completedQuestions[0])
+
+        // Question 2
+        fakeBackend.isSpeechNext = true
+        fakeBackend.currentPartial = "how does stateflow work"
+        repeat(10) { engine.processAudioChunk(window) }
+
+        fakeBackend.isSpeechNext = false
+        fakeBackend.currentFinal = "how does stateflow work"
+        repeat(40) { engine.processAudioChunk(window) }
+
+        assertEquals(2, completedQuestions.size)
+        assertEquals("How does StateFlow work?", completedQuestions[1])
+
+        job.cancel()
+    }
 }
+

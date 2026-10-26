@@ -26,6 +26,7 @@ import com.local.interviewassistant.core.di.AppContainer
 import com.local.interviewassistant.core.model.AppConfig
 import com.local.interviewassistant.data.provisioning.ProvisioningState
 import com.local.interviewassistant.service.AssistantForegroundService
+import com.local.interviewassistant.service.ModelDownloadService
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
@@ -148,39 +149,19 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun downloadSpeechModels() {
-        downloadJob?.cancel()
-        downloadJob = lifecycleScope.launch {
-            AppContainer.getInstance(this@MainActivity).provisioningManager.downloadMissingSpeechModels()
-        }
+        ModelDownloadService.startSpeechDownload(this)
     }
 
     private fun downloadOfflineRescorer() {
-        downloadJob?.cancel()
-        downloadJob = lifecycleScope.launch {
-            AppContainer.getInstance(this@MainActivity).provisioningManager.downloadOfflineRescorerModel()
-            refreshStatus()
-        }
+        ModelDownloadService.startRescorerDownload(this)
     }
 
     private fun downloadLlmModel(customUrl: String, hfToken: String?) {
-        downloadJob?.cancel()
-        downloadJob = lifecycleScope.launch {
-            val appContainer = AppContainer.getInstance(this@MainActivity)
-            val result = appContainer.provisioningManager.downloadLlmModel(
-                customUrl = customUrl.ifBlank { AppConfig.DEFAULT_LLM_URL },
-                hfBearerToken = hfToken?.ifBlank { null }
-            )
-            if (result.isSuccess) {
-                appContainer.saveLlmConfig(appContainer.appConfig.llmConfig.value)
-                refreshStatus()
-            }
-        }
+        ModelDownloadService.startLlmDownload(this, customUrl, hfToken)
     }
 
     private fun cancelOngoingProvisioning() {
-        downloadJob?.cancel()
-        downloadJob = null
-        AppContainer.getInstance(this).provisioningManager.resetState()
+        ModelDownloadService.cancelDownload(this)
     }
 
     private fun startAssistantService() {

@@ -95,21 +95,21 @@ class AppConfig(val modelsRootDir: File) {
     val activeLlmModelFile: File
         get() {
             val path = _llmConfig.value.selectedModelPath
-            return if (path.isNotBlank()) File(path) else llmModelFile
+            if (path.isNotBlank()) return File(path)
+            return if (tpuLlmModelFile.exists()) tpuLlmModelFile else llmModelFile
         }
 
     fun discoverLocalModels(): List<File> {
-        val extensions = listOf(".litertlm", ".bin", ".task", ".tflite")
         if (!modelsRootDir.exists() || !modelsRootDir.isDirectory) return emptyList()
         return modelsRootDir.walkTopDown()
-            .filter { file -> file.isFile && extensions.any { ext -> file.name.endsWith(ext, ignoreCase = true) } && file.length() > 0L }
+            .filter { file -> file.isFile && isSupportedLlmModel(file) && file.length() > 0L }
             .toList()
     }
 
     val sampleRateHz: Int = 16000
     val vadWindowSizeSamples: Int = 512
     val vadThreshold: Float = 0.5f
-    val minSilenceDurationSec: Float = 0.6f
+    val minSilenceDurationSec: Float = 1.2f
     val minSpeechDurationSec: Float = 0.25f
     val minQuestionLengthChars: Int = 12
 
@@ -204,5 +204,13 @@ class AppConfig(val modelsRootDir: File) {
         const val WHISPER_TINY_TOKENS_URL = "https://huggingface.co/csukuangfj/sherpa-onnx-whisper-tiny.en/resolve/main/tiny.en-tokens.txt"
         const val DEFAULT_LLM_URL = "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm"
         const val DEFAULT_TPU_LLM_URL = "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it_Google_Tensor_G5.litertlm"
+
+        /** LiteRT-LM is the only LLM runtime; it loads `.litertlm` bundles exclusively. */
+        const val LLM_MODEL_EXTENSION = ".litertlm"
+
+        fun isSupportedLlmModel(file: File): Boolean = isSupportedLlmModelName(file.name)
+
+        fun isSupportedLlmModelName(name: String): Boolean =
+            name.endsWith(LLM_MODEL_EXTENSION, ignoreCase = true)
     }
 }

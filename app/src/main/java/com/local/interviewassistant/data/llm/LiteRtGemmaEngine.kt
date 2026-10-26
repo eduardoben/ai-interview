@@ -31,9 +31,9 @@ class LiteRtGemmaEngine(
     private val context: Context,
     private val config: AppConfig,
     private val systemPrompt: String? = null
-) {
+) : LlmEngine {
     private val _isInitialized = MutableStateFlow(false)
-    val isInitialized: StateFlow<Boolean> = _isInitialized.asStateFlow()
+    override val isInitialized: StateFlow<Boolean> = _isInitialized.asStateFlow()
 
     private var engine: Engine? = null
     private var activeConversation: Conversation? = null
@@ -45,7 +45,7 @@ class LiteRtGemmaEngine(
     private val engineMutex = Mutex()
     private val tracker = LitertlmInferenceMetricsTracker()
 
-    suspend fun initialize(): Result<Unit> = withContext(liteRtDispatcher) {
+    override suspend fun initialize(): Result<Unit> = withContext(liteRtDispatcher) {
         engineMutex.withLock {
             try {
                 if (engine != null) {
@@ -159,7 +159,7 @@ class LiteRtGemmaEngine(
         }
     }
 
-    fun generateAnswerStream(question: String): Flow<LlmStreamEvent> = callbackFlow {
+    override fun generateAnswerStream(question: String): Flow<LlmStreamEvent> = callbackFlow {
         if (!_isInitialized.value || engine == null) {
             trySend(LlmStreamEvent.Error(IllegalStateException("Engine not initialized")))
             close()
@@ -241,7 +241,7 @@ class LiteRtGemmaEngine(
         }
     }.flowOn(liteRtDispatcher)
 
-    suspend fun release() = withContext(liteRtDispatcher) {
+    override suspend fun release() = withContext(liteRtDispatcher) {
         engineMutex.withLock {
             // Strict Teardown Sequence
             try { activeConversation?.close() } catch (_: Exception) {}

@@ -1,10 +1,8 @@
 package com.local.interviewassistant.data.llm
 
-import android.content.Context
-import com.google.mediapipe.tasks.genai.llminference.LlmInference
-import com.google.mediapipe.tasks.genai.llminference.ProgressListener
 import com.local.interviewassistant.core.model.AppConfig
-import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 
 sealed interface LlmStreamEvent {
     data class PartialToken(val tokenChunk: String, val accumulatedText: String, val ttftMs: Long) : LlmStreamEvent
@@ -12,136 +10,16 @@ sealed interface LlmStreamEvent {
     data class Error(val throwable: Throwable) : LlmStreamEvent
 }
 
+interface LlmEngine {
+    val isInitialized: StateFlow<Boolean>
+    suspend fun initialize(): Result<Unit>
+    fun generateAnswerStream(question: String): Flow<LlmStreamEvent>
+    suspend fun release()
+}
+
 interface LlmInferenceBackend {
     fun initialize(config: AppConfig)
     fun generateAsync(prompt: String, onPartialResult: (partialText: String, done: Boolean) -> Unit, onError: (Throwable) -> Unit)
     fun cancel()
     fun close()
-}
-
-@Suppress("DEPRECATION")
-class MediaPipeLiteRtBackend(private val context: Context) : LlmInferenceBackend {
-    private var llmInference: LlmInference? = null
-    private var isGpuNpuAccelerated: Boolean = false
-    
-    private val isGenerating = AtomicBoolean(false)
-    @Volatile private var currentGenerationId = 0
-
-    private fun waitForCompletion() {
-        while (isGenerating.get()) {
-            Thread.sleep(50)
-        }
-    }
-
-    override fun initialize(config: AppConfig) {
-        val modelFile = config.activeLlmModelFile
-        if (!modelFile.exists() || modelFile.length() <= 0L) {
-            throw IllegalStateException("LLM model file missing at ${modelFile.absolutePath}")
-        }
-
-        if (modelFile.name.endsWith(".litertlm", ignoreCase = true)) {
-            throw IllegalStateException(
-                "MediaPipe LlmInference cannot parse '.litertlm' models (requires .bin or .task files)."
-            )
-        }
-
-        waitForCompletion()
-        llmInference?.close()
-        llmInference = null
-
-        val backendsToTry = if (config.useGpuDelegate) {
-            listOf(
-                LlmInference.Backend.DEFAULT,
-                LlmInference.Backend.GPU,
-                LlmInference.Backend.CPU
-            )
-        } else {
-            listOf(
-                LlmInference.Backend.CPU,
-                LlmInference.Backend.DEFAULT
-            )
-        }
-
-        val errors = mutableListOf<String>()
-        for (backend in backendsToTry) {
-            try {
-                val options = LlmInference.LlmInferenceOptions.builder()
-                    .setModelPath(modelFile.absolutePath)
-                    .setMaxTokens(config.maxTokens)
-                    .setMaxTopK(config.topK)
-                    .setPreferredBackend(backend)
-                    .build()
-
-                llmInference = LlmInference.createFromOptions(context, options)
-                isGpuNpuAccelerated = (backend != LlmInference.Backend.CPU)
-                return
-            } catch (t: Throwable) {
-                val msg = t.message ?: t.toString()
-                errors.add("$backend: $msg")
-            }
-        }
-
-        throw IllegalStateException(
-            "Failed to initialize LiteRT LLM Inference on all backends. Attempts: ${errors.joinToString("; ")}"
-        )
-    }
-
-    override fun generateAsync(
-        prompt: String,
-        onPartialResult: (partialText: String, done: Boolean) -> Unit,
-        onError: (Throwable) -> Unit,
-    ) {
-        waitForCompletion()
-
-        val inference = llmInference
-        if (inference == null) {
-            onError(IllegalStateException("LlmInference not initialized"))
-            return
-        }
-
-        val genId = ++currentGenerationId
-        isGenerating.set(true)
-
-        try {
-            val progressListener = ProgressListener<String> { partialResult, done ->
-                if (currentGenerationId == genId) {
-                    onPartialResult(partialResult ?: "", done)
-                }
-                if (done) {
-                    isGenerating.set(false)
-                }
-            }
-            val future = inference.generateResponseAsync(prompt, progressListener)
-            future.addListener(
-                {
-                    try {
-                        future.get()
-                    } catch (e: Exception) {
-                        if (currentGenerationId == genId) {
-                            onError(e)
-                        }
-                    } finally {
-                        isGenerating.set(false)
-                    }
-                },
-            ) { command ->
-                Thread(command).start()
-            }
-        } catch (e: Exception) {
-            isGenerating.set(false)
-            onError(e)
-        }
-    }
-
-    override fun cancel() {
-        // MediaPipe doesn't support pre-emption. We just drop the callbacks for the current generation.
-        currentGenerationId++
-    }
-
-    override fun close() {
-        waitForCompletion()
-        llmInference?.close()
-        llmInference = null
-        isGpuNpuAccelerated = false
-    }
 }

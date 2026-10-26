@@ -1,6 +1,8 @@
+import java.io.File
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URI
+import java.security.MessageDigest
 
 plugins {
     alias(libs.plugins.android.application)
@@ -8,15 +10,39 @@ plugins {
 }
 
 tasks.register("downloadSherpaOnnxAar") {
-    val aarFile = file("libs/sherpa-onnx.aar")
+    val aarFile = layout.projectDirectory.file("libs/sherpa-onnx.aar").asFile
+    val tempFile = layout.projectDirectory.file("libs/sherpa-onnx.aar.tmp").asFile
+    val expectedSha256 = "6d1bf9a2ede218d9f33115f494058b83ae5c2af8a8275e64353c3de8c83a2603"
+    val sherpaVersion = libs.versions.sherpaOnnx.get()
+
     outputs.file(aarFile)
     doLast {
+        fun computeSha256(file: File): String {
+            val digest = MessageDigest.getInstance("SHA-256")
+            file.inputStream().use { input ->
+                val buffer = ByteArray(8192)
+                var bytesRead: Int
+                while (input.read(buffer).also { bytesRead = it } != -1) {
+                    digest.update(buffer, 0, bytesRead)
+                }
+            }
+            return digest.digest().joinToString("") { b -> "%02x".format(b) }
+        }
+
+        if (aarFile.exists()) {
+            val existingHash = computeSha256(aarFile)
+            if (!existingHash.equals(expectedSha256, ignoreCase = true)) {
+                logger.warn("Existing sherpa-onnx.aar checksum mismatch. Re-downloading...")
+                aarFile.delete()
+            }
+        }
+
         if (!aarFile.exists()) {
             aarFile.parentFile.mkdirs()
-            logger.lifecycle("Downloading sherpa-onnx.aar...")
+            logger.lifecycle("Downloading sherpa-onnx.aar ($sherpaVersion)...")
             val candidateUrls = listOf(
-                "https://huggingface.co/csukuangfj/sherpa-onnx-libs/resolve/main/android/aar/1.12.21/sherpa-onnx-static-link-onnxruntime-1.12.21.aar",
-                "https://github.com/k2fsa/sherpa-onnx/releases/download/v1.12.21/sherpa-onnx-static-link-onnxruntime-1.12.21.aar"
+                "https://huggingface.co/csukuangfj/sherpa-onnx-libs/resolve/main/android/aar/$sherpaVersion/sherpa-onnx-static-link-onnxruntime-$sherpaVersion.aar",
+                "https://github.com/k2fsa/sherpa-onnx/releases/download/v$sherpaVersion/sherpa-onnx-static-link-onnxruntime-$sherpaVersion.aar"
             )
             var downloaded = false
             for (candidateUrl in candidateUrls) {
@@ -50,19 +76,27 @@ tasks.register("downloadSherpaOnnxAar") {
                         break
                     }
                     connection.inputStream.use { input ->
-                        aarFile.outputStream().use { output ->
+                        tempFile.outputStream().use { output ->
                             input.copyTo(output)
                         }
                     }
-                    downloaded = true
-                    logger.lifecycle("Downloaded sherpa-onnx.aar successfully from $candidateUrl.")
-                    break
+                    val downloadedHash = computeSha256(tempFile)
+                    if (downloadedHash.equals(expectedSha256, ignoreCase = true)) {
+                        if (aarFile.exists()) aarFile.delete()
+                        tempFile.renameTo(aarFile)
+                        downloaded = true
+                        logger.lifecycle("Downloaded and verified sherpa-onnx.aar successfully from $candidateUrl.")
+                        break
+                    } else {
+                        tempFile.delete()
+                        logger.warn("Checksum verification failed for download from $candidateUrl.")
+                    }
                 } catch (e: Exception) {
                     logger.lifecycle("Failed to download from $candidateUrl: ${e.message}")
                 }
             }
             if (!downloaded) {
-                throw IOException("Could not download sherpa-onnx.aar from any candidate URL.")
+                throw IOException("Could not download verified sherpa-onnx.aar from any candidate URL.")
             }
         }
     }
@@ -80,8 +114,8 @@ android {
         applicationId = "com.local.interviewassistant"
         minSdk = 34
         targetSdk = 37
-        versionCode = 4
-        versionName = "1.3"
+        versionCode = 6
+        versionName = "1.3.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         
@@ -130,26 +164,26 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     
     implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.lifecycle.runtime)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.service)
     
-    implementation(libs.androidx.savedstate.ktx)
+    implementation(libs.androidx.savedstate)
     
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.android)
     
-    implementation(libs.mediapipe.tasks.genai)
     implementation(libs.litertlm.android)
-    implementation(libs.aicore)
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.androidx.datastore.preferences)
-    implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.aar"))))
+    implementation(files("libs/sherpa-onnx.aar"))
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.test:rules:1.6.1")
 
     debugImplementation(libs.androidx.compose.ui.tooling)
 }

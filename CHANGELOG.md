@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.2] - 2026-10-25
+
+### 🚀 Background Model Provisioning Service (Lock Screen & Screen-Off Persistence)
+- **`ModelDownloadService` Foreground Service:** Created dedicated `LifecycleService` running with `FOREGROUND_SERVICE_TYPE_DATA_SYNC` and a partial `WakeLock` to guarantee uninterrupted background model downloads when the user locks their phone or turns off the screen.
+- **Persistent Notification with Progress Bar:** Displays real-time download status, current model name, downloaded MB / total MB, progress percentage, and an in-notification "Cancel" action.
+- **Auto-Sync with Compose Dashboard:** Seamlessly drives `ModelProvisioningManager` so the in-app `DashboardScreen` UI and notification stay 100% in sync without polling or dropped states.
+- **Tensor TPU Dynamic Model Resolution:** Updated `AppConfig.activeLlmModelFile` to prioritize on-disk `tpuLlmModelFile` (`gemma-4-E2B-it_Google_Tensor_G5.litertlm`) dynamically on Google Pixel Tensor hardware.
+- **Real-Device Instrumentation Test Suite (`RealDevicePipelineIntegrationTest`):** 7/7 tests verified live on physical Pixel 10 Pro XL (Tensor G5, Android 17), including sub-millisecond punctuation latency (<0.25ms), streaming Zipformer STT frame processing (<8ms), LiteRT EdgeTPU NPU execution via `libLiteRtDispatch_GoogleTensor.so`, and background service contracts.
+- Bumped application `versionCode = 6` and `versionName = "1.3.2"`.
+
+---
+
+## [1.3.1] - 2026-10-25
+
+### 🧪 Edge-Case Test Suite, Latency Profiling & On-Device Verification
+- **Edge-Case Audio & STT Hardening:** Added 23 unit tests in `Phase3AudioSttTest` covering sub-window and super-window audio chunks (100, 25, 1337 samples), continuous silence streaming, hesitation reset, short utterance filtering (<12 chars), and buffer overflow protection.
+- **Component Latency Profiling:** Validated strict latency budgets in `ComponentLatencyBenchmarkTest`: audio normalization (<2 ms), VAD frame processing (<2 ms avg, <5 ms p95), endpointing-to-emission (<10 ms), and punctuation restoration (<1 ms across 1,000 sentences).
+- **LLM Inference Tracker & Profiling:** Integrated `LitertlmInferenceMetricsTracker` validating TTFT, decode tokens/sec, and token streaming overhead (<2 µs).
+- **On-Device Instrumentation & Deployment:** Added `androidx.test.runner` to `app/build.gradle.kts` for physical Pixel 10 Pro XL (Tensor G5 SoC) testing and added live version indicator (`v1.3.1 (Build 5)`) to `DashboardScreen`.
+- Bumped application `versionCode = 5` and `versionName = "1.3.1"`.
+
+---
+
 ## [1.3.0] - 2026-10-25
 
 ### ⚡ Phase 3: Two-Pass Hybrid ASR & Technical Question Punctuation Engine

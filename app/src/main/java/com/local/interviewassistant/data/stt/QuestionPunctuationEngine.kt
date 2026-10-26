@@ -190,16 +190,17 @@ object QuestionPunctuationEngine {
      * and appends '?' or '.' accordingly if terminal punctuation is missing.
      */
     fun ensureTerminalPunctuation(text: String): String {
-        if (text.isEmpty()) return ""
-        val lastChar = text.last()
+        val trimmed = text.trimEnd(',', ';', ':', ' ')
+        if (trimmed.isEmpty()) return ""
+        val lastChar = trimmed.last()
         if (lastChar == '?' || lastChar == '.' || lastChar == '!') {
-            return text
+            return trimmed
         }
 
-        return if (isQuestion(text)) {
-            "$text?"
+        return if (isQuestion(trimmed)) {
+            "$trimmed?"
         } else {
-            "$text."
+            "$trimmed."
         }
     }
 
@@ -212,7 +213,11 @@ object QuestionPunctuationEngine {
         if (clean.length < 8) return false
         if (clean.endsWith("?")) return true
 
-        val words = clean.split(Regex("\\s+"))
+        // If the utterance has multiple sentences, inspect the last sentence to determine terminal punctuation
+        val sentenceCandidate = clean.split(Regex("[.!?]\\s+")).lastOrNull { it.isNotBlank() } ?: clean
+        val targetSentence = if (sentenceCandidate.length >= 8) sentenceCandidate else clean
+
+        val words = targetSentence.split(Regex("\\s+"))
         if (words.isEmpty()) return false
 
         val firstWord = words.first()
@@ -223,15 +228,15 @@ object QuestionPunctuationEngine {
         }
 
         // 2. Colloquial interview prompts
-        if (clean.startsWith("tell me about") ||
-            clean.startsWith("walk me through") ||
-            clean.startsWith("share an example") ||
-            clean.startsWith("in your opinion") ||
-            clean.startsWith("talk about") ||
-            clean.startsWith("what is") ||
-            clean.startsWith("how do") ||
-            clean.startsWith("what are") ||
-            clean.startsWith("difference between")
+        if (targetSentence.startsWith("tell me about") ||
+            targetSentence.startsWith("walk me through") ||
+            targetSentence.startsWith("share an example") ||
+            targetSentence.startsWith("in your opinion") ||
+            targetSentence.startsWith("talk about") ||
+            targetSentence.startsWith("what is") ||
+            targetSentence.startsWith("how do") ||
+            targetSentence.startsWith("what are") ||
+            targetSentence.startsWith("difference between")
         ) {
             return true
         }

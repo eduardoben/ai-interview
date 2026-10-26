@@ -8,7 +8,6 @@ import com.local.interviewassistant.core.model.PromptStyle
 import com.local.interviewassistant.data.audio.AudioSource
 import com.local.interviewassistant.data.audio.MicrophoneAudioCaptureSource
 import com.local.interviewassistant.data.llm.LiteRtGemmaEngine
-import com.local.interviewassistant.data.llm.MediaPipeLiteRtBackend
 import com.local.interviewassistant.data.provisioning.ModelProvisioningManager
 import com.local.interviewassistant.data.stt.SherpaOfflineWhisperRescorer
 import com.local.interviewassistant.data.stt.SherpaOnnxRuntimeBackend

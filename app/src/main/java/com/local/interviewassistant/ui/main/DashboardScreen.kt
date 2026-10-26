@@ -49,7 +49,17 @@ fun DashboardScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Interview Assistant Dashboard", color = Color.White) },
+                title = {
+                    Column {
+                        Text("Interview Assistant", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        Text(
+                            text = "v${com.local.interviewassistant.BuildConfig.VERSION_NAME} (Build ${com.local.interviewassistant.BuildConfig.VERSION_CODE})",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF03DAC5)
+                        )
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color(0xFF1E1E1E),
                     titleContentColor = Color.White,
@@ -296,9 +306,8 @@ private fun ModelsCard(
     val localModels = remember(readiness) {
         val parentDir = readiness.modelReport.files.firstOrNull()?.absolutePath?.let { File(it).parentFile }
         if (parentDir != null && parentDir.exists()) {
-            val extensions = listOf(".litertlm", ".bin", ".task", ".tflite")
             parentDir.walkTopDown()
-                .filter { file -> file.isFile && extensions.any { ext -> file.name.endsWith(ext, ignoreCase = true) } && file.length() > 0L }
+                .filter { file -> file.isFile && AppConfig.isSupportedLlmModel(file) && file.length() > 0L }
                 .toList()
         } else emptyList()
     }

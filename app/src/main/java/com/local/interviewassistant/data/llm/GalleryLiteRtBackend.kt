@@ -23,7 +23,6 @@ class GalleryLiteRtBackend(private val context: Context) : LlmInferenceBackend {
 
     private var engine: Engine? = null
     private var activeConversation: Conversation? = null
-    private var fallbackBackend: MediaPipeLiteRtBackend? = null
     @Volatile private var currentAppConfig: AppConfig? = null
 
     // LITERTLM THREAD SERIALIZATION
@@ -86,9 +85,9 @@ class GalleryLiteRtBackend(private val context: Context) : LlmInferenceBackend {
                 initializedEngine = newEngine
                 Log.i("GalleryLiteRtBackend", "Successfully initialized LiteRT engine on backend '$label' for model '$resolvedPath'")
                 break
-            } catch (e: Exception) {
-                val msg = e.message ?: e.toString()
-                Log.w("GalleryLiteRtBackend", "Failed initialization on backend '$label' ($msg). Attempting fallback...", e)
+            } catch (t: Throwable) {
+                val msg = t.message ?: t.toString()
+                Log.w("GalleryLiteRtBackend", "Failed initialization on backend '$label' ($msg). Attempting fallback...", t)
                 errors.add("$label: $msg")
             }
         }
@@ -114,24 +113,14 @@ class GalleryLiteRtBackend(private val context: Context) : LlmInferenceBackend {
                     config.updateLlmConfig(config.llmConfig.value.copy(selectedModelPath = standardGpuModel.absolutePath))
                     Log.i("GalleryLiteRtBackend", "TPU model failed to allocate on NPU. Successfully fell back to standard GPU model '${standardGpuModel.name}' on GPU.")
                     return
-                } catch (e: Exception) {
-                    errors.add("Standard GPU Fallback: ${e.message ?: e.toString()}")
+                } catch (t: Throwable) {
+                    errors.add("Standard GPU Fallback: ${t.message ?: t.toString()}")
                 }
             }
 
             throw IllegalStateException(
                 "Pixel TPU model '${modelFile.name}' failed to allocate on this system NPU ($errors). Please download or select the standard GPU model ('gemma-4-E2B-it.litertlm') on the dashboard."
             )
-        }
-
-        // Fallback to MediaPipe backend if LiteRT-LM engine fails to initialize native context on non-TPU models
-        try {
-            val mediaPipe = MediaPipeLiteRtBackend(context)
-            mediaPipe.initialize(config)
-            fallbackBackend = mediaPipe
-            return
-        } catch (t: Throwable) {
-            errors.add("MediaPipe Fallback: ${t.message ?: t.toString()}")
         }
 
         throw IllegalStateException(
@@ -144,12 +133,6 @@ class GalleryLiteRtBackend(private val context: Context) : LlmInferenceBackend {
         onPartialResult: (partialText: String, done: Boolean) -> Unit,
         onError: (Throwable) -> Unit
     ) {
-        val fb = fallbackBackend
-        if (fb != null) {
-            fb.generateAsync(prompt, onPartialResult, onError)
-            return
-        }
-
         val currentEngine = engine
         if (currentEngine == null) {
             onError(IllegalStateException("LLM Engine not initialized"))
@@ -230,7 +213,6 @@ class GalleryLiteRtBackend(private val context: Context) : LlmInferenceBackend {
                 } catch (_: Exception) {}
             }
         }
-        fallbackBackend?.cancel()
         isGenerating.set(false)
     }
 
@@ -238,14 +220,11 @@ class GalleryLiteRtBackend(private val context: Context) : LlmInferenceBackend {
         currentGenerationId++
         val conv = activeConversation
         val eng = engine
-        val fb = fallbackBackend
         activeConversation = null
         engine = null
-        fallbackBackend = null
 
         try { conv?.close() } catch (_: Exception) {}
         try { eng?.close() } catch (_: Exception) {}
-        try { fb?.close() } catch (_: Exception) {}
         isGenerating.set(false)
     }
 

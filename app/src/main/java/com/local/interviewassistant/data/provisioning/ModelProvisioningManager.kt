@@ -257,7 +257,7 @@ class ModelProvisioningManager(
         val filenameFromUrl = try {
             val uriPath = java.net.URI(customUrl).path
             val lastSegment = uriPath.substringAfterLast('/')
-            if (lastSegment.isNotBlank() && (lastSegment.endsWith(".litertlm", ignoreCase = true) || lastSegment.endsWith(".bin", ignoreCase = true) || lastSegment.endsWith(".task", ignoreCase = true))) {
+            if (lastSegment.isNotBlank() && AppConfig.isSupportedLlmModelName(lastSegment)) {
                 lastSegment
             } else null
         } catch (_: Exception) { null }

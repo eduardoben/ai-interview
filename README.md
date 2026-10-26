@@ -18,6 +18,14 @@ An on-device, real-time **AI Interview Copilot** for Android powered by **Sherpa
   - **Thread-Safe JNI Dispatcher:** Serializes all native C++ `Engine` and `Conversation` operations on a dedicated `LiteRT-GPU-Thread` single-threaded executor, preventing native stack corruption.
   - **Fail-Safe Fallback & File Integrity:** Automatically falls back to the universal GPU model if TPU allocation fails, while validating file integrity so corrupt or mislabeled files are detected immediately.
 
+- **📥 Background Model Provisioning Service (`ModelDownloadService`):**
+  - **Screen-Off & Lock Screen Persistence:** Operates as a foreground service with `FOREGROUND_SERVICE_TYPE_DATA_SYNC` and a partial `WakeLock`, preventing Android Doze mode and CPU suspension from severing downloads when the user blocks their phone.
+  - **Real-Time Notification Progress:** Ongoing notification with live progress bar, MB downloaded/total, and in-notification cancellation.
+
+- **🧪 On-Device Integration & Latency Test Suite:**
+  - Hardware-grounded test suite (`RealDevicePipelineIntegrationTest`) running directly on physical Pixel 10 Pro XL hardware.
+  - Validates EdgeTPU NPU execution, Sherpa-ONNX streaming Zipformer frame processing latency (<8ms), question truecasing latency (<0.25ms), and foreground download service contracts.
+
 - **🖥️ Floating System Overlay HUD:**
   - Compact, draggable floating overlay (`TYPE_APPLICATION_OVERLAY`) accessible over any app.
   - **Live Transcript Stream:** Displays real-time spoken text and highlights auto-detected interview questions.
@@ -71,6 +79,7 @@ AIInterviewAssistant/
 │   │   │   ├── service/
 │   │   │   │   ├── AssistantForegroundService.kt  # Android Foreground Service
 │   │   │   │   ├── AssistantPipelineCoordinator.kt# Audio-STT-LLM Pipeline State Machine
+│   │   │   │   ├── ModelDownloadService.kt        # Background Model Download Service (WakeLock + DataSync)
 │   │   │   │   └── OverlayLifecycleOwner.kt       # Custom Lifecycle Owner for Overlay Views
 │   │   │   └── ui/
 │   │   │       ├── main/
