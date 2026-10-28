@@ -35,6 +35,11 @@ class AppContainer private constructor(private val context: Context) {
         val style = try { PromptStyle.valueOf(promptStyleStr) } catch (_: Exception) { PromptStyle.CONCISE }
         val contextStr = prefs.getString("interviewContext", "") ?: ""
         val selectedModelPath = prefs.getString("selectedModelPath", "") ?: ""
+        val preferredDelegateStr = prefs.getString("preferredDelegate", null)
+        val preferredDelegate = preferredDelegateStr?.let {
+            try { com.local.interviewassistant.data.hardware.DelegateType.valueOf(it) } catch (_: Exception) { null }
+        }
+        val enableWhisperRescorer = prefs.getBoolean("enableWhisperRescorer", true)
 
         appConfig.updateLlmConfig(
             LlmGenerationConfig(
@@ -43,7 +48,9 @@ class AppContainer private constructor(private val context: Context) {
                 maxTokens = maxTokens,
                 promptStyle = style,
                 interviewContext = contextStr,
-                selectedModelPath = selectedModelPath
+                selectedModelPath = selectedModelPath,
+                preferredDelegate = preferredDelegate,
+                enableWhisperRescorer = enableWhisperRescorer
             )
         )
     }
@@ -57,6 +64,8 @@ class AppContainer private constructor(private val context: Context) {
             putString("promptStyle", newConfig.promptStyle.name)
             putString("interviewContext", newConfig.interviewContext)
             putString("selectedModelPath", newConfig.selectedModelPath)
+            putString("preferredDelegate", newConfig.preferredDelegate?.name)
+            putBoolean("enableWhisperRescorer", newConfig.enableWhisperRescorer)
             apply()
         }
         appConfig.updateLlmConfig(newConfig)

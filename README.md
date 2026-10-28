@@ -59,18 +59,23 @@ AIInterviewAssistant/
 │   │   │   ├── core/
 │   │   │   │   ├── di/AppContainer.kt             # Dependency Injection Container
 │   │   │   │   └── model/                         # Domain Models, Configs & States
-│   │   │   │       ├── AppConfig.kt               # Model Paths, URLs, Hotword Gen, Prompt Formatting
+│   │   │   │       ├── AppConfig.kt               # Model Paths (subfolders: vad, asr, whisper, llm), URLs, Prompt Formatting
 │   │   │   │       ├── AssistantState.kt          # Assistant Pipeline State Machine
 │   │   │   │       ├── CopilotUiState.kt          # Overlay UI State & Category Enums
-│   │   │   │       ├── LlmGenerationConfig.kt     # Hyperparameters & Prompt Styles
+│   │   │   │       ├── LlmGenerationConfig.kt     # Hyperparameters, Delegates & Prompt Styles
 │   │   │   │       └── TranscriptSegment.kt       # Smart Question Detection Heuristics
 │   │   │   ├── data/
 │   │   │   │   ├── audio/AudioCaptureSource.kt    # AudioRecord Stream & Hardware Filters
+│   │   │   │   ├── hardware/                      # Hardware Profiling & NPU Detection
+│   │   │   │   │   └── DeviceHardwareDetector.kt  # Android 17 SoC, RAM & NPU Delegate Profiler
 │   │   │   │   ├── llm/                           # LiteRT-LM & MediaPipe Engines
+│   │   │   │   │   ├── BackendResolver.kt         # Intelligent Dynamic Hardware Delegate Negotiator
 │   │   │   │   │   ├── GalleryLiteRtBackend.kt    # LiteRT-LM Native Engine & NPU/GPU Delegation
 │   │   │   │   │   ├── LiteRtGemmaEngine.kt       # Thread-Safe JNI Flow Generator
 │   │   │   │   │   └── LlmInferenceBackend.kt     # Backend Abstractions
 │   │   │   │   ├── provisioning/                  # Model Provisioning & Downloads
+│   │   │   │   │   ├── LiteRtLmModelDownloader.kt # Resilient HTTP Downloader
+│   │   │   │   │   └── ModelProvisioningManager.kt# Unified One-Tap Lifecycle Provisioning
 │   │   │   │   └── stt/                           # Speech-To-Text & VAD Engines
 │   │   │   │       ├── OfflineRescorerBackend.kt  # Phase 3: Whisper Offline Second-Pass Rescorer
 │   │   │   │       ├── QuestionPunctuationEngine.kt# Phase 3: Truecasing & Technical Punctuation Engine
@@ -83,7 +88,7 @@ AIInterviewAssistant/
 │   │   │   │   └── OverlayLifecycleOwner.kt       # Custom Lifecycle Owner for Overlay Views
 │   │   │   └── ui/
 │   │   │       ├── main/
-│   │   │       │   ├── DashboardScreen.kt         # Model Provisioning & Dashboard Control UI
+│   │   │       │   ├── DashboardScreen.kt         # Adaptive Android 17 Dashboard & Hardware Chip UI
 │   │   │       │   └── MainActivity.kt            # Entry Activity & Permission Handlers
 │   │   │       └── overlay/
 │   │   │           └── FloatingHudOverlay.kt      # Floating Compose Overlay HUD

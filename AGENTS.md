@@ -55,7 +55,10 @@ This document serves as the authoritative technical context guide for AI Coding 
 - **`OfflineRescorerBackend` / `SherpaOfflineWhisperRescorer`**: Second-pass offline recognizer contract wrapping `com.k2fsa.sherpa.onnx.OfflineRecognizer` with `OfflineWhisperModelConfig` (int8 Whisper tiny.en). Falls back cleanly to Pass 1 streaming result if offline models are absent or disabled.
 - **`ModelProvisioningManager`**: Automates speech model lifecycle with `.stt_version` tracking (`STT_MODEL_VERSION = "2023-06-21-gigaspeech"`). Provides `downloadOfflineRescorerModel()` for optional high-accuracy second-pass ASR rescoring.
 
-### 3. LLM Engine & Backend
+### 3. Hardware Profiling & LLM Backend Architecture (v1.4)
+- **`DeviceHardwareDetector`**: Probes device SoC model (`Build.SOC_MODEL`), total RAM, NPU system features, and presence of `libLiteRtDispatch_GoogleTensor.so` on Android 17 (API 37). Automatically classifies system into `HardwareTier.TPU`, `GPU`, or `CPU`.
+- **`BackendResolver`**: Negotiates LiteRT delegates based on user preference (`preferredDelegate`) and detected hardware capabilities (`NPU_GOOGLE_TENSOR`, `GPU_LITERT`, `CPU_MMAP`), providing clean fallback and error propagation.
+- **`AppConfig` Domain Subdirectories**: Reorganized model layout into dedicated folders (`vad/`, `asr/`, `whisper/`, `llm/`) with seamless fallback to legacy root directory files.
 - **`GalleryLiteRtBackend`**: Manages LiteRT `Engine` and `Conversation` sessions, supporting NPU and GPU delegation with clean synchronous resource teardown (`closeSynchronously()`).
 - **`LiteRtGemmaEngine`**: Wraps backend generation into a Kotlin `Flow<LlmStreamEvent>` emitting `PartialToken`, `Completed`, and `Error` events with TTFT latency tracking and dynamic system prompt fallback.
 - **Native Shims (`libLiteRtDispatch_GoogleTensor.so`)**: Placed in `app/src/main/jniLibs/arm64-v8a/` to enable hardware-accelerated EdgeTPU execution on Tensor G3/G4/G5 SoCs.

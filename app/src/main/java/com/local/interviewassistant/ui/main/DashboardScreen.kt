@@ -20,6 +20,8 @@ import com.local.interviewassistant.core.di.AppContainer
 import com.local.interviewassistant.core.model.AppConfig
 import com.local.interviewassistant.core.model.LlmGenerationConfig
 import com.local.interviewassistant.core.model.PromptStyle
+import com.local.interviewassistant.data.hardware.HardwareProfile
+import com.local.interviewassistant.data.hardware.HardwareTier
 import com.local.interviewassistant.data.provisioning.ProvisioningState
 import java.io.File
 import java.util.Locale
@@ -28,23 +30,55 @@ import java.util.Locale
 @Composable
 fun DashboardScreen(
     readiness: AppContainer.ReadinessStatus?,
+    hardwareProfile: HardwareProfile?,
     isServiceRunning: Boolean,
     provisioningState: ProvisioningState,
     llmConfig: LlmGenerationConfig,
+    isMeteredNetwork: Boolean,
     onUpdateLlmConfig: (LlmGenerationConfig) -> Unit,
     onGrantPermissionsClick: () -> Unit,
     onOpenOverlaySettingsClick: () -> Unit,
     onRefreshDiskCheckClick: () -> Unit,
-    onDownloadSpeechModelsClick: () -> Unit,
-    onDownloadOfflineRescorerClick: () -> Unit = {},
-    onDownloadLlmModelClick: (customUrl: String, token: String?) -> Unit,
+    onStartUnifiedDownloadClick: () -> Unit,
     onImportLlmFileClick: () -> Unit,
     onCancelDownloadClick: () -> Unit,
     onStartAssistantClick: (previewMode: Boolean) -> Unit,
     onStopAssistantClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var allowPreviewMode by remember { mutableStateOf(value = false) }
+    var allowPreviewMode by remember { mutableStateOf(false) }
+    var showMeteredDialog by remember { mutableStateOf(false) }
+
+    if (showMeteredDialog) {
+        AlertDialog(
+            onDismissRequest = { showMeteredDialog = false },
+            title = { Text("Metered Network Detected", color = Color.White) },
+            text = {
+                Text(
+                    "You are currently connected to a metered network (cellular data or metered Wi-Fi). Downloading the unified AI models bundle (~3.4 GB) may consume your data allowance. Do you wish to continue?",
+                    color = Color(0xFFCFD8DC),
+                    fontSize = 13.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showMeteredDialog = false
+                        onStartUnifiedDownloadClick()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF03DAC5), contentColor = Color.Black)
+                ) {
+                    Text("Download Anyway")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showMeteredDialog = false }) {
+                    Text("Cancel", color = Color.White)
+                }
+            },
+            containerColor = Color(0xFF1E1E1E)
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -53,7 +87,7 @@ fun DashboardScreen(
                     Column {
                         Text("Interview Assistant", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                         Text(
-                            text = "v${com.local.interviewassistant.BuildConfig.VERSION_NAME} (Build ${com.local.interviewassistant.BuildConfig.VERSION_CODE})",
+                            text = "v${com.local.interviewassistant.BuildConfig.VERSION_NAME} (Android 17 / API 37)",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
                             color = Color(0xFF03DAC5)
@@ -76,55 +110,158 @@ fun DashboardScreen(
             return@Scaffold
         }
 
-        Column(
+        // Android 17 Adaptive Layout: Centered container constrained to 640.dp
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(padding),
+            contentAlignment = Alignment.TopCenter
         ) {
-            PermissionsCard(
-                readiness = readiness,
-                onGrantPermissionsClick = onGrantPermissionsClick,
-                onOpenOverlaySettingsClick = onOpenOverlaySettingsClick
-            )
+            Column(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .widthIn(max = 640.dp)
+                    .padding(16.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                HardwareProfileCard(profile = hardwareProfile)
 
-            ModelsCard(
-                readiness = readiness,
-                provisioningState = provisioningState,
-                llmConfig = llmConfig,
-                onUpdateLlmConfig = onUpdateLlmConfig,
-                onRefreshDiskCheckClick = onRefreshDiskCheckClick,
-                onDownloadSpeechModelsClick = onDownloadSpeechModelsClick,
-                onDownloadOfflineRescorerClick = onDownloadOfflineRescorerClick,
-                onDownloadLlmModelClick = onDownloadLlmModelClick,
-                onImportLlmFileClick = onImportLlmFileClick,
-                onCancelDownloadClick = onCancelDownloadClick
-            )
+                PermissionsCard(
+                    readiness = readiness,
+                    onGrantPermissionsClick = onGrantPermissionsClick,
+                    onOpenOverlaySettingsClick = onOpenOverlaySettingsClick
+                )
 
-            ServiceControlCard(
-                readiness = readiness,
-                isServiceRunning = isServiceRunning,
-                allowPreviewMode = allowPreviewMode,
-                onPreviewModeToggle = { allowPreviewMode = it },
-                onStartAssistantClick = { onStartAssistantClick(allowPreviewMode) },
-                onStopAssistantClick = onStopAssistantClick
-            )
+                UnifiedProvisioningCard(
+                    readiness = readiness,
+                    hardwareProfile = hardwareProfile,
+                    provisioningState = provisioningState,
+                    llmConfig = llmConfig,
+                    isMeteredNetwork = isMeteredNetwork,
+                    onUpdateLlmConfig = onUpdateLlmConfig,
+                    onStartDownloadTapped = {
+                        if (isMeteredNetwork) {
+                            showMeteredDialog = true
+                        } else {
+                            onStartUnifiedDownloadClick()
+                        }
+                    },
+                    onRefreshDiskCheckClick = onRefreshDiskCheckClick,
+                    onImportLlmFileClick = onImportLlmFileClick,
+                    onCancelDownloadClick = onCancelDownloadClick
+                )
 
-            LlmConfigurationCard(
-                config = llmConfig,
-                onConfigChanged = onUpdateLlmConfig
-            )
+                ServiceControlCard(
+                    readiness = readiness,
+                    isServiceRunning = isServiceRunning,
+                    allowPreviewMode = allowPreviewMode,
+                    onPreviewModeToggle = { allowPreviewMode = it },
+                    onStartAssistantClick = { onStartAssistantClick(allowPreviewMode) },
+                    onStopAssistantClick = onStopAssistantClick
+                )
+
+                LlmConfigurationCard(
+                    config = llmConfig,
+                    onConfigChanged = onUpdateLlmConfig
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun LlmConfigurationCard(
-    config: LlmGenerationConfig,
-    onConfigChanged: (LlmGenerationConfig) -> Unit
+private fun HardwareProfileCard(profile: HardwareProfile?) {
+    if (profile == null) return
+
+    val (badgeTitle, badgeSubtitle, badgeColor, iconEmoji) = when (profile.tier) {
+        HardwareTier.TPU -> Quadruple(
+            "Google Tensor NPU Detected (${profile.socName})",
+            "Ultra-Low Power AOT EdgeTPU Mode • Rescorer Active",
+            Color(0xFF00E676),
+            "⚡"
+        )
+        HardwareTier.GPU -> Quadruple(
+            "High-Memory GPU Tier (${profile.totalRamMb} MB RAM)",
+            "Hardware Accelerated Inference • Rescorer Active",
+            Color(0xFF00B0FF),
+            "🚀"
+        )
+        HardwareTier.CPU -> Quadruple(
+            "Memory-Safe CPU Tier (mmap)",
+            "Optimized for Android 17 Memory Limits • Whisper Standby",
+            Color(0xFFFFD600),
+            "🛡️"
+        )
+    }
+
+    Card(
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E1E)),
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(46.dp)
+                    .background(badgeColor.copy(alpha = 0.15f), RoundedCornerShape(10.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(iconEmoji, fontSize = 22.sp)
+            }
+            Spacer(modifier = Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = badgeTitle,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = badgeColor
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = badgeSubtitle,
+                    fontSize = 11.sp,
+                    color = Color(0xFFB0BEC5)
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "AOT Model: ${profile.recommendedLlmFileName}",
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 10.sp,
+                    color = Color(0xFF78909C)
+                )
+            }
+        }
+    }
+}
+
+private data class Quadruple<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
+
+@Composable
+private fun UnifiedProvisioningCard(
+    readiness: AppContainer.ReadinessStatus,
+    hardwareProfile: HardwareProfile?,
+    provisioningState: ProvisioningState,
+    llmConfig: LlmGenerationConfig,
+    isMeteredNetwork: Boolean,
+    onUpdateLlmConfig: (LlmGenerationConfig) -> Unit,
+    onStartDownloadTapped: () -> Unit,
+    onRefreshDiskCheckClick: () -> Unit,
+    onImportLlmFileClick: () -> Unit,
+    onCancelDownloadClick: () -> Unit,
 ) {
+    val localModels = remember(readiness) {
+        val parentDir = readiness.modelReport.files.firstOrNull()?.absolutePath?.let { File(it).parentFile }
+        if (parentDir != null && parentDir.exists()) {
+            parentDir.walkTopDown()
+                .filter { file -> file.isFile && AppConfig.isSupportedLlmModel(file) && file.length() > 0L }
+                .toList()
+        } else emptyList()
+    }
+
     Card(
         colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E1E)),
         shape = RoundedCornerShape(12.dp),
@@ -132,107 +269,311 @@ private fun LlmConfigurationCard(
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = "4. LLM & Prompt Configuration",
-                fontSize = 18.sp,
+                text = "2. Unified Model Provisioning (9 Pipeline Assets)",
+                fontSize = 17.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White
             )
+            Text(
+                text = "Zero-config auto-download with HTTP 206 Range resume and FGS timeout resilience",
+                fontSize = 11.sp,
+                color = Color.Gray
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Unified Action Button & State Handling
+            when (provisioningState) {
+                is ProvisioningState.Checking -> {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color(0xFF263238), RoundedCornerShape(8.dp))
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CircularProgressIndicator(
+                            color = Color(0xFF03DAC5),
+                            strokeWidth = 2.dp,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = "Checking hardware profile & models on disk...",
+                            fontSize = 12.sp,
+                            color = Color.White
+                        )
+                    }
+                }
+
+                is ProvisioningState.Downloading -> {
+                    UnifiedProgressCard(
+                        state = provisioningState,
+                        onCancelClick = onCancelDownloadClick
+                    )
+                }
+
+                is ProvisioningState.NeedsDownload -> {
+                    val remainingText = formatBytes(provisioningState.remainingBytes)
+                    val buttonLabel = if (provisioningState.hasPartialResume) {
+                        "Resume AI Models Download ($remainingText remaining)"
+                    } else {
+                        "Download All AI Models (~$remainingText)"
+                    }
+
+                    Button(
+                        onClick = onStartDownloadTapped,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (provisioningState.hasPartialResume) Color(0xFFFF9800) else Color(0xFF6200EE)
+                        )
+                    ) {
+                        Text(
+                            text = buttonLabel,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+
+                    if (isMeteredNetwork) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "⚠ Metered connection detected. Tap will prompt confirmation.",
+                            fontSize = 10.sp,
+                            color = Color(0xFFFFCC80)
+                        )
+                    }
+                }
+
+                is ProvisioningState.Ready -> {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color(0xFF1B5E20), RoundedCornerShape(8.dp))
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("✔", fontSize = 18.sp, color = Color(0xFF00E676))
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = "All AI Pipeline Models Ready",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                            Text(
+                                text = "VAD + Zipformer STT + Whisper Rescorer + Gemma 4 LLM",
+                                fontSize = 10.sp,
+                                color = Color(0xFFC8E6C9)
+                            )
+                        }
+                    }
+                }
+
+                is ProvisioningState.Error -> {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color(0xFF3E2723), RoundedCornerShape(8.dp))
+                            .padding(12.dp)
+                    ) {
+                        Text(
+                            text = "Download Issue: ${provisioningState.message}",
+                            fontSize = 12.sp,
+                            color = Color(0xFFFF8A80)
+                        )
+                        if (provisioningState.canResume) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Button(
+                                onClick = onStartDownloadTapped,
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF7043))
+                            ) {
+                                Text("Resume Download", fontSize = 12.sp, color = Color.White)
+                            }
+                        }
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(16.dp))
 
-            Text("System Prompt Style", fontSize = 14.sp, color = Color.White)
+            // Models On Disk List
+            Text("Models Status on Disk:", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            Spacer(modifier = Modifier.height(6.dp))
+
+            readiness.modelReport.files.forEach { fileStatus ->
+                val sizeMb = fileStatus.sizeBytes / (1024f * 1024f)
+                val statusText = if (fileStatus.exists && fileStatus.sizeBytes > 0L) {
+                    String.format(Locale.US, "[OK] %.1f MB", sizeMb)
+                } else {
+                    "[MISSING]"
+                }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 3.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = fileStatus.name,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 11.sp,
+                        color = Color(0xFFCFD8DC),
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text(
+                        text = statusText,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (fileStatus.exists && fileStatus.sizeBytes > 0L) Color(0xFF00E676) else Color(0xFFFF5252)
+                    )
+                }
+            }
+
+            if (localModels.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Text("Installed LLM Models:", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF03DAC5))
+                localModels.forEach { modelFile ->
+                    val isSelected = llmConfig.selectedModelPath == modelFile.absolutePath ||
+                            (llmConfig.selectedModelPath.isBlank() && modelFile.name == hardwareProfile?.recommendedLlmFileName)
+                    val sizeMb = modelFile.length() / (1024f * 1024f)
+
+                    OutlinedButton(
+                        onClick = { onUpdateLlmConfig(llmConfig.copy(selectedModelPath = modelFile.absolutePath)) },
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = if (isSelected) Color(0xFF1B5E20) else Color(0xFF121212),
+                            contentColor = if (isSelected) Color.Green else Color.White
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "${if (isSelected) "[ACTIVE] " else ""}${modelFile.name} (${String.format(Locale.US, "%.1f", sizeMb)} MB)",
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                PromptStyle.entries.forEach { style ->
-                    val isSelected = config.promptStyle == style
-                    Button(
-                        onClick = { onConfigChanged(config.copy(promptStyle = style)) },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isSelected) Color(0xFF03DAC5) else Color(0xFF37474F),
-                            contentColor = if (isSelected) Color.Black else Color.White
-                        ),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text(style.displayName, fontSize = 11.sp, maxLines = 1)
-                    }
+                OutlinedButton(
+                    onClick = onImportLlmFileClick,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Import .litertlm", fontSize = 11.sp, color = Color.White)
                 }
-            }
-            Text(
-                text = config.promptStyle.systemInstruction,
-                fontSize = 11.sp,
-                color = Color(0xFFB0BEC5),
-                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
-                modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
-            )
 
-            OutlinedTextField(
-                value = config.interviewContext,
-                onValueChange = { onConfigChanged(config.copy(interviewContext = it)) },
-                label = { Text("Interview Context (Role, Tech Stack, Seniority)", color = Color.Gray, fontSize = 12.sp) },
-                placeholder = { Text("e.g., Senior Android & QA Engineer, Kotlin, Playwright", color = Color(0xFF546E7A), fontSize = 11.sp) },
-                modifier = Modifier.fillMaxWidth(),
-                textStyle = TextStyle(fontSize = 13.sp, color = Color.White),
-                maxLines = 2
-            )
-            
-            Spacer(modifier = Modifier.height(12.dp))
-
-            ConfigSlider(
-                label = "Temperature: ${String.format(Locale.US, "%.2f", config.temperature)}",
-                value = config.temperature,
-                range = 0.0f..1.0f,
-                steps = 10,
-                onValueChange = { onConfigChanged(config.copy(temperature = it)) }
-            )
-            
-            ConfigSlider(
-                label = "Top-K: ${config.topK}",
-                value = config.topK.toFloat(),
-                range = 1f..100f,
-                steps = 99,
-                onValueChange = { onConfigChanged(config.copy(topK = it.toInt())) }
-            )
-
-            ConfigSlider(
-                label = "Max Tokens: ${config.maxTokens}",
-                value = config.maxTokens.toFloat(),
-                range = 64f..512f,
-                steps = ((512 - 64) / 16) - 1,
-                onValueChange = { onConfigChanged(config.copy(maxTokens = it.toInt())) }
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-            TextButton(
-                onClick = { onConfigChanged(LlmGenerationConfig()) },
-                modifier = Modifier.align(Alignment.End)
-            ) {
-                Text("Reset to Defaults", color = Color(0xFF03DAC5), fontSize = 12.sp)
+                Button(
+                    onClick = onRefreshDiskCheckClick,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF37474F)),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Refresh Status", fontSize = 11.sp, color = Color.White)
+                }
             }
         }
     }
 }
 
 @Composable
-private fun ConfigSlider(
-    label: String,
-    value: Float,
-    range: ClosedFloatingPointRange<Float>,
-    steps: Int,
-    onValueChange: (Float) -> Unit
+private fun UnifiedProgressCard(
+    state: ProvisioningState.Downloading,
+    onCancelClick: () -> Unit
 ) {
-    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-        Text(label, fontSize = 12.sp, color = Color.White)
-        Slider(
-            value = value,
-            onValueChange = onValueChange,
-            valueRange = range,
-            steps = steps,
-            colors = SliderDefaults.colors(
-                thumbColor = Color(0xFF03DAC5),
-                activeTrackColor = Color(0xFF03DAC5)
+    val totalBytes = state.totalBytesRequired
+    val progress = if (totalBytes > 0) {
+        (state.bytesDownloaded.toFloat() / totalBytes.toFloat()).coerceIn(0f, 1f)
+    } else 0f
+    val percent = (progress * 100).toInt()
+    val speedMb = state.speedBytesPerSec / (1024f * 1024f)
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFF263238), RoundedCornerShape(8.dp))
+            .padding(14.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Downloading [${state.currentFileIndex}/${state.totalFiles}]:",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF03DAC5)
             )
+            Text(
+                text = String.format(Locale.US, "%.1f MB/s", speedMb),
+                fontSize = 11.sp,
+                fontFamily = FontFamily.Monospace,
+                color = Color.White
+            )
+        }
+
+        Text(
+            text = state.currentFileName,
+            fontFamily = FontFamily.Monospace,
+            fontSize = 11.sp,
+            color = Color.White,
+            maxLines = 1
         )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        LinearProgressIndicator(
+            progress = { progress },
+            modifier = Modifier.fillMaxWidth(),
+            color = Color(0xFF00E676),
+            trackColor = Color(0xFF37474F)
+        )
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = "${formatBytes(state.bytesDownloaded)} / ${formatBytes(totalBytes)} ($percent%)",
+                fontSize = 11.sp,
+                fontFamily = FontFamily.Monospace,
+                color = Color(0xFFB0BEC5)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        Button(
+            onClick = onCancelClick,
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFCF6679)),
+            modifier = Modifier.align(Alignment.End)
+        ) {
+            Text("Pause / Cancel", fontSize = 11.sp, color = Color.White)
+        }
+    }
+}
+
+private fun formatBytes(bytes: Long): String {
+    if (bytes <= 0) return "0 MB"
+    val mb = bytes / (1024.0 * 1024.0)
+    return if (mb >= 1000.0) {
+        String.format(Locale.US, "%.2f GB", mb / 1024.0)
+    } else {
+        String.format(Locale.US, "%.1f MB", mb)
     }
 }
 
@@ -250,17 +591,17 @@ private fun PermissionsCard(
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 text = "1. Permissions Status",
-                fontSize = 18.sp,
+                fontSize = 17.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White
             )
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             StatusRow("Microphone", readiness.hasAudioPermission)
             StatusRow("Notifications", readiness.hasNotificationPermission)
             StatusRow("System Overlay", readiness.hasOverlayPermission)
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -271,7 +612,7 @@ private fun PermissionsCard(
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3700B3))
                 ) {
-                    Text("Grant Base", fontSize = 12.sp, color = Color.White)
+                    Text("Grant Base", fontSize = 11.sp, color = Color.White)
                 }
                 Button(
                     onClick = onOpenOverlaySettingsClick,
@@ -279,353 +620,8 @@ private fun PermissionsCard(
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3700B3))
                 ) {
-                    Text("Settings (Overlay)", fontSize = 12.sp, color = Color.White)
+                    Text("Settings (Overlay)", fontSize = 11.sp, color = Color.White)
                 }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ModelsCard(
-    readiness: AppContainer.ReadinessStatus,
-    provisioningState: ProvisioningState,
-    llmConfig: LlmGenerationConfig,
-    onUpdateLlmConfig: (LlmGenerationConfig) -> Unit,
-    onRefreshDiskCheckClick: () -> Unit,
-    onDownloadSpeechModelsClick: () -> Unit,
-    onDownloadOfflineRescorerClick: () -> Unit,
-    onDownloadLlmModelClick: (customUrl: String, token: String?) -> Unit,
-    onImportLlmFileClick: () -> Unit,
-    onCancelDownloadClick: () -> Unit,
-) {
-    var isLlmSectionExpanded by remember { mutableStateOf(false) }
-    var customLlmUrl by remember { mutableStateOf(AppConfig.DEFAULT_LLM_URL) }
-    var hfBearerToken by remember { mutableStateOf("") }
-
-    val localModels = remember(readiness) {
-        val parentDir = readiness.modelReport.files.firstOrNull()?.absolutePath?.let { File(it).parentFile }
-        if (parentDir != null && parentDir.exists()) {
-            parentDir.walkTopDown()
-                .filter { file -> file.isFile && AppConfig.isSupportedLlmModel(file) && file.length() > 0L }
-                .toList()
-        } else emptyList()
-    }
-
-    Card(
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E1E)),
-        shape = RoundedCornerShape(12.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = "2. Model Provisioning & Storage Manager",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-
-            val targetPath = readiness.modelReport.files.firstOrNull()?.absolutePath?.let {
-                File(it).parent
-            } ?: "Unknown Path"
-
-            Text("Target Path:", fontSize = 12.sp, color = Color.Gray)
-            SelectionContainer {
-                Text(
-                    text = targetPath,
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 11.sp,
-                    color = Color(0xFFB0BEC5),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color(0xFF121212), RoundedCornerShape(4.dp))
-                        .padding(8.dp)
-                )
-            }
-
-            if (localModels.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(12.dp))
-                Text("Select Active Local Model:", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF03DAC5))
-                localModels.forEach { modelFile ->
-                    val isSelected = llmConfig.selectedModelPath == modelFile.absolutePath ||
-                        (llmConfig.selectedModelPath.isBlank() && modelFile.name == "gemma-4-E2B-it.litertlm")
-                    val sizeMb = modelFile.length() / (1024f * 1024f)
-                    
-                    OutlinedButton(
-                        onClick = { onUpdateLlmConfig(llmConfig.copy(selectedModelPath = modelFile.absolutePath)) },
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            containerColor = if (isSelected) Color(0xFF1B5E20) else Color(0xFF121212),
-                            contentColor = if (isSelected) Color.Green else Color.White
-                        ),
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)
-                    ) {
-                        Text(
-                            text = "${if (isSelected) "[ACTIVE] " else ""}${modelFile.name} (${String.format(Locale.US, "%.1f", sizeMb)} MB)",
-                            fontSize = 11.sp,
-                            fontFamily = FontFamily.Monospace
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            when (provisioningState) {
-                is ProvisioningState.InProgress -> {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(Color(0xFF263238), RoundedCornerShape(8.dp))
-                            .padding(12.dp)
-                    ) {
-                        Text(
-                            text = "Downloading (${provisioningState.completedFilesCount + 1}/${provisioningState.totalFilesCount}): ${provisioningState.currentFileName}",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Color.White
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        if (provisioningState.totalBytes > 0) {
-                            val progress = provisioningState.downloadedBytes.toFloat() / provisioningState.totalBytes.toFloat()
-                            LinearProgressIndicator(
-                                progress = { progress },
-                                modifier = Modifier.fillMaxWidth(),
-                                color = Color(0xFF03DAC5),
-                                trackColor = Color(0xFF37474F),
-                            )
-                            Spacer(modifier = Modifier.height(6.dp))
-                            val downloadedMb = provisioningState.downloadedBytes / (1024f * 1024f)
-                            val totalMb = provisioningState.totalBytes / (1024f * 1024f)
-                            val percent = (progress * 100).toInt()
-                            Text(
-                                text = String.format(Locale.US, "%.2f MB / %.2f MB (%d%%)", downloadedMb, totalMb, percent),
-                                fontSize = 11.sp,
-                                fontFamily = FontFamily.Monospace,
-                                color = Color(0xFFB0BEC5)
-                            )
-                        } else {
-                            LinearProgressIndicator(
-                                modifier = Modifier.fillMaxWidth(),
-                                color = Color(0xFF03DAC5),
-                                trackColor = Color(0xFF37474F),
-                            )
-                            Spacer(modifier = Modifier.height(6.dp))
-                            val downloadedMb = provisioningState.downloadedBytes / (1024f * 1024f)
-                            Text(
-                                text = String.format(Locale.US, "%.2f MB downloaded", downloadedMb),
-                                fontSize = 11.sp,
-                                fontFamily = FontFamily.Monospace,
-                                color = Color(0xFFB0BEC5)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Button(
-                            onClick = onCancelDownloadClick,
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFCF6679)),
-                            modifier = Modifier.align(Alignment.End)
-                        ) {
-                            Text("Cancel Download", fontSize = 12.sp, color = Color.White)
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(12.dp))
-                }
-                is ProvisioningState.Error -> {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(Color(0xFF3E2723), RoundedCornerShape(8.dp))
-                            .padding(12.dp)
-                    ) {
-                        Text(
-                            text = "Error (${provisioningState.fileName}): ${provisioningState.message}",
-                            fontSize = 12.sp,
-                            color = Color(0xFFFF8A80)
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(12.dp))
-                }
-                else -> {}
-            }
-
-            readiness.modelReport.files.forEach { (name, _, exists, sizeBytes) ->
-                val sizeMb = sizeBytes / (1024f * 1024f)
-                val statusText = if (exists && (sizeBytes > 0)) {
-                    String.format(Locale.US, "[OK] %.2f MB", sizeMb)
-                } else {
-                    "[MISSING]"
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = name,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 12.sp,
-                        color = Color.White,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Text(
-                        text = statusText,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 12.sp,
-                        color = if (exists && (sizeBytes > 0)) Color.Green else Color.Red
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            val isDownloading = provisioningState is ProvisioningState.InProgress
-
-            Button(
-                onClick = onDownloadSpeechModelsClick,
-                enabled = !isDownloading,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3700B3))
-            ) {
-                Text("Auto-Download Speech Models (VAD + STT)", fontSize = 12.sp, color = Color.White)
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color(0xFF1B2838), RoundedCornerShape(8.dp))
-                    .padding(10.dp)
-            ) {
-                Text(
-                    text = "Phase 3 STT Architecture",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF03DAC5)
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "• Pass 1 (HUD): Streaming Zipformer (GigaSpeech 10k hrs, 0ms lag)\n• Grammar: 100+ Acronyms Truecased (API, SQL, Kotlin) + '?'\n• Pass 2 (Rescore): Optional Whisper tiny.en",
-                    fontSize = 10.sp,
-                    color = Color(0xFFECEFF1)
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                OutlinedButton(
-                    onClick = onDownloadOfflineRescorerClick,
-                    enabled = !isDownloading,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Download Whisper Rescorer (Optional ~103 MB)", fontSize = 11.sp, color = Color.White)
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            OutlinedButton(
-                onClick = { isLlmSectionExpanded = !isLlmSectionExpanded },
-                enabled = !isDownloading,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(
-                    text = if (isLlmSectionExpanded) "Hide Gemma 4 LLM Config" else "Download Gemma 4 LLM",
-                    fontSize = 12.sp,
-                    color = Color.White
-                )
-            }
-
-            if (isLlmSectionExpanded) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color(0xFF121212), RoundedCornerShape(8.dp))
-                        .padding(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = "GPU Variant: Universal model for all Pixel & Android devices.\nPixel TPU Variant: Pre-compiled AOT model for Google Tensor TPU.",
-                        fontSize = 10.sp,
-                        color = Color(0xFFB0BEC5)
-                    )
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Button(
-                            onClick = {
-                                customLlmUrl = AppConfig.DEFAULT_LLM_URL
-                                onDownloadLlmModelClick(AppConfig.DEFAULT_LLM_URL, hfBearerToken.ifBlank { null })
-                            },
-                            enabled = !isDownloading,
-                            modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6200EE))
-                        ) {
-                            Text("GPU Variant", fontSize = 11.sp, color = Color.White)
-                        }
-
-                        Button(
-                            onClick = {
-                                customLlmUrl = AppConfig.DEFAULT_TPU_LLM_URL
-                                onDownloadLlmModelClick(AppConfig.DEFAULT_TPU_LLM_URL, hfBearerToken.ifBlank { null })
-                            },
-                            enabled = !isDownloading,
-                            modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00897B))
-                        ) {
-                            Text("Pixel TPU Variant", fontSize = 11.sp, color = Color.White)
-                        }
-                    }
-
-                    OutlinedTextField(
-                        value = customLlmUrl,
-                        onValueChange = { customLlmUrl = it },
-                        label = { Text("Custom LLM URL", color = Color.Gray) },
-                        modifier = Modifier.fillMaxWidth(),
-                        textStyle = TextStyle(fontSize = 12.sp, color = Color.White),
-                        singleLine = true
-                    )
-                    OutlinedTextField(
-                        value = hfBearerToken,
-                        onValueChange = { hfBearerToken = it },
-                        label = { Text("HF Bearer Token (Optional)", color = Color.Gray) },
-                        modifier = Modifier.fillMaxWidth(),
-                        textStyle = TextStyle(fontSize = 12.sp, color = Color.White),
-                        singleLine = true
-                    )
-                    Button(
-                        onClick = { onDownloadLlmModelClick(customLlmUrl, hfBearerToken.ifBlank { null }) },
-                        enabled = !isDownloading,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3700B3))
-                    ) {
-                        Text("Start Custom LLM Download", fontSize = 12.sp, color = Color.White)
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Button(
-                onClick = onImportLlmFileClick,
-                enabled = !isDownloading,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF018786))
-            ) {
-                Text("Import LLM File from Device Storage", fontSize = 12.sp, color = Color.White)
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Button(
-                onClick = onRefreshDiskCheckClick,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF03DAC5), contentColor = Color.Black)
-            ) {
-                Text("Refresh Disk Check")
             }
         }
     }
@@ -648,11 +644,11 @@ private fun ServiceControlCard(
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 text = "3. Assistant Service Control",
-                fontSize = 18.sp,
+                fontSize = 17.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White
             )
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Checkbox(
@@ -665,22 +661,26 @@ private fun ServiceControlCard(
                 )
                 Text(
                     text = "Allow Start Without Models (UI Preview)",
-                    fontSize = 14.sp,
+                    fontSize = 13.sp,
                     color = Color.White
                 )
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             val canStart = (readiness.canStartAssistant || (readiness.allPermissionsGranted && allowPreviewMode)) && !isServiceRunning
-            
+
             Button(
                 onClick = onStartAssistantClick,
                 enabled = canStart,
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50), disabledContainerColor = Color(0xFF2E3A2F))
             ) {
-                Text(if (isServiceRunning) "Assistant is Running" else "Start Interview Assistant", color = if (canStart) Color.White else Color.Gray)
+                Text(
+                    if (isServiceRunning) "Assistant is Running" else "Start Interview Assistant",
+                    color = if (canStart) Color.White else Color.Gray,
+                    fontWeight = FontWeight.Bold
+                )
             }
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -698,30 +698,147 @@ private fun ServiceControlCard(
 }
 
 @Composable
+private fun LlmConfigurationCard(
+    config: LlmGenerationConfig,
+    onConfigChanged: (LlmGenerationConfig) -> Unit
+) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E1E)),
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "4. LLM & Prompt Configuration",
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text("System Prompt Style", fontSize = 13.sp, color = Color.White)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                PromptStyle.entries.forEach { style ->
+                    val isSelected = config.promptStyle == style
+                    Button(
+                        onClick = { onConfigChanged(config.copy(promptStyle = style)) },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isSelected) Color(0xFF03DAC5) else Color(0xFF37474F),
+                            contentColor = if (isSelected) Color.Black else Color.White
+                        ),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(style.displayName, fontSize = 11.sp, maxLines = 1)
+                    }
+                }
+            }
+
+            Text(
+                text = config.promptStyle.systemInstruction,
+                fontSize = 11.sp,
+                color = Color(0xFFB0BEC5),
+                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                modifier = Modifier.padding(top = 4.dp, bottom = 10.dp)
+            )
+
+            OutlinedTextField(
+                value = config.interviewContext,
+                onValueChange = { onConfigChanged(config.copy(interviewContext = it)) },
+                label = { Text("Interview Context (Role, Tech Stack, Seniority)", color = Color.Gray, fontSize = 11.sp) },
+                placeholder = { Text("e.g., Staff Android Architect, Kotlin, LiteRT", color = Color(0xFF546E7A), fontSize = 11.sp) },
+                modifier = Modifier.fillMaxWidth(),
+                textStyle = TextStyle(fontSize = 12.sp, color = Color.White),
+                maxLines = 2
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            ConfigSlider(
+                label = "Temperature: ${String.format(Locale.US, "%.2f", config.temperature)}",
+                value = config.temperature,
+                range = 0.0f..1.0f,
+                steps = 10,
+                onValueChange = { onConfigChanged(config.copy(temperature = it)) }
+            )
+
+            ConfigSlider(
+                label = "Top-K: ${config.topK}",
+                value = config.topK.toFloat(),
+                range = 1f..100f,
+                steps = 99,
+                onValueChange = { onConfigChanged(config.copy(topK = it.toInt())) }
+            )
+
+            ConfigSlider(
+                label = "Max Tokens: ${config.maxTokens}",
+                value = config.maxTokens.toFloat(),
+                range = 64f..512f,
+                steps = ((512 - 64) / 16) - 1,
+                onValueChange = { onConfigChanged(config.copy(maxTokens = it.toInt())) }
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
+            TextButton(
+                onClick = { onConfigChanged(LlmGenerationConfig()) },
+                modifier = Modifier.align(Alignment.End)
+            ) {
+                Text("Reset to Defaults", color = Color(0xFF03DAC5), fontSize = 12.sp)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ConfigSlider(
+    label: String,
+    value: Float,
+    range: ClosedFloatingPointRange<Float>,
+    steps: Int,
+    onValueChange: (Float) -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
+        Text(label, fontSize = 11.sp, color = Color.White)
+        Slider(
+            value = value,
+            onValueChange = onValueChange,
+            valueRange = range,
+            steps = steps,
+            colors = SliderDefaults.colors(
+                thumbColor = Color(0xFF03DAC5),
+                activeTrackColor = Color(0xFF03DAC5)
+            )
+        )
+    }
+}
+
+@Composable
 private fun StatusRow(label: String, isGranted: Boolean) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
+            .padding(vertical = 3.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             text = if (isGranted) "✔" else "⚠",
-            color = if (isGranted) Color.Green else Color.Red,
-            fontSize = 16.sp
+            color = if (isGranted) Color(0xFF00E676) else Color(0xFFFF5252),
+            fontSize = 15.sp
         )
         Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = label,
-            fontSize = 14.sp,
+            fontSize = 13.sp,
             color = Color.White
         )
         Spacer(modifier = Modifier.weight(1f))
         Text(
             text = if (isGranted) "GRANTED" else "MISSING",
-            fontSize = 12.sp,
+            fontSize = 11.sp,
             fontWeight = FontWeight.Bold,
-            color = if (isGranted) Color.Green else Color.Red
+            color = if (isGranted) Color(0xFF00E676) else Color(0xFFFF5252)
         )
     }
 }

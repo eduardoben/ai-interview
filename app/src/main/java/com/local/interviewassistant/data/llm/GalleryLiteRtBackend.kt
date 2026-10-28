@@ -63,7 +63,12 @@ class GalleryLiteRtBackend(private val context: Context) : LlmInferenceBackend {
                 modelFile.name.contains("npu", ignoreCase = true)
 
         val cacheDir = context.cacheDir.absolutePath
-        val attemptBackends = BackendResolver.getFallbackSequence(context, isTensorTpuModelFile, config.useGpuDelegate)
+        val attemptBackends = BackendResolver.getFallbackSequence(
+            context = context,
+            isTensorTpuModelFile = isTensorTpuModelFile,
+            useGpuDelegate = true,
+            preferredDelegate = config.preferredDelegate
+        )
 
         var initializedEngine: Engine? = null
         val errors = mutableListOf<String>()

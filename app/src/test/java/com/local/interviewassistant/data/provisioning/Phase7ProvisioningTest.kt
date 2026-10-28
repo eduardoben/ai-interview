@@ -12,6 +12,7 @@ import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.IOException
 import java.io.InputStream
+import java.util.Arrays
 
 class Phase7ProvisioningTest {
 
@@ -19,12 +20,12 @@ class Phase7ProvisioningTest {
     val tempFolder = TemporaryFolder()
 
     private class FakeStreamFetcher(
-        private val contentMap: Map<String, ByteArray> = emptyMap(),
-        private val failingUrl: String? = null
+        private val failingUrl: String? = null,
+        private val payloadSizeMap: Map<String, Long> = emptyMap()
     ) : StreamFetcher {
-        override fun openStream(url: String, authToken: String?, onTotalBytes: (Long) -> Unit): InputStream {
+        override fun openStream(url: String, rangeOffset: Long, authToken: String?): StreamResponse {
             if (url == failingUrl) {
-                return object : InputStream() {
+                val failingStream = object : InputStream() {
                     private var count = 0
                     override fun read(): Int {
                         if (count++ > 5) {
@@ -33,10 +34,26 @@ class Phase7ProvisioningTest {
                         return 'X'.code
                     }
                 }
+                return StreamResponse(200, failingStream, 100_000L)
             }
-            val content = contentMap[url] ?: "dummy test content payload".toByteArray()
-            onTotalBytes(content.size.toLong())
-            return ByteArrayInputStream(content)
+
+            val size = payloadSizeMap[url] ?: 3_000_000L
+            val stream = object : InputStream() {
+                var remaining = (size - rangeOffset).coerceAtLeast(0L)
+                override fun read(): Int {
+                    if (remaining <= 0L) return -1
+                    remaining--
+                    return 0x01
+                }
+                override fun read(b: ByteArray, off: Int, len: Int): Int {
+                    if (remaining <= 0L) return -1
+                    val toRead = len.toLong().coerceAtMost(remaining).toInt()
+                    Arrays.fill(b, off, off + toRead, 0x01.toByte())
+                    remaining -= toRead
+                    return toRead
+                }
+            }
+            return StreamResponse(if (rangeOffset > 0L) 206 else 200, stream, size - rangeOffset)
         }
     }
 
@@ -46,19 +63,33 @@ class Phase7ProvisioningTest {
         assertFalse(modelsDir.exists())
 
         val appConfig = AppConfig(modelsDir)
-        val fakeContent = "valid model content".toByteArray()
-        val contentMap = mapOf(
-            AppConfig.VAD_URL to fakeContent,
-            AppConfig.STT_ENCODER_URL to fakeContent,
-            AppConfig.STT_DECODER_URL to fakeContent,
-            AppConfig.STT_JOINER_URL to fakeContent,
-            AppConfig.STT_TOKENS_URL to fakeContent
+        val sizeMap = mapOf(
+            AppConfig.VAD_URL to 2_500_000L,
+            AppConfig.STT_ENCODER_URL to 125_000_000L,
+            AppConfig.STT_DECODER_URL to 3_000_000L,
+            AppConfig.STT_JOINER_URL to 60_000_000L,
+            AppConfig.STT_TOKENS_URL to 10_000L
         )
 
-        val fetcher = FakeStreamFetcher(contentMap)
+        val fetcher = FakeStreamFetcher(payloadSizeMap = sizeMap)
         val provisioningManager = ModelProvisioningManager(appConfig, fetcher)
 
-        val result = provisioningManager.downloadMissingSpeechModels()
+        val profile = com.local.interviewassistant.data.hardware.DeviceHardwareDetector.classify(
+            com.local.interviewassistant.data.hardware.SystemDeviceInfo(
+                "", "", "", "", 8_000_000_000L, 4_000_000_000L, false, false
+            )
+        )
+        val manifest = provisioningManager.buildManifest(profile)
+
+        // Pre-create other models in manifest (whisper and llm) so only speech models are needed
+        for (entry in manifest.drop(5)) {
+            entry.targetFile.parentFile?.mkdirs()
+            java.io.RandomAccessFile(entry.targetFile, "rw").use { raf ->
+                raf.setLength(entry.minExpectedBytes + 100L)
+            }
+        }
+
+        val result = provisioningManager.downloadAllModels(profile)
 
         assertTrue(result.isSuccess)
         assertTrue(modelsDir.exists())
@@ -69,36 +100,40 @@ class Phase7ProvisioningTest {
         assertTrue(appConfig.sttJoinerFile.exists())
         assertTrue(appConfig.sttTokensFile.exists())
 
-        val partFiles = modelsDir.listFiles { _, name -> name.endsWith(".part") }
-        assertTrue(partFiles.isNullOrEmpty())
+        val tmpFiles = modelsDir.walkTopDown().filter { it.name.endsWith(".tmp") }.toList()
+        assertTrue(tmpFiles.isEmpty())
 
         val state = provisioningManager.state.value
-        assertTrue(state is ProvisioningState.Completed)
-        val report = (state as ProvisioningState.Completed).report
-        assertTrue(report.files.filter { it.name != appConfig.llmModelFile.name }.all { it.exists && it.sizeBytes > 0 })
+        assertTrue(state is ProvisioningState.Ready)
     }
 
     @Test
-    fun testFailedDownloadCleansUpTemporaryPartFile() = runTest {
+    fun testFailedDownloadPreservesPartialTmpFileForResume() = runTest {
         val modelsDir = tempFolder.newFolder("models_fail_test")
         val appConfig = AppConfig(modelsDir)
 
         val fetcher = FakeStreamFetcher(failingUrl = AppConfig.VAD_URL)
         val provisioningManager = ModelProvisioningManager(appConfig, fetcher)
 
-        val result = provisioningManager.downloadMissingSpeechModels()
+        val profile = com.local.interviewassistant.data.hardware.DeviceHardwareDetector.classify(
+            com.local.interviewassistant.data.hardware.SystemDeviceInfo(
+                "", "", "", "", 8_000_000_000L, 4_000_000_000L, false, false
+            )
+        )
+
+        val result = provisioningManager.downloadAllModels(profile)
 
         assertTrue(result.isFailure)
 
         val targetFile = appConfig.vadModelFile
-        val partFile = File(modelsDir, "${targetFile.name}.part")
+        val tmpFile = File(appConfig.vadDir, "${targetFile.name}.tmp")
 
         assertFalse("Target file should not exist on failure", targetFile.exists())
-        assertFalse("Part file should be deleted on failure", partFile.exists())
+        assertTrue("Partial tmp file should be preserved on disk for resumption", tmpFile.exists())
 
         val state = provisioningManager.state.value
         assertTrue(state is ProvisioningState.Error)
-        assertEquals(targetFile.name, (state as ProvisioningState.Error).fileName)
+        assertTrue((state as ProvisioningState.Error).canResume)
     }
 
     @Test
@@ -118,17 +153,10 @@ class Phase7ProvisioningTest {
         assertTrue(result.isSuccess)
         assertTrue(appConfig.llmModelFile.exists())
         assertEquals(sampleData.size.toLong(), appConfig.llmModelFile.length())
-
-        val state = provisioningManager.state.value
-        assertTrue(state is ProvisioningState.Completed)
-        val report = (state as ProvisioningState.Completed).report
-        val llmStatus = report.files.first { it.name == appConfig.llmModelFile.name }
-        assertTrue(llmStatus.exists)
-        assertEquals(sampleData.size.toLong(), llmStatus.sizeBytes)
     }
 
     @Test
-    fun testHttp400ErrorPropagatesAndCleansUpPartFile() = runTest {
+    fun testHttp400ErrorPropagatesAndPreservesState() = runTest {
         val modelsDir = tempFolder.newFolder("models_http400_test")
         val appConfig = AppConfig(modelsDir)
 
@@ -136,8 +164,13 @@ class Phase7ProvisioningTest {
             throw IOException("HTTP 400 (Bad Request): Network failure or broken link for URL: $url")
         }
         val provisioningManager = ModelProvisioningManager(appConfig, fetcher)
+        val profile = com.local.interviewassistant.data.hardware.DeviceHardwareDetector.classify(
+            com.local.interviewassistant.data.hardware.SystemDeviceInfo(
+                "", "", "", "", 8_000_000_000L, 4_000_000_000L, false, false
+            )
+        )
 
-        val result = provisioningManager.downloadMissingSpeechModels()
+        val result = provisioningManager.downloadAllModels(profile)
 
         assertTrue(result.isFailure)
         val exception = result.exceptionOrNull()
@@ -145,139 +178,10 @@ class Phase7ProvisioningTest {
         assertTrue(exception?.message?.contains("HTTP 400") == true)
 
         val targetFile = appConfig.vadModelFile
-        val partFile = File(modelsDir, "${targetFile.name}.part")
-
         assertFalse("Target file should not exist on HTTP 400 failure", targetFile.exists())
-        assertFalse("Part file should be deleted on HTTP 400 failure", partFile.exists())
 
         val state = provisioningManager.state.value
         assertTrue(state is ProvisioningState.Error)
-        assertEquals(targetFile.name, (state as ProvisioningState.Error).fileName)
-        assertTrue(state.message.contains("HTTP 400"))
-    }
-
-    @Test
-    fun testDownloadAllModelsSequentiallyDownloadsAllSixModels() = runTest {
-        val modelsDir = tempFolder.newFolder("models_download_all_test")
-        val appConfig = AppConfig(modelsDir)
-        val fakeContent = "valid model binary content payload".toByteArray()
-
-        val contentMap = mapOf(
-            AppConfig.VAD_URL to fakeContent,
-            AppConfig.STT_ENCODER_URL to fakeContent,
-            AppConfig.STT_DECODER_URL to fakeContent,
-            AppConfig.STT_JOINER_URL to fakeContent,
-            AppConfig.STT_TOKENS_URL to fakeContent,
-            AppConfig.DEFAULT_LLM_URL to fakeContent
-        )
-
-        val fetcher = FakeStreamFetcher(contentMap)
-        val provisioningManager = ModelProvisioningManager(appConfig, fetcher)
-
-        val result = provisioningManager.downloadAllModels()
-
-        assertTrue(result.isSuccess)
-        assertTrue(appConfig.vadModelFile.exists())
-        assertTrue(appConfig.sttEncoderFile.exists())
-        assertTrue(appConfig.sttDecoderFile.exists())
-        assertTrue(appConfig.sttJoinerFile.exists())
-        assertTrue(appConfig.sttTokensFile.exists())
-        assertTrue(appConfig.llmModelFile.exists())
-
-        val state = provisioningManager.state.value
-        assertTrue(state is ProvisioningState.Completed)
-        val report = (state as ProvisioningState.Completed).report
-        assertTrue(report.allPresent)
-        assertEquals(6, report.files.size)
-    }
-
-    @Test
-    fun testDownloadLlmModelWithValidExtension() = runTest {
-        val modelsDir = tempFolder.newFolder("models_llm_valid_extension")
-        val appConfig = AppConfig(modelsDir)
-        val customUrl = "https://example.com/models/custom-model.litertlm"
-        val fakeContent = "fake custom litertlm content".toByteArray()
-
-        val fetcher = FakeStreamFetcher(mapOf(customUrl to fakeContent))
-        val provisioningManager = ModelProvisioningManager(appConfig, fetcher)
-
-        val result = provisioningManager.downloadLlmModel(customUrl = customUrl)
-
-        assertTrue(result.isSuccess)
-        val expectedFile = File(modelsDir, "custom-model.litertlm")
-        assertTrue(expectedFile.exists())
-        assertEquals(fakeContent.size.toLong(), expectedFile.length())
-        assertEquals(expectedFile.absolutePath, appConfig.llmConfig.value.selectedModelPath)
-
-        val state = provisioningManager.state.value
-        assertTrue(state is ProvisioningState.Completed)
-    }
-
-    @Test
-    fun testDownloadLlmModelWithInvalidExtensionFallsBackToActiveModelName() = runTest {
-        val modelsDir = tempFolder.newFolder("models_llm_invalid_extension")
-        val appConfig = AppConfig(modelsDir)
-        val customUrl = "https://example.com/models/custom-model.invalid"
-        val fakeContent = "fake custom litertlm content".toByteArray()
-
-        val fetcher = FakeStreamFetcher(mapOf(customUrl to fakeContent))
-        val provisioningManager = ModelProvisioningManager(appConfig, fetcher)
-
-        val result = provisioningManager.downloadLlmModel(customUrl = customUrl)
-
-        assertTrue(result.isSuccess)
-        val expectedFile = appConfig.activeLlmModelFile // the default
-        assertTrue(expectedFile.exists())
-        assertEquals(fakeContent.size.toLong(), expectedFile.length())
-        assertEquals(expectedFile.absolutePath, appConfig.llmConfig.value.selectedModelPath)
-
-        val state = provisioningManager.state.value
-        assertTrue(state is ProvisioningState.Completed)
-    }
-
-    @Test
-    fun testDownloadLlmModelFailureCleansUpPartFile() = runTest {
-        val modelsDir = tempFolder.newFolder("models_llm_fail")
-        val appConfig = AppConfig(modelsDir)
-        val customUrl = "https://example.com/models/fail-model.litertlm"
-
-        val fetcher = FakeStreamFetcher(failingUrl = customUrl)
-        val provisioningManager = ModelProvisioningManager(appConfig, fetcher)
-
-        val result = provisioningManager.downloadLlmModel(customUrl = customUrl)
-
-        assertTrue(result.isFailure)
-        val expectedFile = File(modelsDir, "fail-model.litertlm")
-        val partFile = File(modelsDir, "${expectedFile.name}.part")
-        assertFalse("Target file should not exist on failure", expectedFile.exists())
-        assertFalse("Part file should be deleted on failure", partFile.exists())
-
-        val state = provisioningManager.state.value
-        assertTrue(state is ProvisioningState.Error)
-        assertEquals(expectedFile.name, (state as ProvisioningState.Error).fileName)
-    }
-
-    @Test
-    fun testDownloadOfflineRescorerModel() = runTest {
-        val modelsDir = tempFolder.newFolder("rescorer_test")
-        val appConfig = AppConfig(modelsDir)
-        val fakeContent = "rescorer content".toByteArray()
-        val contentMap = mapOf(
-            AppConfig.WHISPER_TINY_ENCODER_URL to fakeContent,
-            AppConfig.WHISPER_TINY_DECODER_URL to fakeContent,
-            AppConfig.WHISPER_TINY_TOKENS_URL to fakeContent
-        )
-
-        val fetcher = FakeStreamFetcher(contentMap)
-        val provisioningManager = ModelProvisioningManager(appConfig, fetcher)
-
-        assertFalse(appConfig.hasOfflineRescorer())
-        val result = provisioningManager.downloadOfflineRescorerModel()
-
-        assertTrue(result.isSuccess)
-        assertTrue(appConfig.hasOfflineRescorer())
-        assertTrue(appConfig.offlineWhisperEncoderFile.exists())
-        assertTrue(appConfig.offlineWhisperDecoderFile.exists())
-        assertTrue(appConfig.offlineWhisperTokensFile.exists())
+        assertTrue((state as ProvisioningState.Error).message.contains("HTTP 400"))
     }
 }

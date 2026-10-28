@@ -1,5 +1,7 @@
 package com.local.interviewassistant.core.model
 
+import com.local.interviewassistant.data.hardware.DelegateType
+
 enum class PromptStyle(val displayName: String, val systemInstruction: String) {
     CONCISE(
         "Concise",
@@ -21,7 +23,9 @@ data class LlmGenerationConfig(
     val maxTokens: Int = 200,
     val promptStyle: PromptStyle = PromptStyle.CONCISE,
     val interviewContext: String = "",
-    val selectedModelPath: String = ""
+    val selectedModelPath: String = "",
+    val preferredDelegate: DelegateType? = null,
+    val enableWhisperRescorer: Boolean = true
 ) {
     fun validated(): LlmGenerationConfig {
         return copy(
@@ -29,7 +33,9 @@ data class LlmGenerationConfig(
             topK = topK.coerceIn(1, 100),
             maxTokens = maxTokens.coerceIn(64, 512),
             interviewContext = interviewContext.trim(),
-            selectedModelPath = selectedModelPath.trim()
+            selectedModelPath = selectedModelPath.trim(),
+            preferredDelegate = preferredDelegate,
+            enableWhisperRescorer = enableWhisperRescorer
         )
     }
 }

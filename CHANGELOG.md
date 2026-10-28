@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.0] - 2026-10-28
+
+### ⚡ Dynamic Hardware Detection, Intelligent Backend Routing & Subfolder Organization
+- **`DeviceHardwareDetector` Hardware Profiling:** Probes system SoC (`Build.SOC_MODEL`), device model, RAM threshold, NPU system features, and native Tensor dispatch library presence (`libLiteRtDispatch_GoogleTensor.so`) on Android 17 (API 37). Automatically classifies devices into `TPU`, `GPU`, or `CPU` tiers with tailored delegate configurations.
+- **Dynamic Backend Routing (`BackendResolver`):** Intelligently negotiates LiteRT acceleration tiers based on user preferences and hardware capabilities (`NPU_GOOGLE_TENSOR`, `GPU_LITERT`, or `CPU_MMAP`), with clean fallbacks and informative diagnostic logging.
+- **Hierarchical Model Subfolder Structure (`AppConfig`):** Upgraded model layout from flat root storage to organized domain subfolders (`vad/`, `asr/`, `whisper/`, `llm/`) while maintaining backward-compatible fallbacks for existing on-disk models.
+- **Unified One-Tap Model Provisioning:** Streamlined model downloading to provision all required models (VAD, ASR streaming Zipformer, Whisper offline rescorer, and recommended LiteRT LLM) in a single workflow with metered network warnings and robust progress reporting.
+- **Modern Dashboard UI (Android 17 Adaptive Layout):** Refreshed Compose dashboard with responsive layout constraints (max 640.dp width), live hardware capability chips, real-time download status, and delegate selector.
+- Bumped application `versionCode = 7` and `versionName = "1.4.0"`.
+
+---
+
 ## [1.3.2] - 2026-10-25
 
 ### 🚀 Background Model Provisioning Service (Lock Screen & Screen-Off Persistence)
