@@ -6,32 +6,123 @@ import kotlinx.coroutines.flow.StateFlow
 
 @Suppress("unused")
 class AppConfig(val modelsRootDir: File) {
-    val vadModelFile = File(modelsRootDir, "silero_vad.onnx")
-    val sttEncoderFile = File(modelsRootDir, "encoder.onnx")
-    val sttDecoderFile = File(modelsRootDir, "decoder.onnx")
-    val sttJoinerFile = File(modelsRootDir, "joiner.onnx")
-    val sttTokensFile = File(modelsRootDir, "tokens.txt")
+    val vadDir = File(modelsRootDir, "vad")
+    val asrDir = File(modelsRootDir, "asr")
+    val whisperDir = File(modelsRootDir, "whisper")
+    val llmDir = File(modelsRootDir, "llm")
+
+    val vadModelFile: File
+        get() {
+            val sub = File(vadDir, "silero_vad.onnx")
+            if (sub.exists()) return sub
+            val flat = File(modelsRootDir, "silero_vad.onnx")
+            if (flat.exists()) return flat
+            return if (vadDir.exists()) sub else flat
+        }
+
+    val sttEncoderFile: File
+        get() {
+            val sub = File(asrDir, "encoder-epoch-99-avg-1.int8.onnx")
+            if (sub.exists()) return sub
+            val flat = File(modelsRootDir, "encoder.onnx")
+            if (flat.exists()) return flat
+            return if (asrDir.exists()) sub else flat
+        }
+
+    val sttDecoderFile: File
+        get() {
+            val subInt8 = File(asrDir, "decoder-epoch-99-avg-1.int8.onnx")
+            if (subInt8.exists()) return subInt8
+            val sub = File(asrDir, "decoder-epoch-99-avg-1.onnx")
+            if (sub.exists()) return sub
+            val flat = File(modelsRootDir, "decoder.onnx")
+            if (flat.exists()) return flat
+            return if (asrDir.exists()) subInt8 else flat
+        }
+
+    val sttJoinerFile: File
+        get() {
+            val sub = File(asrDir, "joiner-epoch-99-avg-1.int8.onnx")
+            if (sub.exists()) return sub
+            val flat = File(modelsRootDir, "joiner.onnx")
+            if (flat.exists()) return flat
+            return if (asrDir.exists()) sub else flat
+        }
+
+    val sttTokensFile: File
+        get() {
+            val sub = File(asrDir, "tokens.txt")
+            if (sub.exists()) return sub
+            val flat = File(modelsRootDir, "tokens.txt")
+            if (flat.exists()) return flat
+            return if (asrDir.exists()) sub else flat
+        }
+
     val sttModelVersionFile = File(modelsRootDir, ".stt_version")
     val hotwordsFile = File(modelsRootDir, "hotwords.txt")
-    val offlineWhisperEncoderFile = File(modelsRootDir, "tiny.en-encoder.int8.onnx")
-    val offlineWhisperDecoderFile = File(modelsRootDir, "tiny.en-decoder.int8.onnx")
-    val offlineWhisperTokensFile = File(modelsRootDir, "tiny.en-tokens.txt")
-    val llmModelFile = File(modelsRootDir, "gemma-4-E2B-it.litertlm")
-    val tpuLlmModelFile = File(modelsRootDir, resolveTensorModelFileName())
+
+    val offlineWhisperEncoderFile: File
+        get() {
+            val sub = File(whisperDir, "tiny.en-encoder.int8.onnx")
+            if (sub.exists()) return sub
+            val flat = File(modelsRootDir, "tiny.en-encoder.int8.onnx")
+            if (flat.exists()) return flat
+            return if (whisperDir.exists()) sub else flat
+        }
+
+    val offlineWhisperDecoderFile: File
+        get() {
+            val sub = File(whisperDir, "tiny.en-decoder.int8.onnx")
+            if (sub.exists()) return sub
+            val flat = File(modelsRootDir, "tiny.en-decoder.int8.onnx")
+            if (flat.exists()) return flat
+            return if (whisperDir.exists()) sub else flat
+        }
+
+    val offlineWhisperTokensFile: File
+        get() {
+            val sub = File(whisperDir, "tiny.en-tokens.txt")
+            if (sub.exists()) return sub
+            val flat = File(modelsRootDir, "tiny.en-tokens.txt")
+            if (flat.exists()) return flat
+            return if (whisperDir.exists()) sub else flat
+        }
+
+    val llmModelFile: File
+        get() {
+            val sub = File(llmDir, "gemma-4-E2B-it.litertlm")
+            if (sub.exists()) return sub
+            val flat = File(modelsRootDir, "gemma-4-E2B-it.litertlm")
+            if (flat.exists()) return flat
+            return if (llmDir.exists()) sub else flat
+        }
+
+    val tpuLlmModelFile: File
+        get() {
+            val fileName = resolveTensorModelFileName()
+            val sub = File(llmDir, fileName)
+            if (sub.exists()) return sub
+            val flat = File(modelsRootDir, fileName)
+            if (flat.exists()) return flat
+            return if (llmDir.exists()) sub else flat
+        }
 
     fun hasOfflineRescorer(): Boolean {
-        return offlineWhisperEncoderFile.exists() && offlineWhisperEncoderFile.length() > 0L &&
+        return enableWhisperRescorer &&
+                offlineWhisperEncoderFile.exists() && offlineWhisperEncoderFile.length() > 0L &&
                 offlineWhisperDecoderFile.exists() && offlineWhisperDecoderFile.length() > 0L &&
                 offlineWhisperTokensFile.exists() && offlineWhisperTokensFile.length() > 0L
     }
 
     fun resolveTensorModelFileName(): String {
         val soc = try { android.os.Build.SOC_MODEL.lowercase().trim() } catch (_: Throwable) { "" }
+        val hw = try { android.os.Build.HARDWARE.lowercase().trim() } catch (_: Throwable) { "" }
         val device = try { android.os.Build.MODEL.lowercase().trim() } catch (_: Throwable) { "" }
         return when {
-            soc.contains("g5") || device.contains("pixel 10") -> "gemma-4-E2B-it_Google_Tensor_G5.litertlm"
-            soc.contains("g4") || device.contains("pixel 9") -> "gemma-4-E2B-it_Google_Tensor_G4.litertlm"
-            soc.contains("g3") || device.contains("pixel 8") -> "gemma-4-E2B-it_Google_Tensor_G3.litertlm"
+            soc.contains("g6") || hw.contains("malibu") || device.contains("pixel 11") -> "gemma-4-E2B-it_Google_Tensor_G6.litertlm"
+            soc.contains("g5") || hw.contains("laguna") || device.contains("pixel 10") -> "gemma-4-E2B-it_Google_Tensor_G5.litertlm"
+            soc.contains("g4") || hw.contains("zumapro") || device.contains("pixel 9") -> "gemma-4-E2B-it_Google_Tensor_G4.litertlm"
+            soc.contains("g3") || hw.contains("zuma") || device.contains("pixel 8") -> "gemma-4-E2B-it_Google_Tensor_G3.litertlm"
             else -> "gemma-4-E2B-it_Google_Tensor_G5.litertlm"
         }
     }
@@ -126,7 +217,14 @@ class AppConfig(val modelsRootDir: File) {
     val maxTokens: Int get() = _llmConfig.value.maxTokens
     val temperature: Float get() = _llmConfig.value.temperature
     val topK: Int get() = _llmConfig.value.topK
-    val useGpuDelegate: Boolean = true
+    val preferredDelegate: com.local.interviewassistant.data.hardware.DelegateType?
+        get() = _llmConfig.value.preferredDelegate
+
+    val useGpuDelegate: Boolean
+        get() = preferredDelegate != com.local.interviewassistant.data.hardware.DelegateType.CPU_MMAP
+
+    val enableWhisperRescorer: Boolean
+        get() = _llmConfig.value.enableWhisperRescorer
 
     fun updateLlmConfig(newConfig: LlmGenerationConfig) {
         _llmConfig.value = newConfig.validated()
@@ -134,9 +232,11 @@ class AppConfig(val modelsRootDir: File) {
 
     fun ensureDirectoriesExist(): Boolean {
         return try {
-            if (!modelsRootDir.exists()) {
-                modelsRootDir.mkdirs()
-            }
+            if (!modelsRootDir.exists()) modelsRootDir.mkdirs()
+            if (!vadDir.exists()) vadDir.mkdirs()
+            if (!asrDir.exists()) asrDir.mkdirs()
+            if (!whisperDir.exists()) whisperDir.mkdirs()
+            if (!llmDir.exists()) llmDir.mkdirs()
             modelsRootDir.exists() && modelsRootDir.canWrite()
         } catch (_: Exception) {
             false

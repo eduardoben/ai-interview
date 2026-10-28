@@ -28,9 +28,9 @@ class LiteRtLmModelDownloader(private val fetcher: StreamFetcher = HttpUrlStream
         var actualTotalBytes = -1L
         
         try {
-            val inputStream = fetcher.openStream(url, authToken) { reportedTotal ->
-                actualTotalBytes = reportedTotal
-            }
+            val response = fetcher.openStream(url, 0L, authToken)
+            actualTotalBytes = response.contentLength
+            val inputStream = response.inputStream
             
             var downloadedBytes = 0L
             val buffer = ByteArray(128 * 1024)

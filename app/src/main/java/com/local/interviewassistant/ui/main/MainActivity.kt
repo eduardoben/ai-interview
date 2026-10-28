@@ -1,8 +1,10 @@
 package com.local.interviewassistant.ui.main
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.ConnectivityManager
 import android.os.Bundle
 import android.provider.Settings
 import androidx.activity.ComponentActivity
@@ -23,7 +25,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.local.interviewassistant.core.di.AppContainer
-import com.local.interviewassistant.core.model.AppConfig
+import com.local.interviewassistant.data.hardware.DeviceHardwareDetector
+import com.local.interviewassistant.data.hardware.HardwareProfile
 import com.local.interviewassistant.data.provisioning.ProvisioningState
 import com.local.interviewassistant.service.AssistantForegroundService
 import com.local.interviewassistant.service.ModelDownloadService
@@ -33,7 +36,9 @@ import kotlinx.coroutines.launch
 class MainActivity : ComponentActivity() {
 
     private var readinessStatus by mutableStateOf<AppContainer.ReadinessStatus?>(null)
-    private var isServiceRunning by mutableStateOf(value = false)
+    private var hardwareProfile by mutableStateOf<HardwareProfile?>(null)
+    private var isMeteredNetwork by mutableStateOf(false)
+    private var isServiceRunning by mutableStateOf(false)
     private var downloadJob: Job? = null
 
     private val requestPermissionsLauncher = registerForActivityResult(
@@ -55,10 +60,12 @@ class MainActivity : ComponentActivity() {
             downloadJob?.cancel()
             downloadJob = lifecycleScope.launch {
                 val appContainer = AppContainer.getInstance(this@MainActivity)
+                val target = appContainer.appConfig.activeLlmModelFile
                 appContainer.provisioningManager.importModelFromStream(
                     inputStreamProvider = { contentResolver.openInputStream(it) },
-                    targetFile = appContainer.appConfig.llmModelFile
+                    targetFile = target
                 )
+                refreshStatus()
             }
         }
     }
@@ -77,7 +84,7 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 AppContainer.getInstance(this@MainActivity).provisioningManager.state.collect { state ->
-                    if (state is ProvisioningState.Completed) {
+                    if (state is ProvisioningState.Ready) {
                         refreshStatus()
                     }
                 }
@@ -96,16 +103,16 @@ class MainActivity : ComponentActivity() {
                 ) {
                     DashboardScreen(
                         readiness = readinessStatus,
+                        hardwareProfile = hardwareProfile,
                         isServiceRunning = isServiceRunning,
                         provisioningState = provisioningState,
                         llmConfig = llmConfig,
+                        isMeteredNetwork = isMeteredNetwork,
                         onUpdateLlmConfig = { appContainer.saveLlmConfig(it) },
                         onGrantPermissionsClick = { requestBasePermissions() },
                         onOpenOverlaySettingsClick = { requestOverlayPermission() },
                         onRefreshDiskCheckClick = { refreshStatus() },
-                        onDownloadSpeechModelsClick = { downloadSpeechModels() },
-                        onDownloadOfflineRescorerClick = { downloadOfflineRescorer() },
-                        onDownloadLlmModelClick = { customUrl, token -> downloadLlmModel(customUrl, token) },
+                        onStartUnifiedDownloadClick = { downloadAllModels() },
                         onImportLlmFileClick = { openDocumentLauncher.launch(arrayOf("*/*")) },
                         onCancelDownloadClick = { cancelOngoingProvisioning() },
                         onStartAssistantClick = { startAssistantService() },
@@ -121,7 +128,15 @@ class MainActivity : ComponentActivity() {
         val hasNotification = ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
         val hasOverlay = Settings.canDrawOverlays(this)
 
+        val profile = DeviceHardwareDetector.detectHardware(this)
+        hardwareProfile = profile
+
+        val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+        isMeteredNetwork = cm?.isActiveNetworkMetered ?: false
+
         val appContainer = AppContainer.getInstance(this)
+        appContainer.provisioningManager.checkProvisioningStatus(profile)
+
         val modelReport = appContainer.appConfig.validateModelsOnDisk()
 
         readinessStatus = AppContainer.ReadinessStatus(
@@ -148,16 +163,8 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun downloadSpeechModels() {
-        ModelDownloadService.startSpeechDownload(this)
-    }
-
-    private fun downloadOfflineRescorer() {
-        ModelDownloadService.startRescorerDownload(this)
-    }
-
-    private fun downloadLlmModel(customUrl: String, hfToken: String?) {
-        ModelDownloadService.startLlmDownload(this, customUrl, hfToken)
+    private fun downloadAllModels() {
+        ModelDownloadService.startAllModelsDownload(this)
     }
 
     private fun cancelOngoingProvisioning() {
