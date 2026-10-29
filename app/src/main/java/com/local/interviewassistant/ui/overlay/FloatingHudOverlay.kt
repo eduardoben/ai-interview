@@ -88,11 +88,29 @@ fun FloatingHudOverlay(
         }
     } else {
         val scrollState = rememberScrollState()
+        var autoFollowStream by remember { mutableStateOf(true) }
 
-        // Top-First Reading Anchor: Keep eyes at the top of the answer
+        LaunchedEffect(scrollState.isScrollInProgress) {
+            if (scrollState.isScrollInProgress && scrollState.value < scrollState.maxValue - 36) {
+                autoFollowStream = false
+            }
+        }
+
+        // Reset to top when a new question starts
         LaunchedEffect(uiState.activeQuestion) {
             if (uiState.activeQuestion != null) {
+                autoFollowStream = true
                 scrollState.scrollTo(0)
+            }
+        }
+
+        // Smoothly auto-scroll as generated answer tokens stream in and expand the HUD
+        LaunchedEffect(uiState.activeAnswer, scrollState.maxValue) {
+            if (autoFollowStream && !uiState.activeAnswer.isNullOrBlank() && scrollState.maxValue > 0) {
+                scrollState.animateScrollTo(
+                    value = scrollState.maxValue,
+                    animationSpec = tween(durationMillis = 160)
+                )
             }
         }
 

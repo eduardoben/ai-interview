@@ -273,10 +273,12 @@ class AssistantPipelineCoordinator(
         val config = appConfig
         if (config != null) {
             val current = config.llmConfig.value
+            val isDefaultOrPresetContext = current.interviewContext.isBlank() ||
+                    InterviewCategory.entries.any { it.contextSnippet == current.interviewContext }
             config.updateLlmConfig(
                 current.copy(
                     promptStyle = category.promptStyle,
-                    interviewContext = category.contextSnippet
+                    interviewContext = if (isDefaultOrPresetContext) category.contextSnippet else current.interviewContext
                 )
             )
         }

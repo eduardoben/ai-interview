@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -15,6 +16,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.local.interviewassistant.core.model.LlmGenerationConfig
@@ -97,14 +99,34 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(14.dp))
 
+            var contextInput by remember { mutableStateOf(config.interviewContext) }
+            LaunchedEffect(config.interviewContext) {
+                if (config.interviewContext != contextInput.trim()) {
+                    contextInput = config.interviewContext
+                }
+            }
+
             OutlinedTextField(
-                value = config.interviewContext,
-                onValueChange = { onConfigChange(config.copy(interviewContext = it)) },
+                value = contextInput,
+                onValueChange = { newText ->
+                    contextInput = newText
+                    onConfigChange(config.copy(interviewContext = newText))
+                },
                 label = { Text("Interview Context (Role, Tech Stack, Resume)", fontSize = 11.sp) },
-                placeholder = { Text("e.g. Senior Android Engineer, Kotlin, Compose, System Design", fontSize = 12.sp, color = StealthTextMuted) },
+                placeholder = {
+                    Text(
+                        "e.g. Senior Android Engineer, Kotlin, Compose, System Design",
+                        fontSize = 12.sp,
+                        color = StealthTextMuted
+                    )
+                },
                 modifier = Modifier.fillMaxWidth(),
-                minLines = 2,
-                maxLines = 4,
+                singleLine = false,
+                minLines = 3,
+                maxLines = 6,
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Sentences
+                ),
                 shape = RoundedCornerShape(10.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = StealthAccentIndigo,
@@ -112,7 +134,8 @@ fun SettingsScreen(
                     focusedLabelColor = StealthAccentIndigoSoft,
                     unfocusedLabelColor = StealthTextMuted,
                     focusedTextColor = StealthTextPrimary,
-                    unfocusedTextColor = StealthTextPrimary
+                    unfocusedTextColor = StealthTextPrimary,
+                    cursorColor = StealthAccentIndigoSoft
                 )
             )
         }

@@ -65,11 +65,30 @@ fun PrompterScreen(
     var showTranscriptSheet by remember { mutableStateOf(false) }
     var customQuestionInput by remember { mutableStateOf("") }
     var showDimmerDialog by remember { mutableStateOf(false) }
+    var autoFollowStream by remember { mutableStateOf(true) }
 
-    // Scroll to top when a new answer starts streaming
+    // Disable auto-follow if the user manually drags upward to inspect earlier lines
+    LaunchedEffect(scrollState.isScrollInProgress) {
+        if (scrollState.isScrollInProgress && scrollState.value < scrollState.maxValue - 48) {
+            autoFollowStream = false
+        }
+    }
+
+    // Reset scroll to top and re-enable auto-follow when a new question starts
     LaunchedEffect(uiState.activeQuestion) {
         if (uiState.activeQuestion != null) {
+            autoFollowStream = true
             scrollState.scrollTo(0)
+        }
+    }
+
+    // Smoothly auto-scroll as generated answer tokens stream in and expand the layout
+    LaunchedEffect(uiState.activeAnswer, scrollState.maxValue) {
+        if (autoFollowStream && !uiState.activeAnswer.isNullOrBlank() && scrollState.maxValue > 0) {
+            scrollState.animateScrollTo(
+                value = scrollState.maxValue,
+                animationSpec = tween(durationMillis = 160)
+            )
         }
     }
 
