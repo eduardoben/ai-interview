@@ -1,13 +1,14 @@
 package com.local.interviewassistant.ui.overlay
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -16,6 +17,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontStyle
@@ -23,13 +25,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.horizontalScroll
 import com.local.interviewassistant.core.model.AssistantState
 import com.local.interviewassistant.core.model.CopilotUiState
 import com.local.interviewassistant.core.model.InterviewCategory
 import com.local.interviewassistant.core.model.TranscriptSegment
+import com.local.interviewassistant.ui.prompter.FormattedTeleprompterAnswer
+import com.local.interviewassistant.ui.theme.*
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FloatingHudOverlay(
     uiState: CopilotUiState,
@@ -43,59 +45,68 @@ fun FloatingHudOverlay(
     modifier: Modifier = Modifier,
     onSelectCategory: (InterviewCategory) -> Unit = {},
 ) {
-    val statusColor = when (uiState.pipelineState) {
-        is AssistantState.Listening, is AssistantState.DetectingSpeech -> Color.Green
-        is AssistantState.GeneratingAnswer, is AssistantState.AnswerReady -> Color.Cyan
-        is AssistantState.Paused -> Color(0xFFFFC107) // Amber
-        is AssistantState.Error -> Color.Red
-        else -> Color.White
+    val rawStatusColor = when (uiState.pipelineState) {
+        is AssistantState.Listening, is AssistantState.DetectingSpeech -> StealthStatusEmerald
+        is AssistantState.GeneratingAnswer -> StealthStatusAmber
+        is AssistantState.AnswerReady -> StealthAccentIndigoSoft
+        is AssistantState.Paused -> StealthStatusAmber
+        is AssistantState.Error -> StealthStatusCoral
+        else -> StealthTextSecondary
     }
+
+    val statusColor by animateColorAsState(
+        targetValue = rawStatusColor,
+        animationSpec = tween(250),
+        label = "OverlayStatusColor"
+    )
 
     if (uiState.isMinimized) {
         Row(
             modifier = modifier
-                .background(Color(0xDD121212), RoundedCornerShape(50))
-                .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(50))
-                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .clip(RoundedCornerShape(50))
+                .background(Color(0xF506070A))
+                .border(0.5.dp, StealthBorderHigh, RoundedCornerShape(50))
                 .clickable { onToggleMinimize() }
                 .pointerInput(Unit) {
                     detectDragGestures { change, dragAmount ->
                         change.consume()
                         onDrag(dragAmount.x, dragAmount.y)
                     }
-                },
+                }
+                .padding(horizontal = 16.dp, vertical = 9.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(modifier = Modifier.size(8.dp).background(statusColor, CircleShape))
+            Box(modifier = Modifier.size(7.dp).background(statusColor, CircleShape))
             Spacer(modifier = Modifier.width(8.dp))
-            Text("AI Copilot", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text(
+                "Copilot",
+                color = StealthTextPrimary,
+                fontSize = 12.sp,
+                letterSpacing = 0.2.sp,
+                fontWeight = FontWeight.SemiBold
+            )
         }
     } else {
-        val listState = rememberLazyListState()
         val scrollState = rememberScrollState()
 
-        LaunchedEffect(uiState.transcriptHistory.size, uiState.livePartialTranscript) {
-            if (uiState.transcriptHistory.isNotEmpty() || uiState.livePartialTranscript.isNotBlank()) {
-                listState.animateScrollToItem(uiState.transcriptHistory.size)
-            }
-        }
-
-        LaunchedEffect(uiState.activeAnswer) {
-            if (uiState.activeAnswer != null) {
-                scrollState.animateScrollTo(scrollState.maxValue)
+        // Top-First Reading Anchor: Keep eyes at the top of the answer
+        LaunchedEffect(uiState.activeQuestion) {
+            if (uiState.activeQuestion != null) {
+                scrollState.scrollTo(0)
             }
         }
 
         Column(
             modifier = modifier
-                .width(340.dp)
-                .heightIn(max = 380.dp)
-                .background(Color(0xD1121212), RoundedCornerShape(12.dp))
-                .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(12.dp))
-                .padding(12.dp),
+                .width(344.dp)
+                .heightIn(max = 396.dp)
+                // 96% opaque OLED background to eliminate background bleed-through
+                .background(Color(0xF506070A), RoundedCornerShape(16.dp))
+                .border(0.5.dp, StealthBorderHigh, RoundedCornerShape(16.dp))
+                .padding(horizontal = 14.dp, vertical = 10.dp),
         ) {
-            // Header Bar
-            Row(
+            // Subtle Top Drag Handle + Header Bar
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .pointerInput(Unit) {
@@ -103,188 +114,243 @@ fun FloatingHudOverlay(
                             change.consume()
                             onDrag(dragAmount.x, dragAmount.y)
                         }
-                    },
-                verticalAlignment = Alignment.CenterVertically
+                    }
             ) {
-                val statusText = when (uiState.pipelineState) {
-                    is AssistantState.Idle -> "IDLE"
-                    is AssistantState.Initializing -> "INITIALIZING"
-                    is AssistantState.Listening -> "LISTENING"
-                    is AssistantState.DetectingSpeech -> "SPEECH DETECTED"
-                    is AssistantState.GeneratingAnswer -> "GENERATING"
-                    is AssistantState.AnswerReady -> "ANSWER READY"
-                    is AssistantState.Paused -> "PAUSED"
-                    is AssistantState.Error -> "ERROR"
-                }
-
-                Box(modifier = Modifier.size(8.dp).background(statusColor, CircleShape))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "$statusText | TTFT: ${uiState.lastTtftMs}ms",
-                    color = Color.White,
-                    fontSize = 10.sp,
-                    modifier = Modifier.weight(1f)
+                Box(
+                    modifier = Modifier
+                        .width(32.dp)
+                        .height(3.dp)
+                        .background(StealthBorderHigh, RoundedCornerShape(50))
+                        .align(Alignment.CenterHorizontally)
                 )
-                IconButton(onClick = onToggleMinimize, modifier = Modifier.size(24.dp)) {
-                    Text("_", color = Color.White, fontSize = 14.sp)
-                }
-                Spacer(modifier = Modifier.width(4.dp))
-                IconButton(onClick = onCloseService, modifier = Modifier.size(24.dp)) {
-                    Text("X", color = Color.White, fontSize = 14.sp)
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    val statusText = when (uiState.pipelineState) {
+                        is AssistantState.Idle -> "STANDBY"
+                        is AssistantState.Initializing -> "LOADING"
+                        is AssistantState.Listening -> "LISTENING"
+                        is AssistantState.DetectingSpeech -> "SPEECH ACTIVE"
+                        is AssistantState.GeneratingAnswer -> "SYNTHESIZING"
+                        is AssistantState.AnswerReady -> "READY"
+                        is AssistantState.Paused -> "PAUSED"
+                        is AssistantState.Error -> "ERROR"
+                    }
+
+                    Box(modifier = Modifier.size(7.dp).background(statusColor, CircleShape))
+                    Spacer(modifier = Modifier.width(7.dp))
+                    Text(
+                        text = if (uiState.lastTtftMs > 0) "$statusText • ${uiState.lastTtftMs}ms" else statusText,
+                        color = StealthTextPrimary,
+                        fontSize = 10.sp,
+                        letterSpacing = 0.6.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    Box(
+                        modifier = Modifier
+                            .size(30.dp)
+                            .clip(CircleShape)
+                            .background(StealthSurfaceHigh)
+                            .clickable { onToggleMinimize() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        StealthIcons.MinimizeLine(color = StealthTextSecondary, size = 12.dp)
+                    }
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(30.dp)
+                            .clip(CircleShape)
+                            .background(StealthSurfaceHigh)
+                            .clickable { onCloseService() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        StealthIcons.CloseCross(color = StealthTextSecondary, size = 12.dp)
+                    }
                 }
             }
 
-            // Quick-Action Mode Category Chips
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // Quick Category Chips
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 4.dp)
+                    .padding(vertical = 2.dp)
                     .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 InterviewCategory.entries.forEach { category ->
                     val isSelected = uiState.selectedCategory == category
-                    FilterChip(
-                        selected = isSelected,
-                        onClick = { onSelectCategory(category) },
-                        label = { Text(category.displayName, fontSize = 10.sp) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = Color(0xFF03DAC5),
-                            selectedLabelColor = Color.Black,
-                            containerColor = Color(0xFF263238),
-                            labelColor = Color.White
-                        ),
-                        modifier = Modifier.height(26.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Zone 1: Live Transcript Stream
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(105.dp)
-                    .background(Color(0x1AFFFFFF), RoundedCornerShape(8.dp))
-                    .padding(8.dp)
-            ) {
-                LazyColumn(state = listState) {
-                    items(uiState.transcriptHistory) { segment ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 2.dp)
-                                .clickable { onSelectSegment(segment) }
-                                .let {
-                                    if (segment.isLikelyQuestion) {
-                                        it.border(1.dp, Color.Cyan.copy(alpha = 0.5f), RoundedCornerShape(4.dp)).padding(4.dp)
-                                    } else {
-                                        it.padding(4.dp)
-                                    }
-                                }
-                        ) {
-                            if (segment.isLikelyQuestion) {
-                                Text("[Q] ", color = Color.Cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                            }
-                            Text(
-                                text = segment.text,
-                                color = Color(0xFFB0BEC5),
-                                fontSize = 11.sp
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(
+                                if (isSelected) StealthAccentIndigo.copy(alpha = 0.2f) else StealthSurfaceHigh
                             )
-                        }
-                    }
-                    if (uiState.livePartialTranscript.isNotBlank()) {
-                        item {
-                            Text(
-                                text = "Listening: ${uiState.livePartialTranscript}...",
-                                color = Color.Gray,
-                                fontSize = 11.sp,
-                                fontStyle = FontStyle.Italic,
-                                modifier = Modifier.padding(4.dp)
+                            .border(
+                                width = if (isSelected) 1.dp else 0.5.dp,
+                                color = if (isSelected) StealthAccentIndigo else StealthBorder,
+                                shape = RoundedCornerShape(50)
                             )
-                        }
+                            .clickable { onSelectCategory(category) }
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = category.displayName,
+                            fontSize = 10.sp,
+                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                            color = if (isSelected) StealthTextPrimary else StealthTextSecondary
+                        )
                     }
                 }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Zone 2: Auto-Detected Question & AI Copilot Response
+            // Zone 1: Top-Anchored Question & Formatted Answer
             Column(
                 modifier = Modifier
-                    .weight(1f, fill = false)
+                    .weight(1f)
                     .fillMaxWidth()
+                    .verticalScroll(scrollState)
             ) {
-                Text(
-                    text = uiState.activeQuestion ?: "Waiting for interviewer question...",
-                    color = if (uiState.activeQuestion != null) Color.Cyan else Color.White,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f, fill = false)
-                        .verticalScroll(scrollState)
-                ) {
-                    if (uiState.activeAnswer != null) {
-                        Text(
-                            text = uiState.activeAnswer,
-                            color = Color.White,
-                            fontSize = 14.sp,
-                            lineHeight = 20.sp
+                if (uiState.activeQuestion != null) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(StealthSurfaceHigh, RoundedCornerShape(8.dp))
+                            .padding(horizontal = 10.dp, vertical = 7.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .width(2.5.dp)
+                                .height(16.dp)
+                                .background(StealthAccentIndigo, RoundedCornerShape(2.dp))
                         )
-                    } else if (uiState.pipelineState is AssistantState.Error) {
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = uiState.pipelineState.message,
-                            color = Color.Red,
-                            fontSize = 12.sp
-                        )
-                    } else {
-                        Text(
-                            text = "Speak or tap any transcript line above to generate a response.",
-                            color = Color.Gray,
+                            text = uiState.activeQuestion,
+                            color = StealthTextPrimary,
                             fontSize = 12.sp,
-                            fontStyle = FontStyle.Italic
+                            fontWeight = FontWeight.Medium,
+                            lineHeight = 16.sp
                         )
                     }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                if (!uiState.activeAnswer.isNullOrBlank()) {
+                    FormattedTeleprompterAnswer(
+                        text = uiState.activeAnswer,
+                        fontSize = 14.sp
+                    )
+                } else if (uiState.pipelineState is AssistantState.GeneratingAnswer) {
+                    Text(
+                        text = "Synthesizing answer...",
+                        color = StealthStatusAmber,
+                        fontSize = 12.sp,
+                        fontStyle = FontStyle.Italic
+                    )
+                } else {
+                    Text(
+                        text = "Listening for questions...",
+                        color = StealthTextMuted,
+                        fontSize = 12.sp
+                    )
                 }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Footer Action Bar
+            // Zone 2: Compact Bottom STT Ticker
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(StealthSurface, RoundedCornerShape(8.dp))
+                    .border(0.5.dp, StealthBorder, RoundedCornerShape(8.dp))
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                StealthIcons.Microphone(
+                    color = if (uiState.livePartialTranscript.isNotBlank()) StealthStatusEmerald else StealthTextMuted,
+                    size = 12.dp
+                )
+                Spacer(modifier = Modifier.width(7.dp))
+                val transcriptText = when {
+                    uiState.livePartialTranscript.isNotBlank() -> "${uiState.livePartialTranscript}..."
+                    uiState.transcriptHistory.isNotEmpty() -> uiState.transcriptHistory.last().text
+                    else -> "Audio capture active"
+                }
+                Text(
+                    text = transcriptText,
+                    color = if (uiState.livePartialTranscript.isNotBlank()) StealthStatusEmerald else StealthTextMuted,
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Zone 3: Footer Action Buttons
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                TextButton(onClick = onPauseToggle, contentPadding = PaddingValues(4.dp)) {
-                    Text(if (uiState.pipelineState is AssistantState.Paused) "Resume" else "Pause", color = Color.White, fontSize = 12.sp)
+                Button(
+                    onClick = onForceAnswer,
+                    enabled = uiState.pipelineState !is AssistantState.Paused && uiState.pipelineState !is AssistantState.GeneratingAnswer,
+                    modifier = Modifier
+                        .weight(1.35f)
+                        .height(38.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = StealthAccentIndigo),
+                    shape = RoundedCornerShape(10.dp),
+                    contentPadding = PaddingValues(0.dp)
+                ) {
+                    Text("Answer Now", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
                 }
 
-                TextButton(
-                    onClick = onForceAnswer,
-                    enabled = (uiState.pipelineState is AssistantState.DetectingSpeech) || (uiState.pipelineState is AssistantState.Listening),
-                    contentPadding = PaddingValues(4.dp)
+                OutlinedButton(
+                    onClick = onPauseToggle,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(38.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = StealthSurface,
+                        contentColor = StealthTextPrimary
+                    ),
+                    shape = RoundedCornerShape(10.dp),
+                    border = BorderStroke(0.5.dp, StealthBorderHigh),
+                    contentPadding = PaddingValues(0.dp)
                 ) {
                     Text(
-                        "Answer Now",
-                        color = if ((uiState.pipelineState is AssistantState.DetectingSpeech) || (uiState.pipelineState is AssistantState.Listening)) Color.White else Color.Gray,
-                        fontSize = 12.sp,
+                        text = if (uiState.pipelineState is AssistantState.Paused) "Resume" else "Pause",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium
                     )
                 }
 
-                TextButton(
+                OutlinedButton(
                     onClick = onClear,
-                    enabled = (uiState.activeQuestion != null) || (uiState.activeAnswer != null) || (uiState.pipelineState is AssistantState.Error) || uiState.transcriptHistory.isNotEmpty(),
-                    contentPadding = PaddingValues(4.dp)
+                    modifier = Modifier
+                        .weight(0.9f)
+                        .height(38.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = StealthSurface,
+                        contentColor = StealthTextSecondary
+                    ),
+                    shape = RoundedCornerShape(10.dp),
+                    border = BorderStroke(0.5.dp, StealthBorder),
+                    contentPadding = PaddingValues(0.dp)
                 ) {
-                    Text("Clear", color = if ((uiState.activeQuestion != null) || (uiState.activeAnswer != null) || (uiState.pipelineState is AssistantState.Error) || uiState.transcriptHistory.isNotEmpty()) Color.White else Color.Gray, fontSize = 12.sp)
+                    Text("Clear", fontSize = 11.sp)
                 }
             }
         }

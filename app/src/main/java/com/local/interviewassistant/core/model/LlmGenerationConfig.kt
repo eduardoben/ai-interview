@@ -25,7 +25,13 @@ data class LlmGenerationConfig(
     val interviewContext: String = "",
     val selectedModelPath: String = "",
     val preferredDelegate: DelegateType? = null,
-    val enableWhisperRescorer: Boolean = true
+    val enableWhisperRescorer: Boolean = true,
+    val teleprompterFontSizeSp: Float = 20f,
+    val stealthDimmerAlpha: Float = 0f,
+    val enableVolumeKeyShortcuts: Boolean = true,
+    val keepScreenOn: Boolean = true,
+    val minSilenceDurationSec: Float = 1.2f,
+    val enableHardwareAudioEffects: Boolean = false
 ) {
     fun validated(): LlmGenerationConfig {
         return copy(
@@ -35,7 +41,14 @@ data class LlmGenerationConfig(
             interviewContext = interviewContext.trim(),
             selectedModelPath = selectedModelPath.trim(),
             preferredDelegate = preferredDelegate,
-            enableWhisperRescorer = enableWhisperRescorer
+            enableWhisperRescorer = enableWhisperRescorer,
+            teleprompterFontSizeSp = teleprompterFontSizeSp.coerceIn(16f, 28f),
+            stealthDimmerAlpha = stealthDimmerAlpha.coerceIn(0f, 0.75f),
+            enableVolumeKeyShortcuts = enableVolumeKeyShortcuts,
+            keepScreenOn = keepScreenOn,
+            minSilenceDurationSec = minSilenceDurationSec.coerceIn(0.5f, 3.0f),
+            enableHardwareAudioEffects = enableHardwareAudioEffects
         )
     }
 }
+

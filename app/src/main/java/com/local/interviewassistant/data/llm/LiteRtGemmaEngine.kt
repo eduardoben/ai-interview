@@ -13,7 +13,7 @@ import com.google.ai.edge.litertlm.Message
 import com.google.ai.edge.litertlm.MessageCallback
 import com.google.ai.edge.litertlm.SamplerConfig
 import com.local.interviewassistant.core.model.AppConfig
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,8 +24,11 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
-import kotlinx.coroutines.asCoroutineDispatcher
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 
 class LiteRtGemmaEngine(
     private val context: Context,
@@ -37,7 +40,13 @@ class LiteRtGemmaEngine(
 
     private var engine: Engine? = null
     private var activeConversation: Conversation? = null
-    
+
+    // Track in-flight native C++ callback completion so we NEVER call Conversation.close()
+    // while the LiteRT C++ worker thread is still executing a cancelled or completing turn.
+    @Volatile
+    private var activeCallbackLatch: CountDownLatch? = null
+    private val generationIdCounter = AtomicInteger(0)
+
     private val liteRtDispatcher = Executors.newSingleThreadExecutor { runnable ->
         Thread(runnable, "LiteRT-GPU-Thread")
     }.asCoroutineDispatcher()
@@ -159,6 +168,28 @@ class LiteRtGemmaEngine(
         }
     }
 
+    private fun awaitAndClosePreviousConversation() {
+        val prevConv = activeConversation
+        val prevLatch = activeCallbackLatch
+        if (prevConv != null) {
+            if (prevLatch != null && prevLatch.count > 0) {
+                try {
+                    prevConv.cancelProcess()
+                } catch (_: Throwable) {}
+                try {
+                    // Wait on LiteRT-GPU-Thread for C++ worker thread (Thread-XX) to finish onDone/onError
+                    // before destroying native Conversation memory!
+                    prevLatch.await(3000, TimeUnit.MILLISECONDS)
+                } catch (_: Throwable) {}
+            }
+            try {
+                prevConv.close()
+            } catch (_: Throwable) {}
+            activeConversation = null
+            activeCallbackLatch = null
+        }
+    }
+
     override fun generateAnswerStream(question: String): Flow<LlmStreamEvent> = callbackFlow {
         if (!_isInitialized.value || engine == null) {
             trySend(LlmStreamEvent.Error(IllegalStateException("Engine not initialized")))
@@ -197,20 +228,25 @@ class LiteRtGemmaEngine(
             systemInstruction = sysPromptContents
         )
 
-        try {
-            activeConversation?.close()
-        } catch (_: Exception) {}
-        
+        // Safely drain any previous in-flight conversation before closing its C++ pointer
+        awaitAndClosePreviousConversation()
+
+        val genId = generationIdCounter.incrementAndGet()
+        val completionLatch = CountDownLatch(1)
+        val callbackFinished = AtomicBoolean(false)
+        activeCallbackLatch = completionLatch
+
         val newConversation = currentEngine.createConversation(conversationConfig)
         activeConversation = newConversation
 
         tracker.startTracking()
         val accumulatedText = StringBuilder()
-        
+
         newConversation.sendMessageAsync(
             Contents.of(Content.Text(question)),
             object : MessageCallback {
                 override fun onMessage(message: Message) {
+                    if (generationIdCounter.get() != genId || callbackFinished.get()) return
                     val partial = message.toString().replace("<end_of_turn>", "")
                     if (partial.isNotEmpty()) {
                         tracker.recordToken()
@@ -220,36 +256,58 @@ class LiteRtGemmaEngine(
                 }
 
                 override fun onDone() {
-                    tracker.stopTracking()
-                    tracker.logMetrics("LiteRtGemmaEngine")
-                    MemoryMonitor.logMemoryUsage(context, "LiteRtGemmaEngine")
-                    trySend(LlmStreamEvent.Completed(accumulatedText.toString().trim(), tracker.getTtftMs(), tracker.getTotalDurationMs()))
-                    close()
+                    if (callbackFinished.compareAndSet(false, true)) {
+                        completionLatch.countDown()
+                        if (generationIdCounter.get() == genId) {
+                            tracker.stopTracking()
+                            tracker.logMetrics("LiteRtGemmaEngine")
+                            MemoryMonitor.logMemoryUsage(context, "LiteRtGemmaEngine")
+                            trySend(
+                                LlmStreamEvent.Completed(
+                                    accumulatedText.toString().trim(),
+                                    tracker.getTtftMs(),
+                                    tracker.getTotalDurationMs(),
+                                    tracker.getDecodeTokensPerSecond(),
+                                    tracker.getTokenCount()
+                                )
+                            )
+                            close()
+                        }
+                    }
                 }
 
                 override fun onError(throwable: Throwable) {
-                    trySend(LlmStreamEvent.Error(throwable))
-                    close(throwable)
+                    if (callbackFinished.compareAndSet(false, true)) {
+                        completionLatch.countDown()
+                        if (generationIdCounter.get() == genId) {
+                            val msg = throwable.message ?: ""
+                            if (!msg.contains("CANCELLED", ignoreCase = true)) {
+                                trySend(LlmStreamEvent.Error(throwable))
+                            }
+                            close()
+                        }
+                    }
                 }
             }
         )
 
         awaitClose {
-            try {
-                activeConversation?.cancelProcess()
-            } catch (_: Exception) {}
+            if (!callbackFinished.get()) {
+                try {
+                    newConversation.cancelProcess()
+                } catch (_: Throwable) {}
+            }
         }
     }.flowOn(liteRtDispatcher)
 
     override suspend fun release() = withContext(liteRtDispatcher) {
         engineMutex.withLock {
-            // Strict Teardown Sequence
-            try { activeConversation?.close() } catch (_: Exception) {}
-            activeConversation = null
+            // Strict Teardown Sequence: wait for any in-flight C++ worker callback before closing
+            awaitAndClosePreviousConversation()
 
-            try { engine?.close() } catch (_: Exception) {}
+            try { engine?.close() } catch (_: Throwable) {}
             engine = null
-            
+
             _isInitialized.value = false
         }
     }

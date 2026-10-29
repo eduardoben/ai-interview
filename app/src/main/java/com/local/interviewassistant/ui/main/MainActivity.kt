@@ -7,16 +7,16 @@ import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.os.Bundle
 import android.provider.Settings
+import android.view.KeyEvent
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
@@ -30,6 +30,7 @@ import com.local.interviewassistant.data.hardware.HardwareProfile
 import com.local.interviewassistant.data.provisioning.ProvisioningState
 import com.local.interviewassistant.service.AssistantForegroundService
 import com.local.interviewassistant.service.ModelDownloadService
+import com.local.interviewassistant.ui.theme.StealthOledTheme
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
@@ -38,7 +39,6 @@ class MainActivity : ComponentActivity() {
     private var readinessStatus by mutableStateOf<AppContainer.ReadinessStatus?>(null)
     private var hardwareProfile by mutableStateOf<HardwareProfile?>(null)
     private var isMeteredNetwork by mutableStateOf(false)
-    private var isServiceRunning by mutableStateOf(false)
     private var downloadJob: Job? = null
 
     private val requestPermissionsLauncher = registerForActivityResult(
@@ -73,10 +73,21 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Android 17 Edge-to-Edge & Lockscreen Display
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+        )
+        setShowWhenLocked(true)
+        setTurnScreenOn(true)
+
         lifecycle.addObserver(
             LifecycleEventObserver { _, event ->
                 if (event == Lifecycle.Event.ON_RESUME) {
+                    AppContainer.getInstance(this@MainActivity).isPrompterScreenVisible.value = true
                     refreshStatus()
+                } else if (event == Lifecycle.Event.ON_PAUSE) {
+                    AppContainer.getInstance(this@MainActivity).isPrompterScreenVisible.value = false
                 }
             }
         )
@@ -93,34 +104,76 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val appContainer = AppContainer.getInstance(this)
+            val coordinator = appContainer.pipelineCoordinator
             val provisioningState by appContainer.provisioningManager.state.collectAsStateWithLifecycle()
             val llmConfig by appContainer.appConfig.llmConfig.collectAsStateWithLifecycle()
+            val isServiceRunning by appContainer.isServiceRunning.collectAsStateWithLifecycle()
+            val historyRecords by appContainer.sessionHistoryRepository.records.collectAsStateWithLifecycle()
+            val telemetry by appContainer.sessionHistoryRepository.telemetry.collectAsStateWithLifecycle()
+            val uiState by coordinator.copilotUiState.collectAsStateWithLifecycle()
 
-            MaterialTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    DashboardScreen(
-                        readiness = readinessStatus,
-                        hardwareProfile = hardwareProfile,
-                        isServiceRunning = isServiceRunning,
-                        provisioningState = provisioningState,
-                        llmConfig = llmConfig,
-                        isMeteredNetwork = isMeteredNetwork,
-                        onUpdateLlmConfig = { appContainer.saveLlmConfig(it) },
-                        onGrantPermissionsClick = { requestBasePermissions() },
-                        onOpenOverlaySettingsClick = { requestOverlayPermission() },
-                        onRefreshDiskCheckClick = { refreshStatus() },
-                        onStartUnifiedDownloadClick = { downloadAllModels() },
-                        onImportLlmFileClick = { openDocumentLauncher.launch(arrayOf("*/*")) },
-                        onCancelDownloadClick = { cancelOngoingProvisioning() },
-                        onStartAssistantClick = { startAssistantService() },
-                        onStopAssistantClick = { stopAssistantService() }
-                    )
+            // Dynamic WakeLock binding
+            if (llmConfig.keepScreenOn) {
+                window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            } else {
+                window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            }
+
+            StealthOledTheme {
+                AppShell(
+                    uiState = uiState,
+                    isServiceRunning = isServiceRunning,
+                    llmConfig = llmConfig,
+                    readiness = readinessStatus,
+                    hardwareProfile = hardwareProfile,
+                    provisioningState = provisioningState,
+                    isMeteredNetwork = isMeteredNetwork,
+                    telemetry = telemetry,
+                    historyRecords = historyRecords,
+                    onUpdateLlmConfig = { appContainer.saveLlmConfig(it) },
+                    onStartAssistant = { startAssistantService() },
+                    onStopAssistant = { stopAssistantService() },
+                    onPauseToggle = { coordinator.togglePause() },
+                    onForceAnswer = { coordinator.forceAnswerNow() },
+                    onClear = { coordinator.clearCurrentAnswer() },
+                    onSelectCategory = { coordinator.selectCategory(it) },
+                    onSelectTranscriptSegment = { coordinator.selectTranscriptSegmentForAnswer(it) },
+                    onCustomQuestionSubmit = { coordinator.triggerAnswerGeneration(it) },
+                    onExportMarkdown = { appContainer.sessionHistoryRepository.exportToMarkdown() },
+                    onClearHistory = {
+                        lifecycleScope.launch {
+                            appContainer.sessionHistoryRepository.clearHistory()
+                        }
+                    },
+                    onGrantPermissionsClick = { requestBasePermissions() },
+                    onOpenOverlaySettingsClick = { requestOverlayPermission() },
+                    onStartDownloadClick = { downloadAllModels() },
+                    onCancelDownloadClick = { cancelOngoingProvisioning() },
+                    onImportLlmFileClick = { openDocumentLauncher.launch(arrayOf("*/*")) },
+                    onRefreshDiskCheckClick = { refreshStatus() }
+                )
+            }
+        }
+    }
+
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        val appContainer = AppContainer.getInstance(this)
+        val config = appContainer.appConfig.llmConfig.value
+        val coordinator = appContainer.pipelineCoordinator
+
+        if (config.enableVolumeKeyShortcuts && appContainer.isServiceRunning.value) {
+            when (keyCode) {
+                KeyEvent.KEYCODE_VOLUME_UP -> {
+                    coordinator.forceAnswerNow()
+                    return true
+                }
+                KeyEvent.KEYCODE_VOLUME_DOWN -> {
+                    coordinator.togglePause()
+                    return true
                 }
             }
         }
+        return super.onKeyDown(keyCode, event)
     }
 
     private fun refreshStatus() {
@@ -172,11 +225,15 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun startAssistantService() {
+        val hasAudio = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+        if (!hasAudio) {
+            requestBasePermissions()
+            return
+        }
         val intent = Intent(this, AssistantForegroundService::class.java).apply {
             action = AssistantForegroundService.ACTION_START
         }
         ContextCompat.startForegroundService(this, intent)
-        isServiceRunning = true
     }
 
     private fun stopAssistantService() {
@@ -184,6 +241,5 @@ class MainActivity : ComponentActivity() {
             action = AssistantForegroundService.ACTION_STOP
         }
         startService(intent)
-        isServiceRunning = false
     }
 }

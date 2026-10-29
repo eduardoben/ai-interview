@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.StateFlow
 
 sealed interface LlmStreamEvent {
     data class PartialToken(val tokenChunk: String, val accumulatedText: String, val ttftMs: Long) : LlmStreamEvent
-    data class Completed(val fullText: String, val ttftMs: Long, val totalDurationMs: Long) : LlmStreamEvent
+    data class Completed(val fullText: String, val ttftMs: Long, val totalDurationMs: Long, val decodeTps: Float = 0f, val tokenCount: Int = 0) : LlmStreamEvent
     data class Error(val throwable: Throwable) : LlmStreamEvent
 }
 
@@ -23,3 +23,4 @@ interface LlmInferenceBackend {
     fun cancel()
     fun close()
 }
+

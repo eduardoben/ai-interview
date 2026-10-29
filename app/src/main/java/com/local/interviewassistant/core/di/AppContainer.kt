@@ -7,6 +7,7 @@ import com.local.interviewassistant.core.model.LlmGenerationConfig
 import com.local.interviewassistant.core.model.PromptStyle
 import com.local.interviewassistant.data.audio.AudioSource
 import com.local.interviewassistant.data.audio.MicrophoneAudioCaptureSource
+import com.local.interviewassistant.data.history.SessionHistoryRepository
 import com.local.interviewassistant.data.llm.LiteRtGemmaEngine
 import com.local.interviewassistant.data.provisioning.ModelProvisioningManager
 import com.local.interviewassistant.data.stt.SherpaOfflineWhisperRescorer
@@ -14,6 +15,9 @@ import com.local.interviewassistant.data.stt.SherpaOnnxRuntimeBackend
 import com.local.interviewassistant.data.stt.SherpaVadSttEngine
 import com.local.interviewassistant.service.AssistantPipelineCoordinator
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableStateFlow
 import java.io.File
 
 class AppContainer private constructor(private val context: Context) {
@@ -40,6 +44,12 @@ class AppContainer private constructor(private val context: Context) {
             try { com.local.interviewassistant.data.hardware.DelegateType.valueOf(it) } catch (_: Exception) { null }
         }
         val enableWhisperRescorer = prefs.getBoolean("enableWhisperRescorer", true)
+        val teleprompterFontSizeSp = prefs.getFloat("teleprompterFontSizeSp", 20f)
+        val stealthDimmerAlpha = prefs.getFloat("stealthDimmerAlpha", 0f)
+        val enableVolumeKeyShortcuts = prefs.getBoolean("enableVolumeKeyShortcuts", true)
+        val keepScreenOn = prefs.getBoolean("keepScreenOn", true)
+        val minSilenceDurationSec = prefs.getFloat("minSilenceDurationSec", 1.2f)
+        val enableHardwareAudioEffects = prefs.getBoolean("enableHardwareAudioEffects", false)
 
         appConfig.updateLlmConfig(
             LlmGenerationConfig(
@@ -50,11 +60,17 @@ class AppContainer private constructor(private val context: Context) {
                 interviewContext = contextStr,
                 selectedModelPath = selectedModelPath,
                 preferredDelegate = preferredDelegate,
-                enableWhisperRescorer = enableWhisperRescorer
+                enableWhisperRescorer = enableWhisperRescorer,
+                teleprompterFontSizeSp = teleprompterFontSizeSp,
+                stealthDimmerAlpha = stealthDimmerAlpha,
+                enableVolumeKeyShortcuts = enableVolumeKeyShortcuts,
+                keepScreenOn = keepScreenOn,
+                minSilenceDurationSec = minSilenceDurationSec,
+                enableHardwareAudioEffects = enableHardwareAudioEffects
             )
         )
     }
-    
+
     fun saveLlmConfig(newConfig: LlmGenerationConfig) {
         val prefs = context.getSharedPreferences("llm_prefs", Context.MODE_PRIVATE)
         prefs.edit().apply {
@@ -66,12 +82,38 @@ class AppContainer private constructor(private val context: Context) {
             putString("selectedModelPath", newConfig.selectedModelPath)
             putString("preferredDelegate", newConfig.preferredDelegate?.name)
             putBoolean("enableWhisperRescorer", newConfig.enableWhisperRescorer)
+            putFloat("teleprompterFontSizeSp", newConfig.teleprompterFontSizeSp)
+            putFloat("stealthDimmerAlpha", newConfig.stealthDimmerAlpha)
+            putBoolean("enableVolumeKeyShortcuts", newConfig.enableVolumeKeyShortcuts)
+            putBoolean("keepScreenOn", newConfig.keepScreenOn)
+            putFloat("minSilenceDurationSec", newConfig.minSilenceDurationSec)
+            putBoolean("enableHardwareAudioEffects", newConfig.enableHardwareAudioEffects)
             apply()
         }
         appConfig.updateLlmConfig(newConfig)
     }
 
     val provisioningManager: ModelProvisioningManager = ModelProvisioningManager(appConfig)
+    val sessionHistoryRepository: SessionHistoryRepository = SessionHistoryRepository(context.filesDir)
+
+    val isServiceRunning = MutableStateFlow(false)
+    val isPrompterScreenVisible = MutableStateFlow(false)
+
+    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    val pipelineCoordinator: AssistantPipelineCoordinator by lazy {
+        AssistantPipelineCoordinator(
+            audioSource = createAudioSource(),
+            sttEngine = createSttEngine(),
+            llmEngine = createLlmEngine(),
+            scope = appScope,
+            appConfig = appConfig,
+            historyRepository = sessionHistoryRepository
+        )
+    }
+
+    val activeCoordinator: AssistantPipelineCoordinator
+        get() = pipelineCoordinator
 
     fun createAudioSource(): AudioSource = MicrophoneAudioCaptureSource(appConfig)
 
@@ -85,14 +127,9 @@ class AppContainer private constructor(private val context: Context) {
         return LiteRtGemmaEngine(context, appConfig)
     }
 
-    fun createPipelineCoordinator(scope: CoroutineScope): AssistantPipelineCoordinator {
-        return AssistantPipelineCoordinator(
-            audioSource = createAudioSource(),
-            sttEngine = createSttEngine(),
-            llmEngine = createLlmEngine(),
-            scope = scope,
-            appConfig = appConfig,
-        )
+    @Suppress("UNUSED_PARAMETER")
+    fun getOrCreatePipelineCoordinator(scope: CoroutineScope): AssistantPipelineCoordinator {
+        return pipelineCoordinator
     }
 
     data class ReadinessStatus(

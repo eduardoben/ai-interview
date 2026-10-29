@@ -36,6 +36,8 @@ class LitertlmInferenceMetricsTracker {
         return (stopTimeMs - startTimeMs).coerceAtLeast(1L)
     }
 
+    fun getTokenCount(): Int = tokenCount
+
     fun getDecodeTokensPerSecond(): Float {
         if (firstTokenTimeMs == 0L || stopTimeMs == 0L) return 0f
         val decodeDurationMs = stopTimeMs - firstTokenTimeMs
@@ -52,3 +54,5 @@ class LitertlmInferenceMetricsTracker {
         Log.i(tag, "Inference completed. TTFT: $ttft ms | Total: $totalMs ms | Decode TPS: $decodeTps tokens/s | Total Tokens: $tokenCount")
     }
 }
+
+

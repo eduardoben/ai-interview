@@ -200,7 +200,7 @@ class AppConfig(val modelsRootDir: File) {
     val sampleRateHz: Int = 16000
     val vadWindowSizeSamples: Int = 512
     val vadThreshold: Float = 0.5f
-    val minSilenceDurationSec: Float = 1.2f
+    val minSilenceDurationSec: Float get() = _llmConfig.value.minSilenceDurationSec
     val minSpeechDurationSec: Float = 0.25f
     val minQuestionLengthChars: Int = 12
 
@@ -209,7 +209,7 @@ class AppConfig(val modelsRootDir: File) {
     val sttMaxActivePaths: Int = 4
     val sttHotwordsScore: Float = 2.0f
     val sttBlankPenalty: Float = 1.0f
-    val enableHardwareAudioEffects: Boolean = false
+    val enableHardwareAudioEffects: Boolean get() = _llmConfig.value.enableHardwareAudioEffects
 
     private val _llmConfig = MutableStateFlow(LlmGenerationConfig())
     val llmConfig: StateFlow<LlmGenerationConfig> = _llmConfig
@@ -314,3 +314,4 @@ class AppConfig(val modelsRootDir: File) {
             name.endsWith(LLM_MODEL_EXTENSION, ignoreCase = true)
     }
 }
+

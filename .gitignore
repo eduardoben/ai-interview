@@ -20,3 +20,5 @@ local.properties
 *.bin
 *.task
 *.apk
+.agents
+skills-lock.json

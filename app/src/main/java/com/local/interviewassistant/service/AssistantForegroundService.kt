@@ -2,13 +2,12 @@ package com.local.interviewassistant.service
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
-
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.graphics.PixelFormat
-
 import android.provider.Settings
 import android.view.Gravity
+import android.view.View
 import android.view.WindowManager
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.platform.ComposeView
@@ -16,7 +15,9 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
+import com.local.interviewassistant.core.di.AppContainer
 import com.local.interviewassistant.ui.overlay.FloatingHudOverlay
+import com.local.interviewassistant.ui.theme.StealthOledTheme
 import kotlinx.coroutines.launch
 
 class AssistantForegroundService : LifecycleService() {
@@ -28,7 +29,6 @@ class AssistantForegroundService : LifecycleService() {
         const val NOTIFICATION_ID = 1001
     }
 
-    private var coordinator: AssistantPipelineCoordinator? = null
     private var windowManager: WindowManager? = null
     private var overlayView: ComposeView? = null
     private var overlayLifecycleOwner: OverlayLifecycleOwner? = null
@@ -57,24 +57,22 @@ class AssistantForegroundService : LifecycleService() {
             ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE,
         )
 
-        if (!Settings.canDrawOverlays(this)) {
-            return // Or we could show an error, but the app should check this beforehand
-        }
-
-        val appContainer = com.local.interviewassistant.core.di.AppContainer.getInstance(this)
-        
-        coordinator = appContainer.createPipelineCoordinator(lifecycleScope)
+        val appContainer = AppContainer.getInstance(this)
+        val coordinator = appContainer.pipelineCoordinator
+        appContainer.isServiceRunning.value = true
 
         lifecycleScope.launch {
-            coordinator?.start()
+            coordinator.start()
         }
 
-        setupOverlay()
+        if (Settings.canDrawOverlays(this) && overlayView == null) {
+            setupOverlay(appContainer)
+        }
     }
 
-    private fun setupOverlay() {
+    private fun setupOverlay(appContainer: AppContainer) {
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
-        
+
         val layoutParams = WindowManager.LayoutParams().apply {
             width = WindowManager.LayoutParams.WRAP_CONTENT
             height = WindowManager.LayoutParams.WRAP_CONTENT
@@ -87,28 +85,36 @@ class AssistantForegroundService : LifecycleService() {
             y = 24
         }
 
+        val coordinator = appContainer.pipelineCoordinator
         overlayLifecycleOwner = OverlayLifecycleOwner()
         overlayLifecycleOwner?.onCreate()
 
         overlayView = ComposeView(this).apply {
             overlayLifecycleOwner?.attachToView(this)
             setContent {
-                val uiState = coordinator?.copilotUiState?.collectAsState()?.value ?: com.local.interviewassistant.core.model.CopilotUiState()
-                FloatingHudOverlay(
-                    uiState = uiState,
-                    onPauseToggle = { coordinator?.togglePause() },
-                    onForceAnswer = { coordinator?.forceAnswerNow() },
-                    onClear = { coordinator?.clearCurrentAnswer() },
-                    onSelectSegment = { segment -> coordinator?.selectTranscriptSegmentForAnswer(segment) },
-                    onSelectCategory = { category -> coordinator?.selectCategory(category) },
-                    onToggleMinimize = { coordinator?.setMinimized(!uiState.isMinimized) },
-                    onCloseService = { stopAssistantService() },
-                    onDrag = { dx, dy ->
-                        layoutParams.x += dx.toInt()
-                        layoutParams.y += dy.toInt()
-                        windowManager?.updateViewLayout(this, layoutParams)
-                    },
-                )
+                val uiState = coordinator.copilotUiState.collectAsState().value
+                val isPrompterVisible = appContainer.isPrompterScreenVisible.collectAsState().value
+
+                // Stealth ergonomics: Auto-hide floating overlay when user is on full-screen Prompter inside the app
+                visibility = if (isPrompterVisible) View.GONE else View.VISIBLE
+
+                StealthOledTheme {
+                    FloatingHudOverlay(
+                        uiState = uiState,
+                        onPauseToggle = { coordinator.togglePause() },
+                        onForceAnswer = { coordinator.forceAnswerNow() },
+                        onClear = { coordinator.clearCurrentAnswer() },
+                        onSelectSegment = { segment -> coordinator.selectTranscriptSegmentForAnswer(segment) },
+                        onSelectCategory = { category -> coordinator.selectCategory(category) },
+                        onToggleMinimize = { coordinator.setMinimized(!uiState.isMinimized) },
+                        onCloseService = { stopAssistantService() },
+                        onDrag = { dx, dy ->
+                            layoutParams.x += dx.toInt()
+                            layoutParams.y += dy.toInt()
+                            windowManager?.updateViewLayout(this, layoutParams)
+                        },
+                    )
+                }
             }
         }
 
@@ -128,17 +134,21 @@ class AssistantForegroundService : LifecycleService() {
     }
 
     private fun stopAssistantService() {
+        val appContainer = AppContainer.getInstance(this)
+        appContainer.isServiceRunning.value = false
+
         lifecycleScope.launch {
-            coordinator?.stop()
-            coordinator = null
-            
+            appContainer.pipelineCoordinator.stop()
+
             overlayView?.let {
-                windowManager?.removeView(it)
+                try {
+                    windowManager?.removeView(it)
+                } catch (_: Exception) {}
             }
             overlayView = null
             overlayLifecycleOwner?.onDestroy()
             overlayLifecycleOwner = null
-            
+
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
         }

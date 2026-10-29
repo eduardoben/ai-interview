@@ -194,8 +194,8 @@ class ModelProvisioningManager(
                 id = "zipformer_joiner",
                 targetFile = File(config.asrDir, "joiner-epoch-99-avg-1.int8.onnx"),
                 downloadUrl = AppConfig.STT_JOINER_URL,
-                estimatedBytes = 60_000_000L,
-                minExpectedBytes = 55_000_000L
+                estimatedBytes = 260_000L,
+                minExpectedBytes = 200_000L
             ),
             ManifestEntry(
                 id = "zipformer_tokens",
@@ -600,3 +600,4 @@ class ModelProvisioningManager(
         }
     }
 }
+
