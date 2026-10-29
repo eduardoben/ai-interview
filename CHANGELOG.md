@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.5.0] - 2026-10-28
+
+### 🚀 Stealth Teleprompter Redesign, Real-Time Streaming Auto-Scroll & Settings Context Preservation
+- **Stealth Teleprompter & Multi-Screen App Architecture:** Introduced modern tabbed `AppShell` with Prompter, Info, Usage, and Settings navigation with sleek stealth dark UI themes.
+- **Dynamic Streaming Auto-Scroll HUD & Prompter:** Added intelligent `autoFollowStream` scrolling in `FloatingHudOverlay` and `PrompterScreen` that keeps up with token generation while respecting manual user scrolling inspection.
+- **Preset vs Custom Interview Context Preservation:** Updated `AssistantPipelineCoordinator` and `SettingsScreen` to preserve custom user interview contexts across category chip selections while dynamically loading presets when context is blank or default.
+- **Enhanced Context Input UX:** Expanded interview context text field with sentence capitalization, multi-line auto-grow, and smooth two-way state binding.
+- Bumped application `versionCode = 8` and `versionName = "1.5.0"`.
+
+---
+
 ## [1.4.0] - 2026-10-28
 
 ### ⚡ Dynamic Hardware Detection, Intelligent Backend Routing & Subfolder Organization
