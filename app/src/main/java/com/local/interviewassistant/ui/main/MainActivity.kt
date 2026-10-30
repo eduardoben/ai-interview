@@ -14,7 +14,9 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
@@ -30,6 +32,8 @@ import com.local.interviewassistant.data.hardware.HardwareProfile
 import com.local.interviewassistant.data.provisioning.ProvisioningState
 import com.local.interviewassistant.service.AssistantForegroundService
 import com.local.interviewassistant.service.ModelDownloadService
+import com.local.interviewassistant.ui.prompter.PrompterViewModel
+import com.local.interviewassistant.ui.settings.SettingsViewModel
 import com.local.interviewassistant.ui.theme.StealthOledTheme
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -105,13 +109,34 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val appContainer = AppContainer.getInstance(this)
-            val coordinator = appContainer.pipelineCoordinator
+            val prompterViewModel = remember {
+                PrompterViewModel(
+                    coordinator = appContainer.pipelineCoordinator,
+                    preferencesRepository = appContainer.userPreferencesRepository,
+                    isServiceRunningFlow = appContainer.isServiceRunning,
+                    hardwareSocName = hardwareProfile?.socName,
+                    onStartServiceCallback = { startAssistantService() },
+                    onStopServiceCallback = { stopAssistantService() }
+                )
+            }
+
+            val settingsViewModel = remember {
+                SettingsViewModel(
+                    preferencesRepository = appContainer.userPreferencesRepository,
+                    initialHardwareProfile = hardwareProfile,
+                    initialConfig = appContainer.appConfig.llmConfig.value
+                )
+            }
+
+            LaunchedEffect(hardwareProfile) {
+                settingsViewModel.setHardwareProfile(hardwareProfile)
+            }
             val provisioningState by appContainer.provisioningManager.state.collectAsStateWithLifecycle()
             val llmConfig by appContainer.appConfig.llmConfig.collectAsStateWithLifecycle()
-            val isServiceRunning by appContainer.isServiceRunning.collectAsStateWithLifecycle()
+
             val historyRecords by appContainer.sessionHistoryRepository.records.collectAsStateWithLifecycle()
             val telemetry by appContainer.sessionHistoryRepository.telemetry.collectAsStateWithLifecycle()
-            val uiState by coordinator.copilotUiState.collectAsStateWithLifecycle()
+
 
             // Dynamic WakeLock binding
             if (llmConfig.keepScreenOn) {
@@ -122,24 +147,25 @@ class MainActivity : ComponentActivity() {
 
             StealthOledTheme {
                 AppShell(
-                    uiState = uiState,
-                    isServiceRunning = isServiceRunning,
-                    llmConfig = llmConfig,
+                    prompterViewModel = prompterViewModel,
+                    settingsViewModel = settingsViewModel,
+
+
                     readiness = readinessStatus,
-                    hardwareProfile = hardwareProfile,
+
                     provisioningState = provisioningState,
                     isMeteredNetwork = isMeteredNetwork,
                     telemetry = telemetry,
                     historyRecords = historyRecords,
-                    onUpdateLlmConfig = { appContainer.saveLlmConfig(it) },
-                    onStartAssistant = { startAssistantService() },
-                    onStopAssistant = { stopAssistantService() },
-                    onPauseToggle = { coordinator.togglePause() },
-                    onForceAnswer = { coordinator.forceAnswerNow() },
-                    onClear = { coordinator.clearCurrentAnswer() },
-                    onSelectCategory = { coordinator.selectCategory(it) },
-                    onSelectTranscriptSegment = { coordinator.selectTranscriptSegmentForAnswer(it) },
-                    onCustomQuestionSubmit = { coordinator.triggerAnswerGeneration(it) },
+
+
+
+
+
+
+
+
+
                     onExportMarkdown = { appContainer.sessionHistoryRepository.exportToMarkdown() },
                     onClearHistory = {
                         lifecycleScope.launch {

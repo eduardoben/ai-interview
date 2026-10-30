@@ -87,6 +87,23 @@ class AssistantForegroundService : LifecycleService() {
             coordinator.start()
         }
 
+        // REC-3: Adaptive WakeLock release on pause to conserve battery
+        lifecycleScope.launch {
+            coordinator.state.collect { state ->
+                if (state is com.local.interviewassistant.core.model.AssistantState.Paused) {
+                    if (wakeLock?.isHeld == true) {
+                        try { wakeLock?.release() } catch (_: Exception) {}
+                    }
+                } else if (state is com.local.interviewassistant.core.model.AssistantState.Listening ||
+                    state is com.local.interviewassistant.core.model.AssistantState.DetectingSpeech
+                ) {
+                    if (wakeLock == null || wakeLock?.isHeld != true) {
+                        acquireWakeLock()
+                    }
+                }
+            }
+        }
+
         if (Settings.canDrawOverlays(this) && overlayView == null) {
             setupOverlay(appContainer)
         }

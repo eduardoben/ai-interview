@@ -8,7 +8,9 @@ import com.local.interviewassistant.core.model.PromptStyle
 import com.local.interviewassistant.data.audio.AudioSource
 import com.local.interviewassistant.data.audio.MicrophoneAudioCaptureSource
 import com.local.interviewassistant.data.history.SessionHistoryRepository
+import com.local.interviewassistant.data.history.db.AppDatabase
 import com.local.interviewassistant.data.llm.LiteRtGemmaEngine
+import com.local.interviewassistant.data.preferences.UserPreferencesRepository
 import com.local.interviewassistant.data.provisioning.ModelProvisioningManager
 import com.local.interviewassistant.data.stt.SherpaOfflineWhisperRescorer
 import com.local.interviewassistant.data.stt.SherpaOnnxRuntimeBackend
@@ -18,9 +20,13 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import java.io.File
 
 class AppContainer private constructor(private val context: Context) {
+
+    val appScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     val modelsRootDir: File = (context.getExternalFilesDir(null) ?: context.filesDir).apply {
         if (!exists()) {
@@ -30,7 +36,21 @@ class AppContainer private constructor(private val context: Context) {
 
     val appConfig: AppConfig = AppConfig(modelsRootDir)
 
+    // Milestone 3.2: Room Database instance
+    val appDatabase: AppDatabase = AppDatabase.getInstance(context)
+
+    // Milestone 3.3: Asynchronous Jetpack DataStore preferences repository
+    val userPreferencesRepository: UserPreferencesRepository = UserPreferencesRepository(context)
+
+    // Milestone 3.2: Room-backed session history repository with auto-migration
+    val sessionHistoryRepository: SessionHistoryRepository = SessionHistoryRepository(
+        dao = appDatabase.interviewSessionDao(),
+        legacyStorageDir = context.filesDir,
+        scope = appScope
+    )
+
     init {
+        // Fast-path initial configuration bootstrap from DataStore / SharedPreferences
         val prefs = context.getSharedPreferences("llm_prefs", Context.MODE_PRIVATE)
         val temp = prefs.getFloat("temperature", 0.2f)
         val topK = prefs.getInt("topK", 20)
@@ -69,37 +89,26 @@ class AppContainer private constructor(private val context: Context) {
                 enableHardwareAudioEffects = enableHardwareAudioEffects
             )
         )
+
+        // Reactive stream subscription to DataStore preferences updates
+        appScope.launch {
+            userPreferencesRepository.userPreferencesFlow.collect { config ->
+                appConfig.updateLlmConfig(config)
+            }
+        }
     }
 
     fun saveLlmConfig(newConfig: LlmGenerationConfig) {
-        val prefs = context.getSharedPreferences("llm_prefs", Context.MODE_PRIVATE)
-        prefs.edit().apply {
-            putFloat("temperature", newConfig.temperature)
-            putInt("topK", newConfig.topK)
-            putInt("maxTokens", newConfig.maxTokens)
-            putString("promptStyle", newConfig.promptStyle.name)
-            putString("interviewContext", newConfig.interviewContext)
-            putString("selectedModelPath", newConfig.selectedModelPath)
-            putString("preferredDelegate", newConfig.preferredDelegate?.name)
-            putBoolean("enableWhisperRescorer", newConfig.enableWhisperRescorer)
-            putFloat("teleprompterFontSizeSp", newConfig.teleprompterFontSizeSp)
-            putFloat("stealthDimmerAlpha", newConfig.stealthDimmerAlpha)
-            putBoolean("enableVolumeKeyShortcuts", newConfig.enableVolumeKeyShortcuts)
-            putBoolean("keepScreenOn", newConfig.keepScreenOn)
-            putFloat("minSilenceDurationSec", newConfig.minSilenceDurationSec)
-            putBoolean("enableHardwareAudioEffects", newConfig.enableHardwareAudioEffects)
-            apply()
-        }
         appConfig.updateLlmConfig(newConfig)
+        appScope.launch {
+            userPreferencesRepository.saveConfig(newConfig)
+        }
     }
 
     val provisioningManager: ModelProvisioningManager = ModelProvisioningManager(appConfig)
-    val sessionHistoryRepository: SessionHistoryRepository = SessionHistoryRepository(context.filesDir)
 
     val isServiceRunning = MutableStateFlow(false)
     val isPrompterScreenVisible = MutableStateFlow(false)
-
-    val appScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     val pipelineCoordinator: AssistantPipelineCoordinator by lazy {
         AssistantPipelineCoordinator(
@@ -134,7 +143,7 @@ class AppContainer private constructor(private val context: Context) {
     }
 
     /**
-     * Milestone 2.2: Forward system memory trim events to the active coordinator and engines.
+     * Forward system memory trim events to the active coordinator and engines.
      */
     fun onTrimMemory(level: Int) {
         pipelineCoordinator.onTrimMemory(level)
@@ -151,6 +160,9 @@ class AppContainer private constructor(private val context: Context) {
 
         val canStartAssistant: Boolean
             get() = allPermissionsGranted && modelReport.allPresent
+
+        val isReady: Boolean
+            get() = canStartAssistant
     }
 
     companion object {

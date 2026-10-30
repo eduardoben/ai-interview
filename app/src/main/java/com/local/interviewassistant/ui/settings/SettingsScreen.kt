@@ -26,6 +26,21 @@ import com.local.interviewassistant.data.hardware.HardwareProfile
 import com.local.interviewassistant.ui.prompter.FormattedTeleprompterAnswer
 import com.local.interviewassistant.ui.theme.*
 import java.util.Locale
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+
+@Composable
+fun SettingsScreen(
+    viewModel: SettingsViewModel,
+    modifier: Modifier = Modifier
+) {
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    SettingsScreen(
+        config = state.config,
+        hardwareProfile = state.hardwareProfile,
+        onConfigChange = viewModel::updateConfig,
+        modifier = modifier
+    )
+}
 
 @Composable
 fun SettingsScreen(

@@ -8,6 +8,7 @@ import java.util.Properties
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.ksp)
 }
 
 tasks.register("downloadSherpaOnnxAar") {
@@ -129,8 +130,8 @@ android {
         applicationId = "com.local.interviewassistant"
         minSdk = 34
         targetSdk = 37
-        versionCode = 11
-        versionName = "1.7.0"
+        versionCode = 12
+        versionName = "1.8.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -219,9 +220,13 @@ dependencies {
     implementation(libs.litertlm.android)
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.androidx.datastore.preferences)
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
     implementation(files("libs/sherpa-onnx.aar"))
 
     testImplementation(libs.junit)
+    testImplementation("org.json:json:20240303")
     testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.test.runner)

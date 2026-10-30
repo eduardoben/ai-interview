@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.0] - 2026-10-30
+
+### 🏛️ Phase 3 Production Hardening: MVVM Architecture, Room Database, Jetpack DataStore, Adaptive Icons & Play Store Dossier
+- **MVVM Presentation Layer Decomposition (`PrompterViewModel`, `SettingsViewModel`, `PrompterScreen`):**
+  - Eliminated the 25-parameter prop drilling anti-pattern from `MainActivity.kt` and `AppShell.kt`.
+  - Decomposed the monolithic 874-line `PrompterScreen.kt` into 7 modular, focused components under `ui/prompter/components/` (`PrompterHeader`, `CategoryChipRow`, `TeleprompterDisplay`, `LiveTranscriptBar`, `TranscriptHistorySheet`, `ThumbControlDock`, and `StealthDimmerDialog`).
+  - Implemented `PrompterViewModel` and `SettingsViewModel` managing immutable `StateFlow` UI state and decoupled from direct service references.
+- **Jetpack Room Database Migration (`SessionHistoryRepository` & `data/history/db/`):**
+  - Migrated interview session persistence from unindexed raw JSON file writes (`interview_session_history.json`) to Android Jetpack Room `2.8.5` (`AppDatabase`, `InterviewSessionDao`, `InterviewSessionEntity`).
+  - Added atomic one-time migration and cleanup of legacy JSON session records.
+  - Room DAO exposes reactive `Flow<List<InterviewSessionEntity>>` for real-time history observation with indexed queries.
+- **Jetpack DataStore Migration (`UserPreferencesRepository` & `data/preferences/`):**
+  - Migrated configuration persistence from blocking, synchronous `SharedPreferences` ("llm_prefs") to asynchronous Jetpack `DataStore<Preferences>`.
+  - Configured automatic `SharedPreferencesMigration` with reactive updates exposed to `AppContainer.llmConfig`.
+- **Adaptive Vector Icon Suite (`res/drawable/` & `res/mipmap-anydpi/`):**
+  - Created high-contrast, store-ready adaptive vector assets: `ic_launcher_background.xml` (OLED linear gradient `#06070A` to `#0E1017`), `ic_launcher_foreground.xml` (The Guardian Node shield + audio soundwave/spark fusion with glowing neon core), and `ic_launcher_monochrome.xml` for Android 13+ Themed Icons.
+  - Linked monochrome layer in `res/mipmap-anydpi/ic_launcher.xml` and `ic_launcher_round.xml`.
+- **Phase 2 Audit Remediation (REC-1 to REC-4):**
+  - *REC-1 (Dynamic In-Flight Thermal Throttling):* Added in-flight thermal evaluation in `AssistantPipelineCoordinator` token generation loop to cap tokens immediately if thermal status escalates mid-turn.
+  - *REC-2 (Rescorer Model Restoration):* Added `suspend fun restoreRescorerIfReleased()` to `SherpaVadSttEngine` to lazily restore Whisper rescorer once memory pressure abates.
+  - *REC-3 (Paused State WakeLock Management):* In `AssistantForegroundService`, released `PARTIAL_WAKE_LOCK` during `AssistantState.Paused` and re-acquired upon resume to eliminate idle battery drain.
+  - *REC-4 (Overlay Accessibility Semantics):* Added explicit screen reader accessibility labels (`contentDescription`) across all footer buttons in `FloatingHudOverlay.kt`.
+- **Play Console Dossier & Submission Package (`docs/play_store_dossier.md`):**
+  - Authored comprehensive Play Console submission dossier: FGS Microphone permission policy declaration, 15-second demonstration video storyboard, full store listing copy, ASO strategy, zero-data Data Safety declarations, and 8-panel screenshot specifications.
+- **Verification & Testing:**
+  - 121/121 unit tests passed (`PrompterViewModelTest`, `SettingsViewModelTest`, `SessionHistoryRepositoryTest`, `UserPreferencesRepositoryTest`, `Phase2StabilityAndThermalTest`, `RealDevicePipelineIntegrationTest`).
+  - R8 full-mode minification and resource shrinking verified via `./gradlew assembleRelease` (3m 18s).
+- Bumped application `versionCode = 12` and `versionName = "1.8.0"`.
+
+---
+
 ## [1.7.0] - 2026-10-29
 
 ### ⚡ Phase 2 Production Hardening: Stability, Memory Optimization, Thermal Throttling & Headless Testing Harness

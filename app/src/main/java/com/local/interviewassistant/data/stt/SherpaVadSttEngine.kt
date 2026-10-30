@@ -172,6 +172,7 @@ class SherpaVadSttEngine(
     }
 
     suspend fun reset() {
+
         mutex.withLock {
             ringBuffer.clear()
             utteranceAudioBuffer.clear()
@@ -194,6 +195,17 @@ class SherpaVadSttEngine(
         } catch (_: Throwable) {}
         utteranceAudioBuffer.clear()
         ringBuffer.clear()
+    }
+
+    /**
+     * REC-2: Lazy Whisper rescorer re-initialization hook after memory pressure has subsided.
+     */
+    suspend fun restoreRescorerIfReleased() {
+        if (offlineRescorer != null && !offlineRescorer.isAvailable) {
+            try {
+                offlineRescorer.initialize(config)
+            } catch (_: Throwable) {}
+        }
     }
 
     fun release() {

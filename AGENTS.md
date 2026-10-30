@@ -39,7 +39,7 @@ This document serves as the authoritative technical context guide for AI Coding 
 - **`AppConfig`**: Manages model storage paths (`modelsRootDir`), URL constants, model validation reports, and Gemma prompt formatting (`formatGemmaPrompt`).
 - **`ensureHotwordsFile()`**: Generates `hotwords.txt` containing 70+ technical, behavioral, business, finance, and medical terms formatted in lowercase matching Sherpa-ONNX's BPE vocabulary for `modified_beam_search` biasing.
 
-### 2. Audio Capture & STT Pipeline (v1.3 - v1.7.0)
+### 2. Audio Capture & STT Pipeline (v1.3 - v1.8.0)
 - **`MicrophoneAudioCaptureSource`**: Captures 16 kHz MONO PCM-16 float chunks. Bypasses aggressive hardware `NoiseSuppressor` and `AutomaticGainControl` by default to preserve unvoiced high frequencies (3 kHz – 8 kHz) essential for English consonant recognition.
 - **`CircularFloatRingBuffer`**: Zero-allocation circular float ring buffer in `com.local.interviewassistant.data.audio` eliminating per-frame array allocation and `copyOfRange` GC churn during sustained 16 kHz audio streaming.
 - **`VadSttBackend` / `SherpaOnnxRuntimeBackend`**: Wraps native `com.k2fsa.sherpa.onnx.Vad` (Silero VAD) and `com.k2fsa.sherpa.onnx.OnlineRecognizer` (Zipformer transducer).
@@ -57,7 +57,7 @@ This document serves as the authoritative technical context guide for AI Coding 
 - **`OfflineRescorerBackend` / `SherpaOfflineWhisperRescorer`**: Second-pass offline recognizer contract wrapping `com.k2fsa.sherpa.onnx.OfflineRecognizer` with `OfflineWhisperModelConfig` (int8 Whisper tiny.en). Falls back cleanly to Pass 1 streaming result if offline models are absent or disabled.
 - **`ModelProvisioningManager`**: Automates speech model lifecycle with `.stt_version` tracking (`STT_MODEL_VERSION = "2023-06-21-gigaspeech"`). Provides `downloadOfflineRescorerModel()` for optional high-accuracy second-pass ASR rescoring.
 
-### 3. Hardware Profiling, LLM Backend & Thermal Protection (v1.4 - v1.7.0)
+### 3. Hardware Profiling, LLM Backend & Thermal Protection (v1.4 - v1.8.0)
 - **`DeviceHardwareDetector`**: Probes device SoC model (`Build.SOC_MODEL`), total RAM, NPU system features, and presence of `libLiteRtDispatch_GoogleTensor.so` on Android 17 (API 37). Automatically classifies system into `HardwareTier.TPU`, `GPU`, or `CPU`, and evaluates `RamReadinessTier` (`OPTIMAL` >= 11.5 GB, `CONSTRAINED` 7–11.5 GB, `UNSUPPORTED` < 7 GB).
 - **`BackendResolver`**: Negotiates LiteRT delegates based on user preference (`preferredDelegate`) and detected hardware capabilities (`NPU_GOOGLE_TENSOR`, `GPU_LITERT`, `CPU_MMAP`), providing ordered fallback sequences (`getFallbackSequence()`) consumed directly by `LiteRtGemmaEngine.initialize()`.
 - **Thermal Throttling Protection**: `AssistantPipelineCoordinator` monitors `PowerManager.OnThermalStatusChangedListener`; under `THERMAL_STATUS_SEVERE` (3) or higher, caps generation at 256 tokens and informs `SherpaVadSttEngine` to bypass Whisper rescoring.
@@ -71,7 +71,13 @@ This document serves as the authoritative technical context guide for AI Coding 
 - **`ModelDownloadService`**: Foreground service (`FOREGROUND_SERVICE_TYPE_DATA_SYNC` + partial `WakeLock`) enabling uninterrupted background downloads of multi-gigabyte models when the screen turns off or the phone is locked.
 - **`FloatingHudOverlay`**: Draggable floating Compose window featuring live transcript history, quick-action mode chips, response panel, and WCAG/Google Play 48x48dp compliant hit targets with screen reader semantics.
 
-### 5. Testing & Verification Harness (v1.7.0)
+### 5. MVVM Presentation & Jetpack Storage Subsystems (v1.8.0)
+- **`PrompterViewModel` & `SettingsViewModel`**: Decouple the UI layer from service lifecycles and background singletons. Expose reactive, immutable `StateFlow` (`PrompterUiState`, `SettingsUiState`) consumed by Compose screens. Eliminated 25-parameter prop drilling across `MainActivity` and `AppShell`.
+- **`PrompterScreen` Decomposition**: Split 874-line monolithic screen into focused, isolated composables in `com.local.interviewassistant.ui.prompter.components`: `PrompterHeader`, `CategoryChipRow`, `TeleprompterDisplay`, `LiveTranscriptBar`, `TranscriptHistorySheet`, `ThumbControlDock`, and `StealthDimmerDialog`.
+- **`AppDatabase` & `InterviewSessionDao` (Room Database)**: Replaces flat-file JSON persistence (`interview_session_history.json`). Backed by Android Room 2.8.5 with automatic schema validation, indexed timestamps, and reactive `Flow<List<InterviewSessionEntity>>` streams. `SessionHistoryRepository` performs atomic one-time migration and cleanup of legacy JSON records.
+- **`UserPreferencesRepository` (Jetpack DataStore)**: Replaces synchronous, blocking `SharedPreferences` with asynchronous, non-blocking `DataStore<Preferences>`, configured with `SharedPreferencesMigration(context, "llm_prefs")`.
+
+### 6. Testing & Verification Harness (v1.8.0)
 - **Headless Test Mock Suite (`FakeLlmBackend` in `com.local.interviewassistant.test`)**: Emulates LiteRT C++ generation streams for continuous integration runners without downloading multi-gigabyte model weights.
 - **`Phase2StabilityAndThermalTest`**: Asserts thermal status transitions (SEVERE/CRITICAL -> LIGHT), token truncation at 256 tokens, and memory trim cache reclamation.
 - **`RealDevicePipelineIntegrationTest`**: Grounded test suite verifying physical device specs (Pixel 10 Pro XL, Tensor G5, API 37), on-disk model layouts, sub-millisecond punctuation latency (<0.25ms), Sherpa-ONNX streaming Zipformer frame processing (<8ms), LiteRT EdgeTPU NPU execution via `libLiteRtDispatch_GoogleTensor.so`, and background service contracts.

@@ -230,7 +230,9 @@ class AssistantPipelineCoordinator(
                             }
 
                             // Cap generation if severe thermal throttling is active
-                            if (tokenCount >= maxTokensCap) {
+                            // REC-1: Dynamic in-flight thermal evaluation
+                            val currentCap = if (_isThermalThrottled.value) THERMAL_THROTTLE_MAX_TOKENS else Int.MAX_VALUE
+                            if (tokenCount >= currentCap) {
                                 val readyState = AssistantState.AnswerReady(question, event.accumulatedText, event.ttftMs)
                                 _state.value = readyState
                                 _copilotUiState.update {

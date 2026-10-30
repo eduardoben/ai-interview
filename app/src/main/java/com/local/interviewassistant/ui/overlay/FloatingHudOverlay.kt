@@ -460,7 +460,9 @@ fun FloatingHudOverlay(
                         onClick = onForceAnswer,
                         enabled = uiState.pipelineState !is AssistantState.Paused &&
                                 uiState.pipelineState !is AssistantState.GeneratingAnswer,
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .semantics { contentDescription = "Force immediate answer generation" },
                         colors = ButtonDefaults.buttonColors(containerColor = StealthAccentIndigo),
                         shape = RoundedCornerShape(10.dp),
                         contentPadding = PaddingValues(0.dp)
@@ -478,6 +480,7 @@ fun FloatingHudOverlay(
                     onClick = onPauseToggle,
                     modifier = Modifier
                         .weight(1f)
+                        .semantics { contentDescription = if (uiState.pipelineState is AssistantState.Paused) "Resume assistant listening" else "Pause assistant listening" }
                         .heightIn(min = 48.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
                         containerColor = StealthSurface,
@@ -499,6 +502,7 @@ fun FloatingHudOverlay(
                     onClick = onClear,
                     modifier = Modifier
                         .weight(0.8f)
+                        .semantics { contentDescription = "Clear current answer and transcript" }
                         .heightIn(min = 48.dp),
                     shape = RoundedCornerShape(12.dp),
                     contentPadding = PaddingValues(0.dp)

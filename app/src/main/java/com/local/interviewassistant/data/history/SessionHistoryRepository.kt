@@ -1,16 +1,20 @@
 package com.local.interviewassistant.data.history
 
 import com.local.interviewassistant.core.model.InterviewCategory
+import com.local.interviewassistant.data.history.db.InterviewSessionDao
+import com.local.interviewassistant.data.history.db.InterviewSessionEntity
 import org.json.JSONArray
-import org.json.JSONObject
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 data class QuestionAnswerRecord(
@@ -31,9 +35,25 @@ data class AggregateTelemetry(
     val avgDecodeTps: Float = 0f
 )
 
-class SessionHistoryRepository(storageDir: File) {
+/**
+ * Repository managing persistent interview history backed by Android Jetpack Room Database,
+ * with atomic migration support from legacy raw JSON storage.
+ */
+class SessionHistoryRepository(
+    private val dao: InterviewSessionDao? = null,
+    private val legacyStorageDir: File? = null,
+    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
+    private val ioDispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.IO
+) {
+    // Secondary constructor for backward compatibility with existing constructor calls
+    constructor(legacyStorageDir: File) : this(
+        dao = null,
+        legacyStorageDir = legacyStorageDir,
+        scope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
+        ioDispatcher = Dispatchers.IO
+    )
 
-    private val historyFile = File(storageDir, "interview_session_history.json")
+    private val legacyHistoryFile = legacyStorageDir?.let { File(it, "interview_session_history.json") }
     private val _records = MutableStateFlow<List<QuestionAnswerRecord>>(emptyList())
     val records: StateFlow<List<QuestionAnswerRecord>> = _records.asStateFlow()
 
@@ -41,14 +61,64 @@ class SessionHistoryRepository(storageDir: File) {
     val telemetry: StateFlow<AggregateTelemetry> = _telemetry.asStateFlow()
 
     init {
-        loadHistory()
+        if (dao != null) {
+            // Room-backed reactive flow
+            scope.launch {
+                // Perform one-time migration from legacy JSON file if present
+                migrateLegacyJsonIfPresent()
+
+                dao.getAllSessionsFlow().collect { entities ->
+                    val domainRecords = entities.map { it.toRecord() }
+                    _records.value = domainRecords
+                    recomputeTelemetry(domainRecords)
+                }
+            }
+        } else {
+            // In-memory or standalone legacy fallback (e.g., in unit tests without Android Context)
+            loadLegacyHistory()
+        }
+    }
+
+    private suspend fun migrateLegacyJsonIfPresent() = withContext(ioDispatcher) {
+        val file = legacyHistoryFile ?: return@withContext
+        if (!file.exists()) return@withContext
+        try {
+            val jsonStr = file.readText()
+            if (jsonStr.isNotBlank()) {
+                val array = JSONArray(jsonStr)
+                val entities = mutableListOf<InterviewSessionEntity>()
+                for (i in 0 until array.length()) {
+                    val obj = array.getJSONObject(i)
+                    entities.add(
+                        InterviewSessionEntity(
+                            id = obj.optString("id", java.util.UUID.randomUUID().toString()),
+                            question = obj.optString("question", ""),
+                            answer = obj.optString("answer", ""),
+                            category = obj.optString("category", InterviewCategory.GENERAL.name),
+                            timestamp = obj.optLong("timestamp", System.currentTimeMillis()),
+                            ttftMs = obj.optLong("ttftMs", 0L),
+                            decodeTps = obj.optDouble("decodeTps", 0.0).toFloat(),
+                            tokenCount = obj.optInt("tokenCount", 0)
+                        )
+                    )
+                }
+                if (entities.isNotEmpty() && dao != null) {
+                    dao.insertSessions(entities)
+                }
+            }
+            // Once migrated, safely delete legacy JSON file to avoid duplicate imports
+            file.delete()
+        } catch (_: Exception) {
+            // Non-critical fallback; preserve file if parse fails
+        }
     }
 
     @Synchronized
-    private fun loadHistory() {
-        if (!historyFile.exists()) return
+    private fun loadLegacyHistory() {
+        val file = legacyHistoryFile ?: return
+        if (!file.exists()) return
         try {
-            val jsonStr = historyFile.readText()
+            val jsonStr = file.readText()
             if (jsonStr.isBlank()) return
             val array = JSONArray(jsonStr)
             val list = mutableListOf<QuestionAnswerRecord>()
@@ -74,18 +144,26 @@ class SessionHistoryRepository(storageDir: File) {
         } catch (_: Exception) {}
     }
 
-    suspend fun recordQa(record: QuestionAnswerRecord) = withContext(Dispatchers.IO) {
-        val updated = listOf(record) + _records.value
-        _records.value = updated
-        recomputeTelemetry(updated)
-        persistHistory(updated)
+    suspend fun recordQa(record: QuestionAnswerRecord) = withContext(ioDispatcher) {
+        if (dao != null) {
+            dao.insertSession(InterviewSessionEntity.fromRecord(record))
+        } else {
+            val updated = listOf(record) + _records.value
+            _records.value = updated
+            recomputeTelemetry(updated)
+            persistLegacyHistory(updated)
+        }
     }
 
-    suspend fun clearHistory() = withContext(Dispatchers.IO) {
-        _records.value = emptyList()
-        _telemetry.value = AggregateTelemetry()
-        if (historyFile.exists()) {
-            historyFile.delete()
+    suspend fun clearHistory() = withContext(ioDispatcher) {
+        if (dao != null) {
+            dao.clearAll()
+        } else {
+            _records.value = emptyList()
+            _telemetry.value = AggregateTelemetry()
+            legacyHistoryFile?.let {
+                if (it.exists()) it.delete()
+            }
         }
     }
 
@@ -106,11 +184,12 @@ class SessionHistoryRepository(storageDir: File) {
         )
     }
 
-    private fun persistHistory(list: List<QuestionAnswerRecord>) {
+    private fun persistLegacyHistory(list: List<QuestionAnswerRecord>) {
+        val file = legacyHistoryFile ?: return
         try {
             val array = JSONArray()
             list.take(100).forEach { item ->
-                val obj = JSONObject().apply {
+                val obj = org.json.JSONObject().apply {
                     put("id", item.id)
                     put("question", item.question)
                     put("answer", item.answer)
@@ -122,7 +201,7 @@ class SessionHistoryRepository(storageDir: File) {
                 }
                 array.put(obj)
             }
-            historyFile.writeText(array.toString(2))
+            file.writeText(array.toString(2))
         } catch (_: Exception) {}
     }
 
@@ -147,4 +226,3 @@ class SessionHistoryRepository(storageDir: File) {
         return sb.toString()
     }
 }
-
