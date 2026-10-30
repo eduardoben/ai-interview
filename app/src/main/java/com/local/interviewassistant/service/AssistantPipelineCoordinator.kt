@@ -10,6 +10,7 @@ import com.local.interviewassistant.data.history.SessionHistoryRepository
 import com.local.interviewassistant.data.llm.LlmEngine
 import com.local.interviewassistant.data.llm.LlmStreamEvent
 import com.local.interviewassistant.data.stt.SherpaVadSttEngine
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -37,6 +38,10 @@ class AssistantPipelineCoordinator(
     private val _copilotUiState = MutableStateFlow(CopilotUiState())
     val copilotUiState: StateFlow<CopilotUiState> = _copilotUiState.asStateFlow()
 
+    // Milestone 2.3: Thermal Throttling protection state
+    private val _isThermalThrottled = MutableStateFlow(false)
+    val isThermalThrottled: StateFlow<Boolean> = _isThermalThrottled.asStateFlow()
+
     // Serializes lifecycle transitions so start() and stop() cannot interleave concurrently
     private val lifecycleMutex = Mutex()
 
@@ -48,6 +53,41 @@ class AssistantPipelineCoordinator(
 
     companion object {
         private const val MAX_TRANSCRIPT_HISTORY = 30
+        private const val THERMAL_THROTTLE_MAX_TOKENS = 256
+    }
+
+    /**
+     * Milestone 2.3: Handles system thermal status changes from PowerManager.
+     * When status >= 3 (THERMAL_STATUS_SEVERE, CRITICAL, EMERGENCY, SHUTDOWN):
+     * - Capping generation to 256 tokens max
+     * - Disabling Pass 2 Whisper offline rescorer
+     * - Reflecting throttled state in UI
+     */
+    fun onThermalStatusChanged(status: Int) {
+        val shouldThrottle = status >= 3 // 3 = PowerManager.THERMAL_STATUS_SEVERE
+        if (_isThermalThrottled.value != shouldThrottle) {
+            _isThermalThrottled.value = shouldThrottle
+            sttEngine.setRescorerThrottled(shouldThrottle)
+            _copilotUiState.update { it.copy(isThermalThrottled = shouldThrottle) }
+        }
+    }
+
+    /**
+     * Milestone 2.2: Low-Memory Hook.
+     * Trims STT rescorer cache and in-memory transcript history under system memory pressure.
+     */
+    fun onTrimMemory(level: Int) {
+        // level >= 10 corresponds to TRIM_MEMORY_RUNNING_LOW and higher pressure levels
+        if (level >= 10) {
+            sttEngine.trimMemory()
+            _copilotUiState.update { state ->
+                if (state.transcriptHistory.size > 5) {
+                    state.copy(transcriptHistory = state.transcriptHistory.takeLast(5))
+                } else {
+                    state
+                }
+            }
+        }
     }
 
     suspend fun start() = lifecycleMutex.withLock {
@@ -104,7 +144,7 @@ class AssistantPipelineCoordinator(
                         sttEngine.processAudioChunk(samples)
                     }
                 }
-            } catch (e: kotlinx.coroutines.CancellationException) {
+            } catch (e: CancellationException) {
                 throw e
             } catch (t: Throwable) {
                 val errState = AssistantState.Error("Microphone error: ${t.message ?: t.javaClass.simpleName}", isRecoverable = true)
@@ -133,10 +173,6 @@ class AssistantPipelineCoordinator(
                     val newHistory = (it.transcriptHistory + segment).takeLast(MAX_TRANSCRIPT_HISTORY)
                     it.copy(transcriptHistory = newHistory, livePartialTranscript = "")
                 }
-                // Only auto-trigger on voice if we are NOT already in the middle of generating an answer
-                // (or if the user explicitly triggers via manual tap / Answer Now).
-                // Wait: if the interviewer asks a new question while an old answer is done, _state is AnswerReady or Listening, so it triggers!
-                // If _state is currently GeneratingAnswer and a short background noise/utterance endpoints, do not interrupt active generation unless it's a long question (>= 25 chars).
                 val canAutoTrigger = _state.value !is AssistantState.Paused &&
                         (_state.value !is AssistantState.GeneratingAnswer || segment.normalizedText.length >= 25)
                 if (canAutoTrigger && segment.isLikelyQuestion) {
@@ -175,50 +211,91 @@ class AssistantPipelineCoordinator(
                 }
             }
 
-            llmEngine.generateAnswerStream(question).collect { event ->
-                when (event) {
-                    is LlmStreamEvent.PartialToken -> {
-                        val genState = AssistantState.GeneratingAnswer(question, event.accumulatedText, event.ttftMs)
-                        _state.value = genState
-                        _copilotUiState.update {
-                            it.copy(
-                                pipelineState = genState,
-                                activeAnswer = event.accumulatedText,
-                                lastTtftMs = event.ttftMs
+            val maxTokensCap = if (_isThermalThrottled.value) THERMAL_THROTTLE_MAX_TOKENS else Int.MAX_VALUE
+            var tokenCount = 0
+
+            try {
+                llmEngine.generateAnswerStream(question).collect { event ->
+                    when (event) {
+                        is LlmStreamEvent.PartialToken -> {
+                            tokenCount++
+                            val genState = AssistantState.GeneratingAnswer(question, event.accumulatedText, event.ttftMs)
+                            _state.value = genState
+                            _copilotUiState.update {
+                                it.copy(
+                                    pipelineState = genState,
+                                    activeAnswer = event.accumulatedText,
+                                    lastTtftMs = event.ttftMs
+                                )
+                            }
+
+                            // Cap generation if severe thermal throttling is active
+                            if (tokenCount >= maxTokensCap) {
+                                val readyState = AssistantState.AnswerReady(question, event.accumulatedText, event.ttftMs)
+                                _state.value = readyState
+                                _copilotUiState.update {
+                                    it.copy(
+                                        pipelineState = readyState,
+                                        activeAnswer = event.accumulatedText,
+                                        isGeneratingAnswer = false
+                                    )
+                                }
+                                historyRepository?.recordQa(
+                                    QuestionAnswerRecord(
+                                        question = question,
+                                        answer = event.accumulatedText,
+                                        category = _copilotUiState.value.selectedCategory,
+                                        ttftMs = event.ttftMs,
+                                        decodeTps = 0f,
+                                        tokenCount = tokenCount
+                                    )
+                                )
+                                throw CancellationException("Thermal throttling token limit reached ($maxTokensCap tokens)")
+                            }
+                        }
+                        is LlmStreamEvent.Completed -> {
+                            val readyState = AssistantState.AnswerReady(question, event.fullText, event.totalDurationMs)
+                            _state.value = readyState
+                            _copilotUiState.update {
+                                it.copy(
+                                    pipelineState = readyState,
+                                    activeAnswer = event.fullText,
+                                    isGeneratingAnswer = false
+                                )
+                            }
+                            historyRepository?.recordQa(
+                                QuestionAnswerRecord(
+                                    question = question,
+                                    answer = event.fullText,
+                                    category = _copilotUiState.value.selectedCategory,
+                                    ttftMs = event.ttftMs,
+                                    decodeTps = event.decodeTps,
+                                    tokenCount = event.tokenCount
+                                )
                             )
                         }
-                    }
-                    is LlmStreamEvent.Completed -> {
-                        val readyState = AssistantState.AnswerReady(question, event.fullText, event.totalDurationMs)
-                        _state.value = readyState
-                        _copilotUiState.update {
-                            it.copy(
-                                pipelineState = readyState,
-                                activeAnswer = event.fullText,
-                                isGeneratingAnswer = false
-                            )
-                        }
-                        historyRepository?.recordQa(
-                            QuestionAnswerRecord(
-                                question = question,
-                                answer = event.fullText,
-                                category = _copilotUiState.value.selectedCategory,
-                                ttftMs = event.ttftMs,
-                                decodeTps = event.decodeTps,
-                                tokenCount = event.tokenCount
-                            )
-                        )
-                    }
-                    is LlmStreamEvent.Error -> {
-                        val errState = AssistantState.Error(event.throwable.message ?: "LLM generation failed", isRecoverable = true)
-                        _state.value = errState
-                        _copilotUiState.update {
-                            it.copy(
-                                pipelineState = errState,
-                                isGeneratingAnswer = false
-                            )
+                        is LlmStreamEvent.Error -> {
+                            val errState = AssistantState.Error(event.throwable.message ?: "LLM generation failed", isRecoverable = true)
+                            _state.value = errState
+                            _copilotUiState.update {
+                                it.copy(
+                                    pipelineState = errState,
+                                    isGeneratingAnswer = false
+                                )
+                            }
                         }
                     }
+                }
+            } catch (e: CancellationException) {
+                // Expected when generation is stopped or thermally capped
+            } catch (t: Throwable) {
+                val errState = AssistantState.Error(t.message ?: "LLM generation error", isRecoverable = true)
+                _state.value = errState
+                _copilotUiState.update {
+                    it.copy(
+                        pipelineState = errState,
+                        isGeneratingAnswer = false
+                    )
                 }
             }
         }

@@ -49,6 +49,7 @@ tasks.register("downloadSherpaOnnxAar") {
             var downloaded = false
             for (candidateUrl in candidateUrls) {
                 try {
+                    logger.lifecycle("Attempting download from: $candidateUrl")
                     var currentUrl = candidateUrl
                     var connection: HttpURLConnection
                     var redirectCount = 0
@@ -82,19 +83,24 @@ tasks.register("downloadSherpaOnnxAar") {
                             input.copyTo(output)
                         }
                     }
-                    val downloadedHash = computeSha256(tempFile)
-                    if (downloadedHash.equals(expectedSha256, ignoreCase = true)) {
-                        if (aarFile.exists()) aarFile.delete()
-                        tempFile.renameTo(aarFile)
-                        downloaded = true
-                        logger.lifecycle("Downloaded and verified sherpa-onnx.aar successfully from $candidateUrl.")
-                        break
+                    connection.disconnect()
+
+                    val actualHash = computeSha256(tempFile)
+                    if (actualHash.equals(expectedSha256, ignoreCase = true)) {
+                        if (tempFile.renameTo(aarFile)) {
+                            downloaded = true
+                            logger.lifecycle("Successfully downloaded and verified sherpa-onnx.aar ($actualHash)")
+                            break
+                        } else {
+                            throw IOException("Failed to move temporary file into place.")
+                        }
                     } else {
                         tempFile.delete()
-                        logger.warn("Checksum verification failed for download from $candidateUrl.")
+                        logger.warn("Checksum mismatch for $candidateUrl. Expected: $expectedSha256, Actual: $actualHash")
                     }
                 } catch (e: Exception) {
-                    logger.lifecycle("Failed to download from $candidateUrl: ${e.message}")
+                    tempFile.delete()
+                    logger.warn("Download failed from $candidateUrl: ${e.message}")
                 }
             }
             if (!downloaded) {
@@ -123,8 +129,8 @@ android {
         applicationId = "com.local.interviewassistant"
         minSdk = 34
         targetSdk = 37
-        versionCode = 10
-        versionName = "1.6.0"
+        versionCode = 11
+        versionName = "1.7.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

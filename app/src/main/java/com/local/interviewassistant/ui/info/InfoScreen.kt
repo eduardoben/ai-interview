@@ -69,6 +69,7 @@ fun InfoScreen(
 
             TextButton(
                 onClick = onRefreshDiskCheckClick,
+                modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp),
                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
             ) {
                 Text(
@@ -95,7 +96,7 @@ fun InfoScreen(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(44.dp)
+                            .size(48.dp)
                             .background(StealthAccentIndigo.copy(alpha = 0.14f), RoundedCornerShape(12.dp))
                             .border(0.5.dp, StealthAccentIndigo.copy(alpha = 0.35f), RoundedCornerShape(12.dp)),
                         contentAlignment = Alignment.Center
@@ -165,7 +166,7 @@ fun InfoScreen(
                                 onClick = onGrantPermissionsClick,
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(44.dp),
+                                    .heightIn(min = 48.dp),
                                 shape = RoundedCornerShape(10.dp),
                                 colors = ButtonDefaults.buttonColors(containerColor = StealthAccentIndigo)
                             ) {
@@ -177,7 +178,7 @@ fun InfoScreen(
                                 onClick = onOpenOverlaySettingsClick,
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(44.dp),
+                                    .heightIn(min = 48.dp),
                                 shape = RoundedCornerShape(10.dp),
                                 colors = ButtonDefaults.outlinedButtonColors(
                                     containerColor = StealthSurfaceHigh,
@@ -214,6 +215,7 @@ fun InfoScreen(
                     )
                     TextButton(
                         onClick = { showFilesTable = !showFilesTable },
+                        modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp),
                         contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)
                     ) {
                         Text(
@@ -289,7 +291,7 @@ fun InfoScreen(
                                 onClick = onStartDownloadClick,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(48.dp),
+                                    .heightIn(min = 48.dp),
                                 shape = RoundedCornerShape(12.dp),
                                 colors = ButtonDefaults.buttonColors(containerColor = StealthAccentIndigo)
                             ) {
@@ -304,7 +306,7 @@ fun InfoScreen(
                                 onClick = onImportLlmFileClick,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(42.dp),
+                                    .heightIn(min = 48.dp),
                                 shape = RoundedCornerShape(10.dp),
                                 colors = ButtonDefaults.outlinedButtonColors(
                                     containerColor = StealthSurfaceHigh,
@@ -360,6 +362,7 @@ fun InfoScreen(
                                 )
                                 OutlinedButton(
                                     onClick = onCancelDownloadClick,
+                                    modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp),
                                     shape = RoundedCornerShape(8.dp),
                                     colors = ButtonDefaults.outlinedButtonColors(
                                         containerColor = StealthStatusCoral.copy(alpha = 0.1f),
@@ -384,7 +387,9 @@ fun InfoScreen(
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Button(
                                     onClick = onStartDownloadClick,
-                                    modifier = Modifier.weight(1f),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .heightIn(min = 48.dp),
                                     shape = RoundedCornerShape(10.dp),
                                     colors = ButtonDefaults.buttonColors(containerColor = StealthAccentIndigo)
                                 ) {
@@ -392,7 +397,9 @@ fun InfoScreen(
                                 }
                                 OutlinedButton(
                                     onClick = onImportLlmFileClick,
-                                    modifier = Modifier.weight(1f),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .heightIn(min = 48.dp),
                                     shape = RoundedCornerShape(10.dp),
                                     border = BorderStroke(0.5.dp, StealthBorderHigh)
                                 ) {

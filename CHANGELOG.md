@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.7.0] - 2026-10-29
+
+### ⚡ Phase 2 Production Hardening: Stability, Memory Optimization, Thermal Throttling & Headless Testing Harness
+- **Audio WakeLock Integration (`AssistantForegroundService`):** Acquired `PowerManager.PARTIAL_WAKE_LOCK` ("AIInterviewAssistant:AudioCaptureLock") in `AssistantForegroundService` to guarantee continuous, zero-dropout microphone capture and VAD processing when the device screen locks or turns off.
+- **Low-Memory Protection Hooks (`MainActivity`, `AssistantForegroundService`, `AppContainer`, `SherpaVadSttEngine`):** Overrode `onTrimMemory(level)` across Android components; under system RAM pressure (`TRIM_MEMORY_RUNNING_LOW` and above), dynamically releases the heavy offline Whisper rescorer model and trims volatile UI transcript history to protect against Linux `lmkd` out-of-memory kills.
+- **Thermal Throttling Protection (`AssistantPipelineCoordinator`, `AssistantForegroundService`, `SherpaVadSttEngine`):** Registered `PowerManager.OnThermalStatusChangedListener` to monitor device thermal health; under `THERMAL_STATUS_SEVERE` or higher, caps LLM generation to 256 tokens, skips intensive second-pass Whisper rescoring, and reflects a visible `"THROTTLED"` badge in the HUD overlay.
+- **Google Play Accessibility 48x48dp Compliance (`FloatingHudOverlay` & `InfoScreen`):** Upgraded all interactive controls (minimized pill, header minimize/close icons, quick category chips, action buttons, permission triggers, and diagnostic buttons) to meet the 48x48 dp minimum touch target standard with explicit semantics `contentDescription` for screen readers.
+- **Headless Test Mock Suite (`FakeLlmBackend` & `Phase2StabilityAndThermalTest`):** Built a standalone `FakeLlmBackend` implementing `LlmInferenceBackend` for zero-overhead continuous integration (CI) environments without requiring 3GB model binaries, along with automated tests verifying thermal listeners, low-memory hooks, and token capping.
+- **Physical Device Deployment & Verification:** Assembled, installed, and verified on connected physical Google Pixel 10 Pro XL (Tensor G5, Android 17 / API 37) with clean process startup (PID 9584).
+- Bumped application `versionCode = 11` and `versionName = "1.7.0"`.
+
+---
+
 ## [1.6.0] - 2026-10-29
 
 ### 🛡️ Phase 1 Production Hardening: R8/ProGuard Rules, Non-Blocking Teardown, Auto-Backup Privacy & Zero-Allocation Audio Ring Buffer

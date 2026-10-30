@@ -133,6 +133,13 @@ class AppContainer private constructor(private val context: Context) {
         return pipelineCoordinator
     }
 
+    /**
+     * Milestone 2.2: Forward system memory trim events to the active coordinator and engines.
+     */
+    fun onTrimMemory(level: Int) {
+        pipelineCoordinator.onTrimMemory(level)
+    }
+
     data class ReadinessStatus(
         val hasAudioPermission: Boolean,
         val hasNotificationPermission: Boolean,

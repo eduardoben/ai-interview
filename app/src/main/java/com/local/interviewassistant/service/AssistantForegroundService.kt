@@ -7,6 +7,7 @@ import android.app.PendingIntent
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.graphics.PixelFormat
+import android.os.PowerManager
 import android.provider.Settings
 import android.util.Log
 import android.view.Gravity
@@ -43,6 +44,12 @@ class AssistantForegroundService : LifecycleService() {
     private var overlayView: ComposeView? = null
     private var overlayLifecycleOwner: OverlayLifecycleOwner? = null
 
+    // Milestone 2.4: Partial WakeLock to guarantee uninterrupted audio ingestion
+    private var wakeLock: PowerManager.WakeLock? = null
+
+    // Milestone 2.3: Thermal listener to throttle LLM and STT under thermal load
+    private var thermalListener: PowerManager.OnThermalStatusChangedListener? = null
+
     private val isStopping = AtomicBoolean(false)
     private val isTornDown = AtomicBoolean(false)
 
@@ -72,6 +79,9 @@ class AssistantForegroundService : LifecycleService() {
         val appContainer = AppContainer.getInstance(this)
         val coordinator = appContainer.pipelineCoordinator
         appContainer.isServiceRunning.value = true
+
+        acquireWakeLock()
+        registerThermalListener(coordinator)
 
         lifecycleScope.launch {
             coordinator.start()
@@ -180,11 +190,79 @@ class AssistantForegroundService : LifecycleService() {
         overlayLifecycleOwner = null
     }
 
+    private fun acquireWakeLock() {
+        try {
+            val powerManager = getSystemService(POWER_SERVICE) as? PowerManager
+            wakeLock = powerManager?.newWakeLock(
+                PowerManager.PARTIAL_WAKE_LOCK,
+                "AIInterviewAssistant:AudioCaptureLock"
+            )?.apply {
+                setReferenceCounted(false)
+                acquire(2 * 60 * 60 * 1000L) // 2 hour max safety timeout
+            }
+            Log.d(TAG, "Audio WakeLock acquired.")
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to acquire audio WakeLock", e)
+        }
+    }
+
+    private fun releaseWakeLock() {
+        try {
+            if (wakeLock?.isHeld == true) {
+                wakeLock?.release()
+                Log.d(TAG, "Audio WakeLock released.")
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Error releasing audio WakeLock", e)
+        } finally {
+            wakeLock = null
+        }
+    }
+
+    private fun registerThermalListener(coordinator: AssistantPipelineCoordinator) {
+        try {
+            val powerManager = getSystemService(POWER_SERVICE) as? PowerManager ?: return
+            val listener = PowerManager.OnThermalStatusChangedListener { status ->
+                Log.i(TAG, "Thermal status changed: $status")
+                coordinator.onThermalStatusChanged(status)
+            }
+            thermalListener = listener
+            powerManager.addThermalStatusListener(mainExecutor, listener)
+            val initialStatus = powerManager.currentThermalStatus
+            coordinator.onThermalStatusChanged(initialStatus)
+            Log.d(TAG, "Thermal listener registered, initial status: $initialStatus")
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to register thermal status listener", e)
+        }
+    }
+
+    private fun unregisterThermalListener() {
+        try {
+            val listener = thermalListener ?: return
+            val powerManager = getSystemService(POWER_SERVICE) as? PowerManager
+            powerManager?.removeThermalStatusListener(listener)
+            Log.d(TAG, "Thermal listener unregistered.")
+        } catch (e: Exception) {
+            Log.w(TAG, "Error unregistering thermal listener", e)
+        } finally {
+            thermalListener = null
+        }
+    }
+
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        Log.i(TAG, "onTrimMemory received level: $level")
+        AppContainer.getInstance(this).onTrimMemory(level)
+    }
+
     private fun stopAssistantServiceSafely() {
         if (!isStopping.compareAndSet(false, true)) {
             Log.d(TAG, "Teardown already in progress, ignoring duplicate call.")
             return
         }
+
+        unregisterThermalListener()
+        releaseWakeLock()
 
         val appContainer = AppContainer.getInstance(this)
         appContainer.isServiceRunning.value = false
@@ -211,6 +289,9 @@ class AssistantForegroundService : LifecycleService() {
     }
 
     override fun onDestroy() {
+        unregisterThermalListener()
+        releaseWakeLock()
+
         // Fallback guard if onDestroy was triggered directly by OS
         if (isTornDown.compareAndSet(false, true)) {
             val appContainer = AppContainer.getInstance(this)

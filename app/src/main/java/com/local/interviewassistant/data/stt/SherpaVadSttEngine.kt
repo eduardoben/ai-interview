@@ -53,6 +53,13 @@ class SherpaVadSttEngine(
     private var silenceFrameCount = 0
     private var hasValidSpeech = false
 
+    @Volatile
+    private var isRescorerThrottled = false
+
+    fun setRescorerThrottled(throttled: Boolean) {
+        isRescorerThrottled = throttled
+    }
+
     suspend fun initialize(): Result<Unit> {
         val backendResult = backend.initialize(config)
         if (backendResult.isFailure) return backendResult
@@ -117,8 +124,8 @@ class SherpaVadSttEngine(
             rawFinal
         }
 
-        // Phase 3: High-Fidelity Second-Pass Rescore (if offline rescorer is active)
-        val rescoredText = if (offlineRescorer?.isAvailable == true && utteranceAudioBuffer.isNotEmpty()) {
+        // Phase 3: High-Fidelity Second-Pass Rescore (if offline rescorer is active and not thermally throttled)
+        val rescoredText = if (!isRescorerThrottled && offlineRescorer?.isAvailable == true && utteranceAudioBuffer.isNotEmpty()) {
             val totalSamples = utteranceAudioBuffer.sumOf { it.size }
             val waveform = FloatArray(totalSamples)
             var offset = 0
@@ -175,6 +182,18 @@ class SherpaVadSttEngine(
             _partialTranscript.value = ""
             backend.finalizeAndResetStream()
         }
+    }
+
+    /**
+     * Milestone 2.2: Low-Memory Hook.
+     * Releases heavy offline rescorer cache and clears audio buffers under system RAM pressure.
+     */
+    fun trimMemory() {
+        try {
+            offlineRescorer?.release()
+        } catch (_: Throwable) {}
+        utteranceAudioBuffer.clear()
+        ringBuffer.clear()
     }
 
     fun release() {

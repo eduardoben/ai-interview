@@ -26,6 +26,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -83,7 +85,7 @@ fun FloatingHudOverlay(
     )
 
     if (uiState.isMinimized) {
-        // Minimized Pill with 8pt grid spacing, 44dp minimum touch target, and soft elevation shadow
+        // Minimized Pill with 8pt grid spacing, 48dp minimum accessible touch target, and soft elevation shadow
         Box(
             modifier = modifier
                 .padding(8.dp)
@@ -93,11 +95,12 @@ fun FloatingHudOverlay(
                     ambientColor = Color.Black,
                     spotColor = StealthAccentIndigo.copy(alpha = 0.45f)
                 )
-                .heightIn(min = 44.dp)
+                .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
                 .clip(RoundedCornerShape(50))
                 .background(Color(0xF506070A))
                 .border(0.5.dp, StealthBorderHigh, RoundedCornerShape(50))
                 .clickable { onToggleMinimize() }
+                .semantics { contentDescription = "Expand Copilot HUD" }
                 .pointerInput(Unit) {
                     detectDragGestures { change, dragAmount ->
                         change.consume()
@@ -162,7 +165,7 @@ fun FloatingHudOverlay(
                 .border(0.5.dp, StealthBorderHigh, RoundedCornerShape(16.dp))
                 .padding(horizontal = 16.dp, vertical = 12.dp),
         ) {
-            // Subtle Top Drag Handle + Header Bar (44dp accessible hit targets for Minimize/Close)
+            // Subtle Top Drag Handle + Header Bar (48dp accessible hit targets for Minimize/Close)
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -206,12 +209,30 @@ fun FloatingHudOverlay(
                         modifier = Modifier.weight(1f)
                     )
 
-                    // 44x44dp touch target wrapping a clean 28dp visual circle
+                    // Milestone 2.3: Thermal throttle indicator badge
+                    if (uiState.isThermalThrottled) {
+                        Box(
+                            modifier = Modifier
+                                .background(StealthStatusAmber.copy(alpha = 0.2f), RoundedCornerShape(4.dp))
+                                .border(0.5.dp, StealthStatusAmber, RoundedCornerShape(4.dp))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "THROTTLED",
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Bold),
+                                color = StealthStatusAmber
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(6.dp))
+                    }
+
+                    // 48x48dp touch target wrapping a clean 28dp visual circle
                     Box(
                         modifier = Modifier
-                            .size(44.dp)
+                            .size(48.dp)
                             .clip(CircleShape)
-                            .clickable { onToggleMinimize() },
+                            .clickable { onToggleMinimize() }
+                            .semantics { contentDescription = "Minimize HUD overlay" },
                         contentAlignment = Alignment.Center
                     ) {
                         Box(
@@ -225,12 +246,13 @@ fun FloatingHudOverlay(
                         }
                     }
 
-                    // 44x44dp touch target wrapping a clean 28dp visual circle
+                    // 48x48dp touch target wrapping a clean 28dp visual circle
                     Box(
                         modifier = Modifier
-                            .size(44.dp)
+                            .size(48.dp)
                             .clip(CircleShape)
-                            .clickable { onCloseService() },
+                            .clickable { onCloseService() }
+                            .semantics { contentDescription = "Close assistant overlay" },
                         contentAlignment = Alignment.Center
                     ) {
                         Box(
@@ -246,7 +268,7 @@ fun FloatingHudOverlay(
                 }
             }
 
-            // Quick Category Chips (44dp touch target height with compact 28dp visual pill)
+            // Quick Category Chips (48dp accessible touch target height with compact 28dp visual pill)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -258,8 +280,9 @@ fun FloatingHudOverlay(
                     val isSelected = uiState.selectedCategory == category
                     Box(
                         modifier = Modifier
-                            .heightIn(min = 44.dp)
-                            .clickable { onSelectCategory(category) },
+                            .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+                            .clickable { onSelectCategory(category) }
+                            .semantics { contentDescription = "Category: ${category.displayName}" },
                         contentAlignment = Alignment.Center
                     ) {
                         Box(
@@ -419,7 +442,7 @@ fun FloatingHudOverlay(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Zone 3: Footer Action Buttons (44dp minimum height + 60/30/10 visual hierarchy)
+            // Zone 3: Footer Action Buttons (48dp minimum accessible height + 60/30/10 visual hierarchy)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -429,7 +452,7 @@ fun FloatingHudOverlay(
                 Box(
                     modifier = Modifier
                         .weight(1.4f)
-                        .height(44.dp)
+                        .heightIn(min = 48.dp)
                         .background(StealthAccentIndigo.copy(alpha = 0.14f), RoundedCornerShape(12.dp))
                         .padding(2.dp)
                 ) {
@@ -455,7 +478,7 @@ fun FloatingHudOverlay(
                     onClick = onPauseToggle,
                     modifier = Modifier
                         .weight(1f)
-                        .height(44.dp),
+                        .heightIn(min = 48.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
                         containerColor = StealthSurface,
                         contentColor = StealthTextPrimary
@@ -476,7 +499,7 @@ fun FloatingHudOverlay(
                     onClick = onClear,
                     modifier = Modifier
                         .weight(0.8f)
-                        .height(44.dp),
+                        .heightIn(min = 48.dp),
                     shape = RoundedCornerShape(12.dp),
                     contentPadding = PaddingValues(0.dp)
                 ) {

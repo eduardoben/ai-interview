@@ -243,4 +243,10 @@ class MainActivity : ComponentActivity() {
         }
         startService(intent)
     }
+
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        val appContainer = AppContainer.getInstance(this)
+        appContainer.onTrimMemory(level)
+    }
 }

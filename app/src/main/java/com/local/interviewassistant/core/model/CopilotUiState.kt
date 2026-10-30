@@ -22,5 +22,6 @@ data class CopilotUiState(
     val isGeneratingAnswer: Boolean = false,
     val lastTtftMs: Long = 0L,
     val isMinimized: Boolean = false,
-    val selectedCategory: InterviewCategory = InterviewCategory.GENERAL
+    val selectedCategory: InterviewCategory = InterviewCategory.GENERAL,
+    val isThermalThrottled: Boolean = false
 )
