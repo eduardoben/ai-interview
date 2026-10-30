@@ -179,7 +179,7 @@ fun PrompterScreenContent(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 12.dp)
         ) {
             // 1. Status Bar & Telemetry Header
             PrompterHeader(

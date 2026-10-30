@@ -94,8 +94,7 @@ fun AppShell(
                         NavigationBar(
                             containerColor = StealthSurface.copy(alpha = 0.96f),
                             contentColor = StealthTextPrimary,
-                            tonalElevation = 0.dp,
-                            modifier = Modifier.height(64.dp)
+                            tonalElevation = 0.dp
                         ) {
                             AppDestination.entries.forEach { destination ->
                                 val selected = destination == currentDestination
@@ -275,8 +274,7 @@ fun AppShell(
                         NavigationBar(
                             containerColor = StealthSurface.copy(alpha = 0.96f),
                             contentColor = StealthTextPrimary,
-                            tonalElevation = 0.dp,
-                            modifier = Modifier.height(64.dp)
+                            tonalElevation = 0.dp
                         ) {
                             AppDestination.entries.forEach { destination ->
                                 val selected = destination == currentDestination
