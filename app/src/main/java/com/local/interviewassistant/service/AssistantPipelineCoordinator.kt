@@ -18,7 +18,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 class AssistantPipelineCoordinator(
     private val audioSource: AudioSource,
@@ -34,6 +37,9 @@ class AssistantPipelineCoordinator(
     private val _copilotUiState = MutableStateFlow(CopilotUiState())
     val copilotUiState: StateFlow<CopilotUiState> = _copilotUiState.asStateFlow()
 
+    // Serializes lifecycle transitions so start() and stop() cannot interleave concurrently
+    private val lifecycleMutex = Mutex()
+
     private var audioJob: Job? = null
     private var partialTranscriptJob: Job? = null
     private var completedQuestionJob: Job? = null
@@ -44,7 +50,15 @@ class AssistantPipelineCoordinator(
         private const val MAX_TRANSCRIPT_HISTORY = 30
     }
 
-    suspend fun start() {
+    suspend fun start() = lifecycleMutex.withLock {
+        if (_state.value is AssistantState.Listening ||
+            _state.value is AssistantState.DetectingSpeech ||
+            _state.value is AssistantState.GeneratingAnswer ||
+            _state.value is AssistantState.Initializing
+        ) {
+            return@withLock
+        }
+
         audioJob?.cancel()
         partialTranscriptJob?.cancel()
         completedQuestionJob?.cancel()
@@ -77,7 +91,7 @@ class AssistantPipelineCoordinator(
             }
             _state.value = AssistantState.Error(message, isRecoverable = false)
             _copilotUiState.update { it.copy(pipelineState = _state.value) }
-            return
+            return@withLock
         }
 
         _state.value = AssistantState.Listening
@@ -288,16 +302,37 @@ class AssistantPipelineCoordinator(
         _copilotUiState.update { it.copy(isMinimized = minimized) }
     }
 
-    suspend fun stop() {
-        audioJob?.cancel()
-        partialTranscriptJob?.cancel()
-        completedQuestionJob?.cancel()
-        llmGenerationJob?.cancel()
-        llmGenerationJob?.join()
-        syncJob?.cancel()
+    suspend fun stop() = lifecycleMutex.withLock {
+        if (_state.value is AssistantState.Idle &&
+            audioJob == null &&
+            partialTranscriptJob == null &&
+            completedQuestionJob == null &&
+            llmGenerationJob == null &&
+            syncJob == null
+        ) {
+            return@withLock
+        }
 
-        sttEngine.release()
-        llmEngine.release()
+        audioJob?.cancel()
+        audioJob = null
+        partialTranscriptJob?.cancel()
+        partialTranscriptJob = null
+        completedQuestionJob?.cancel()
+        completedQuestionJob = null
+
+        llmGenerationJob?.let { job ->
+            job.cancel()
+            runCatching {
+                withTimeoutOrNull(2000L) { job.join() }
+            }
+        }
+        llmGenerationJob = null
+
+        syncJob?.cancel()
+        syncJob = null
+
+        runCatching { sttEngine.release() }
+        runCatching { llmEngine.release() }
 
         _state.value = AssistantState.Idle
         _copilotUiState.update {

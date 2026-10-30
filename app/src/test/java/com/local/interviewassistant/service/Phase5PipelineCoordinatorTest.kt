@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -32,8 +33,11 @@ class Phase5PipelineCoordinatorTest {
         override val isInitialized: StateFlow<Boolean> = _isInitialized.asStateFlow()
         var generateAnswerCalledWith = ""
         var isReleased = false
+        var initCount = 0
+        var releaseCount = 0
 
         override suspend fun initialize(): Result<Unit> {
+            initCount++
             _isInitialized.value = true
             return Result.success(Unit)
         }
@@ -45,6 +49,7 @@ class Phase5PipelineCoordinatorTest {
         }
 
         override suspend fun release() {
+            releaseCount++
             _isInitialized.value = false
             isReleased = true
         }
@@ -178,5 +183,48 @@ class Phase5PipelineCoordinatorTest {
         assertNull(coordinator.copilotUiState.value.activeAnswer)
 
         coordinator.stop()
+    }
+
+    @Test
+    fun testRapidStartAndStopMutexSerialization() = runTest {
+        val testDispatcher = StandardTestDispatcher(testScheduler)
+        val testScope = TestScope(testDispatcher)
+
+        val fakeAudioSource = object : AudioSource {
+            override fun audioStream(): Flow<FloatArray> = flow { }
+        }
+        val fakeVadSttBackend = object : VadSttBackend {
+            override suspend fun initialize(config: AppConfig): Result<Unit> = Result.success(Unit)
+            override fun acceptWaveform(samples: FloatArray, sampleRate: Int): Boolean = false
+            override fun getPartialTranscript(): String = ""
+            override fun finalizeAndResetStream(): String = ""
+            override fun release() {}
+        }
+
+        val config = AppConfig(File("tmp"))
+        val sttEngine = SherpaVadSttEngine(config, fakeVadSttBackend)
+        val llmEngine = FakeLlmEngine()
+
+        val coordinator = AssistantPipelineCoordinator(
+            fakeAudioSource,
+            sttEngine,
+            llmEngine,
+            testScope,
+            config,
+        )
+
+        // Rapid duplicate start() calls should be ignored once Listening
+        coordinator.start()
+        coordinator.start()
+        testScope.advanceUntilIdle()
+        assertEquals(1, llmEngine.initCount)
+        assertEquals(AssistantState.Listening, coordinator.state.value)
+
+        // Rapid duplicate stop() calls should be idempotent once Idle
+        coordinator.stop()
+        coordinator.stop()
+        testScope.advanceUntilIdle()
+        assertEquals(1, llmEngine.releaseCount)
+        assertEquals(AssistantState.Idle, coordinator.state.value)
     }
 }

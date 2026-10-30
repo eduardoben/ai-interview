@@ -753,5 +753,48 @@ class Phase3AudioSttTest {
 
         job.cancel()
     }
+
+    @Test
+    fun testCircularFloatRingBufferWrapAroundAndResize() {
+        val ring = com.local.interviewassistant.data.audio.CircularFloatRingBuffer(initialCapacity = 512)
+        assertEquals(0, ring.size)
+        assertEquals(512, ring.capacity)
+
+        // Write 400 samples, read 300 -> tail at 300, head at 400, size = 100
+        val firstChunk = FloatArray(400) { it.toFloat() }
+        ring.write(firstChunk)
+        assertEquals(400, ring.size)
+
+        val out300 = FloatArray(300)
+        val readCount1 = ring.read(out300)
+        assertEquals(300, readCount1)
+        assertEquals(100, ring.size)
+        assertEquals(0f, out300[0], 0.001f)
+        assertEquals(299f, out300[299], 0.001f)
+
+        // Write 300 more samples -> wraps around end of 512 buffer without resizing (size = 400 <= 512)
+        val secondChunk = FloatArray(300) { (1000 + it).toFloat() }
+        ring.write(secondChunk)
+        assertEquals(400, ring.size)
+        assertEquals(512, ring.capacity)
+
+        // Write 500 more samples -> exceeds 512 capacity, triggers dynamic expansion to 1024 while preserving order
+        val thirdChunk = FloatArray(500) { (2000 + it).toFloat() }
+        ring.write(thirdChunk)
+        assertEquals(900, ring.size)
+        assertEquals(1024, ring.capacity)
+
+        val allOut = FloatArray(900)
+        val readAll = ring.read(allOut)
+        assertEquals(900, readAll)
+        assertEquals(0, ring.size)
+        assertEquals(300f, allOut[0], 0.001f)
+        assertEquals(399f, allOut[99], 0.001f)
+        assertEquals(1000f, allOut[100], 0.001f)
+        assertEquals(2499f, allOut[899], 0.001f)
+
+        ring.clear()
+        assertEquals(0, ring.size)
+    }
 }
 

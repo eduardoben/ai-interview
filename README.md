@@ -8,6 +8,7 @@ An on-device, real-time **AI Interview Copilot** for Android powered by **Sherpa
 
 - **🎙️ Real-Time Speech Recognition (STT & VAD):**
   - High-fidelity 16 kHz MONO audio capture via Android `AudioRecord` with hardware noise suppression / AGC bypass to preserve 3 kHz – 8 kHz unvoiced consonant acoustics (fricatives / plosives).
+  - **Zero-Allocation Circular Audio Ring Buffer (`CircularFloatRingBuffer`):** Eliminates per-frame `FloatArray` reallocation and `copyOfRange` GC churn during sustained 16 kHz streaming.
   - **Conversational Multi-Corpus Zipformer STT:** Powered by Sherpa-ONNX streaming Zipformer trained on **GigaSpeech + LibriSpeech** (10,000+ hours of conversational interviews, talks, and podcasts; 187.8 MB model) and **Silero VAD** processing 32ms frames.
   - **Transducer Context Gating & Lookahead Flushing:** 250ms pre-roll rolling buffer prevents ambient room noise from corrupting neural recurrent memory; trailing lookahead frames are flushed via `stream.inputFinished()` on endpointing to eliminate clipped sentence endings.
   - **Universal Contextual Biasing (Hotwords):** Subword BPE FST trie matching 70+ technical, behavioral, business, and domain terms using `modified_beam_search` (`maxActivePaths = 4`, `blankPenalty = 1.0f`, `hotwordsScore = 2.0f`).
@@ -15,12 +16,17 @@ An on-device, real-time **AI Interview Copilot** for Android powered by **Sherpa
 - **⚡ Google LiteRT-LM Gemma 4 Candidate Copilot:**
   - **Pixel Tensor TPU/NPU Acceleration:** Direct southbound delegation to `Backend.NPU(nativeLibraryDir = context.applicationInfo.nativeLibraryDir)` for AOT EdgeTPU models (`gemma-4-E2B-it_Google_Tensor_G5.litertlm`). Bundles the native `libLiteRtDispatch_GoogleTensor.so` dispatch shim in `app/src/main/jniLibs/arm64-v8a/` to interface with the Pixel EdgeTPU HAL.
   - **Universal GPU Acceleration:** `Backend.GPU()` OpenCL/Vulkan delegate for standard Gemma models (`gemma-4-E2B-it.litertlm`).
-  - **Thread-Safe JNI Dispatcher:** Serializes all native C++ `Engine` and `Conversation` operations on a dedicated `LiteRT-GPU-Thread` single-threaded executor, preventing native stack corruption.
-  - **Fail-Safe Fallback & File Integrity:** Automatically negotiates fallback sequences via `BackendResolver` to the universal GPU/CPU model if TPU allocation fails, while validating file integrity so corrupt or mislabeled files are detected immediately.
+  - **Thread-Safe JNI Dispatcher & Mutex Lifecycle Guard:** Serializes all native C++ `Engine` and `Conversation` operations on a dedicated `LiteRT-GPU-Thread` single-threaded executor, paired with `lifecycleMutex` in `AssistantPipelineCoordinator` and non-blocking FGS teardown in `AssistantForegroundService`.
+  - **Fail-Safe Fallback & 3-Tier RAM Gate:** Automatically negotiates fallback sequences via `BackendResolver` and evaluates system physical RAM readiness (`RamReadinessTier.OPTIMAL`, `CONSTRAINED`, `UNSUPPORTED`).
 
 - **📥 Background Model Provisioning Service (`ModelDownloadService`):**
   - **Screen-Off & Lock Screen Persistence:** Operates as a foreground service with `FOREGROUND_SERVICE_TYPE_DATA_SYNC` and a partial `WakeLock`, preventing Android Doze mode and CPU suspension from severing downloads when the user locks their phone.
   - **Real-Time Notification Progress:** Ongoing notification with live progress bar, MB downloaded/total, and in-notification cancellation.
+
+- **🛡️ Production Hardening & Google Play Compliance (Phase 1):**
+  - **R8 / ProGuard Obfuscation & Resource Shrinking:** Full-mode R8 rules (`app/proguard-rules.pro`) preserving LiteRT-LM and Sherpa-ONNX JNI symbols, enum reflection (`InterviewCategory`), and coroutine dispatchers.
+  - **Zero-Cloud Auto-Backup Exclusion:** Excludes `interview_session_history.json` and `models/` from Android Cloud Backup and device-to-device transfer (`data_extraction_rules.xml`, `backup_rules.xml`).
+  - **Interactive FGS Microphone Notification:** Includes accessible `"Stop Assistant"` action directly in the notification shade.
 
 - **🧪 On-Device Integration & Latency Test Suite:**
   - Hardware-grounded test suite (`RealDevicePipelineIntegrationTest`) running directly on physical Pixel 10 Pro XL hardware.
@@ -36,9 +42,9 @@ An on-device, real-time **AI Interview Copilot** for Android powered by **Sherpa
 
 ```mermaid
 graph TD
-    A["Microphone (AudioRecord - Direct Unfiltered)"] -->|16kHz PCM Float Stream| B["SherpaVadSttEngine (Silero VAD + GigaSpeech Zipformer)"]
+    A["Microphone (AudioRecord - Direct Unfiltered)"] -->|16kHz PCM Float Stream| B["SherpaVadSttEngine (CircularFloatRingBuffer + Silero VAD + Zipformer)"]
     B -->|Pass 1: Low-Latency Streaming Tokens| F["FloatingHudOverlay / PrompterScreen"]
-    B -->|Pass 2 Endpoint: Audio Buffer + Offline Rescorer / QuestionPunctuationEngine| C["AssistantPipelineCoordinator"]
+    B -->|Pass 2 Endpoint: Audio Buffer + Offline Rescorer / QuestionPunctuationEngine| C["AssistantPipelineCoordinator (Mutex Lifecycle)"]
     C -->|Punctuated & Truecased Question| D["LiteRtGemmaEngine (BackendResolver -> GalleryLiteRtBackend)"]
     D -->|Pixel Tensor TPU / GPU / CPU Execution| E["Gemma 4 E2B IT Model"]
     E -->|Streaming Answer Tokens| F
@@ -53,6 +59,7 @@ AIInterviewAssistant/
 ├── docs/
 │   └── production_readiness_plan.md           # Production Readiness Audit, Play Store Compliance & Roadmap
 ├── app/
+│   ├── proguard-rules.pro                     # Production R8 / ProGuard JNI & Enum Keep Rules
 │   ├── src/main/
 │   │   ├── jniLibs/arm64-v8a/                 # Native binaries (libLiteRtDispatch_GoogleTensor.so)
 │   │   ├── java/com/local/interviewassistant/
@@ -65,9 +72,11 @@ AIInterviewAssistant/
 │   │   │   │       ├── LlmGenerationConfig.kt     # Hyperparameters, Delegates & Prompt Styles
 │   │   │   │       └── TranscriptSegment.kt       # Smart Question Detection Heuristics
 │   │   │   ├── data/
-│   │   │   │   ├── audio/AudioCaptureSource.kt    # AudioRecord Stream & Hardware Filters
+│   │   │   │   ├── audio/
+│   │   │   │   │   ├── AudioCaptureSource.kt      # AudioRecord Stream & Hardware Filters
+│   │   │   │   │   └── CircularFloatRingBuffer.kt # Zero-Allocation Circular Float Ring Buffer
 │   │   │   │   ├── hardware/                      # Hardware Profiling & NPU Detection
-│   │   │   │   │   └── DeviceHardwareDetector.kt  # Android 17 SoC, RAM & NPU Delegate Profiler
+│   │   │   │   │   └── DeviceHardwareDetector.kt  # Android 17 SoC, 3-Tier RAM Gate & NPU Profiler
 │   │   │   │   ├── history/                       # Session History & Telemetry Persistence
 │   │   │   │   │   └── SessionHistoryRepository.kt# Local JSON Q&A History & Markdown Export
 │   │   │   │   ├── llm/                           # LiteRT-LM & MediaPipe Engines
@@ -84,8 +93,8 @@ AIInterviewAssistant/
 │   │   │   │       ├── VadSttBackend.kt           # Sherpa-ONNX Native JNI Recognizer
 │   │   │   │       └── SherpaVadSttEngine.kt      # Two-Pass VAD Framing & Utterance Endpointing
 │   │   │   ├── service/
-│   │   │   │   ├── AssistantForegroundService.kt  # Android Foreground Service
-│   │   │   │   ├── AssistantPipelineCoordinator.kt# Audio-STT-LLM Pipeline State Machine
+│   │   │   │   ├── AssistantForegroundService.kt  # Android Foreground Service (Microphone + Non-Blocking Teardown)
+│   │   │   │   ├── AssistantPipelineCoordinator.kt# Mutex-Guarded Audio-STT-LLM Pipeline State Machine
 │   │   │   │   ├── ModelDownloadService.kt        # Background Model Download Service (WakeLock + DataSync)
 │   │   │   │   └── OverlayLifecycleOwner.kt       # Custom Lifecycle Owner for Overlay Views
 │   │   │   └── ui/
@@ -165,6 +174,9 @@ cd ai-interview
 # Assemble Debug APK (includes libLiteRtDispatch_GoogleTensor.so)
 ./gradlew assembleDebug
 
+# Assemble R8-Minified & Resource-Shrunk Release APK
+./gradlew assembleRelease
+
 # Install on connected device
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
@@ -209,7 +221,7 @@ I/LiteRtGemmaEngine: Successfully initialized LiteRT engine on backend 'GPU' for
 
 This repository uses a two-branch workflow with Semantic Versioning and Annotated Git Tags:
 
-- **`main`**: Protected, production-ready branch. Releases and tags (`v1.3.0`, `v1.4.0`, `v1.5.0`, `v1.5.1`) are created here.
+- **`main`**: Protected, production-ready branch. Releases and tags (`v1.3.0`, `v1.4.0`, `v1.5.0`, `v1.5.1`, `v1.6.0`) are created here.
 - **`dev`**: Active feature development, experimentation, and bug fixes.
 
 ### Release Checklist:
@@ -218,10 +230,10 @@ This repository uses a two-branch workflow with Semantic Versioning and Annotate
 git checkout main && git merge dev
 
 # 2. Update app/build.gradle.kts (versionCode/versionName) and CHANGELOG.md
-git commit -am "chore(release): bump version to v1.5.1"
+git commit -am "chore(release): bump version to v1.6.0"
 
 # 3. Tag release and push
-git tag -a v1.5.1 -m "Release v1.5.1: <Summary of changes>"
+git tag -a v1.6.0 -m "Release v1.6.0: <Summary of changes>"
 git push origin main --tags
 
 # 4. Keep dev synced with release commit

@@ -10,7 +10,7 @@ This document serves as the authoritative technical context guide for AI Coding 
 - **Constraint:** LiteRT-LM (`com.google.ai.edge.litertlm`) JNI C++ functions (`Engine.initialize()`, `Engine.createConversation()`, `Conversation.sendMessageAsync()`, `Conversation.cancelProcess()`, and `Conversation.close()`) are NOT thread-safe for concurrent calls.
 - **Rule:** ALL LiteRT operations in [`LiteRtGemmaEngine.kt`](file:///app/src/main/java/com/local/interviewassistant/data/llm/LiteRtGemmaEngine.kt) and [`GalleryLiteRtBackend.kt`](file:///app/src/main/java/com/local/interviewassistant/data/llm/GalleryLiteRtBackend.kt) MUST be serialized on a dedicated single-threaded dispatcher (`LiteRT-GPU-Thread` created via `Executors.newSingleThreadExecutor().asCoroutineDispatcher()`).
   - **Generation:** Use `.flowOn(liteRtDispatcher)` to confine downstream native emissions.
-  - **Synchronous Actions:** Methods like `close()` or `initialize()` in Java/Kotlin classes MUST safely route to the accelerator thread using `kotlinx.coroutines.runBlocking(liteRtDispatcher) { ... }` or equivalent, to prevent JNI heap corruption. Never invoke JNI methods directly on `Dispatchers.Main` or concurrent IO pools.
+  - **Synchronous / Suspending Actions:** Use `initializeSuspend()` and `closeSuspend()` (`withContext(liteRtDispatcher)`) from coroutine callers; synchronous methods like `close()` or `initialize()` route to the accelerator thread using `kotlinx.coroutines.runBlocking(liteRtDispatcher) { ... }`. Never invoke JNI methods directly on `Dispatchers.Main` or concurrent IO pools.
 
 ### B. Hardware Delegation & Model Signature Rules
 1. **Pixel Tensor TPU Models (`*_Google_Tensor_*.litertlm`):**
@@ -35,12 +35,13 @@ This document serves as the authoritative technical context guide for AI Coding 
 ## 2. Core Subsystems & Key Classes
 
 ### 1. `AppContainer.kt` & `AppConfig.kt`
-- **`AppContainer`**: Singleton DI container initialized with application context.
+- **`AppContainer`**: Singleton DI container initialized with application context and exposing supervisor `appScope` for non-blocking background teardown.
 - **`AppConfig`**: Manages model storage paths (`modelsRootDir`), URL constants, model validation reports, and Gemma prompt formatting (`formatGemmaPrompt`).
 - **`ensureHotwordsFile()`**: Generates `hotwords.txt` containing 70+ technical, behavioral, business, finance, and medical terms formatted in lowercase matching Sherpa-ONNX's BPE vocabulary for `modified_beam_search` biasing.
 
-### 2. Audio Capture & STT Pipeline (v1.3 - Phase 3)
+### 2. Audio Capture & STT Pipeline (v1.3 - v1.6.0)
 - **`MicrophoneAudioCaptureSource`**: Captures 16 kHz MONO PCM-16 float chunks. Bypasses aggressive hardware `NoiseSuppressor` and `AutomaticGainControl` by default to preserve unvoiced high frequencies (3 kHz – 8 kHz) essential for English consonant recognition.
+- **`CircularFloatRingBuffer`**: Zero-allocation circular float ring buffer in `com.local.interviewassistant.data.audio` eliminating per-frame array allocation and `copyOfRange` GC churn during sustained 16 kHz audio streaming.
 - **`VadSttBackend` / `SherpaOnnxRuntimeBackend`**: Wraps native `com.k2fsa.sherpa.onnx.Vad` (Silero VAD) and `com.k2fsa.sherpa.onnx.OnlineRecognizer` (Zipformer transducer).
   - Uses multi-corpus conversational model trained on **GigaSpeech + LibriSpeech** (`csukuangfj/sherpa-onnx-streaming-zipformer-en-2023-06-21`, 10,000h+ conversational audio, ~187.8 MB encoder).
   - Uses `decodingMethod = "modified_beam_search"` with `maxActivePaths = 4`, `blankPenalty = 1.0f`, and contextual hotwords (`hotwordsScore = 2.0f`).
@@ -48,24 +49,24 @@ This document serves as the authoritative technical context guide for AI Coding 
   - Employs a 250ms pre-roll rolling buffer to gate speech into the transducer, preventing silence and background noise from corrupting the neural network's recurrent left-context memory.
   - Flushes acoustic lookahead buffers on endpointing via `stream.inputFinished()` prior to final result extraction, and resets state natively via `rec.reset(stream)`.
 - **`SherpaVadSttEngine` (Two-Pass Architecture)**:
-  - **Pass 1 (Streaming):** 32ms audio frame window manager emitting low-latency partial word hypotheses to `partialTranscript` for the HUD overlay.
+  - **Pass 1 (Streaming):** 32ms audio frame window manager using `CircularFloatRingBuffer` and emitting low-latency partial word hypotheses to `partialTranscript` for the HUD overlay.
   - **Pass 2 (Endpointing):** Upon utterance endpointing, the accumulated audio frames (capped at 30s) are optionally rescored via `OfflineRescorerBackend`.
   - **Punctuation & Truecasing:** Every endpointed transcript is processed by `QuestionPunctuationEngine` before emission, ensuring technical acronyms (`API`, `REST`, `SQL`, `Kotlin`, `Room`, `MVVM`) and terminal `?` or `.` are restored.
 - **`QuestionPunctuationEngine`**: Zero-overhead (<1 ms) deterministic grammar & casing engine. Restores proper capitalization, fixes colloquial contractions, truecases 100+ technical acronyms and domain keywords, and classifies questions to append `?` so `TranscriptSegment.isLikelyQuestion` is triggered deterministically.
 - **`OfflineRescorerBackend` / `SherpaOfflineWhisperRescorer`**: Second-pass offline recognizer contract wrapping `com.k2fsa.sherpa.onnx.OfflineRecognizer` with `OfflineWhisperModelConfig` (int8 Whisper tiny.en). Falls back cleanly to Pass 1 streaming result if offline models are absent or disabled.
 - **`ModelProvisioningManager`**: Automates speech model lifecycle with `.stt_version` tracking (`STT_MODEL_VERSION = "2023-06-21-gigaspeech"`). Provides `downloadOfflineRescorerModel()` for optional high-accuracy second-pass ASR rescoring.
 
-### 3. Hardware Profiling & LLM Backend Architecture (v1.4 - v1.5.1)
-- **`DeviceHardwareDetector`**: Probes device SoC model (`Build.SOC_MODEL`), total RAM, NPU system features, and presence of `libLiteRtDispatch_GoogleTensor.so` on Android 17 (API 37). Automatically classifies system into `HardwareTier.TPU`, `GPU`, or `CPU`.
+### 3. Hardware Profiling & LLM Backend Architecture (v1.4 - v1.6.0)
+- **`DeviceHardwareDetector`**: Probes device SoC model (`Build.SOC_MODEL`), total RAM, NPU system features, and presence of `libLiteRtDispatch_GoogleTensor.so` on Android 17 (API 37). Automatically classifies system into `HardwareTier.TPU`, `GPU`, or `CPU`, and evaluates `RamReadinessTier` (`OPTIMAL` >= 11.5 GB, `CONSTRAINED` 7–11.5 GB, `UNSUPPORTED` < 7 GB).
 - **`BackendResolver`**: Negotiates LiteRT delegates based on user preference (`preferredDelegate`) and detected hardware capabilities (`NPU_GOOGLE_TENSOR`, `GPU_LITERT`, `CPU_MMAP`), providing ordered fallback sequences (`getFallbackSequence()`) consumed directly by `LiteRtGemmaEngine.initialize()`.
 - **`AppConfig` Domain Subdirectories**: Reorganized model layout into dedicated folders (`vad/`, `asr/`, `whisper/`, `llm/`) with seamless fallback to legacy root directory files.
-- **`GalleryLiteRtBackend`**: Manages LiteRT `Engine` and `Conversation` sessions, supporting NPU, GPU, and CPU delegation with clean synchronous resource teardown (`closeSynchronously()`).
+- **`GalleryLiteRtBackend`**: Manages LiteRT `Engine` and `Conversation` sessions, supporting NPU, GPU, and CPU delegation with suspending `initializeSuspend()` / `closeSuspend()` and clean synchronous resource teardown (`closeSynchronously()`).
 - **`LiteRtGemmaEngine`**: Wraps backend generation into a Kotlin `Flow<LlmStreamEvent>` emitting `PartialToken`, `Completed`, and `Error` events with TTFT latency tracking, dynamic system prompt fallback, and injectable `customBackend` support for unit testing.
 - **Native Shims (`libLiteRtDispatch_GoogleTensor.so`)**: Placed in `app/src/main/jniLibs/arm64-v8a/` to enable hardware-accelerated EdgeTPU execution on Tensor G3/G4/G5 SoCs.
 
 ### 4. Service & Pipeline Coordinator
-- **`AssistantPipelineCoordinator`**: State machine driving Audio -> STT -> Question Detection -> Gemma Stream -> Copilot UI state.
-- **`AssistantForegroundService`**: Android Foreground Service displaying ongoing notification and managing `WindowManager` overlay views.
+- **`AssistantPipelineCoordinator`**: Mutex-synchronized (`lifecycleMutex`) state machine driving Audio -> STT -> Question Detection -> Gemma Stream -> Copilot UI state.
+- **`AssistantForegroundService`**: Android Foreground Service (`foregroundServiceType="microphone"`) displaying ongoing notification with accessible `"Stop Assistant"` action, non-blocking FGS-priority teardown via `AppContainer.appScope`, and `WindowManager` overlay views.
 - **`ModelDownloadService`**: Foreground service (`FOREGROUND_SERVICE_TYPE_DATA_SYNC` + partial `WakeLock`) enabling uninterrupted background downloads of multi-gigabyte models when the screen turns off or the phone is locked.
 - **`FloatingHudOverlay`**: Draggable floating Compose window featuring live transcript history, quick-action mode chips, and response panel.
 
@@ -95,13 +96,13 @@ This project follows a **Two-Branch (`main` + `dev`) GitFlow with Annotated Git 
 - **`main` (Production / Stable):**
   - Always clean, compilable, and tested.
   - No incomplete or experimental features are committed directly to `main`.
-  - Every release cut on `main` receives an annotated Git tag (e.g., `v1.3.0`).
+  - Every release cut on `main` receives an annotated Git tag (e.g., `v1.6.0`).
 - **`dev` (Active Development & Integration):**
   - Daily working branch for new features, experiments, model adjustments, and bug fixes.
   - Tested on-device or via unit tests before merging into `main`.
 
 ### B. Release Workflow Checklist
-When cutting a new release (e.g., `v1.5.1`):
+When cutting a new release (e.g., `v1.6.0`):
 1. **Merge `dev` into `main`:**
    ```bash
    git checkout main
@@ -112,11 +113,11 @@ When cutting a new release (e.g., `v1.5.1`):
    - Document new additions, changes, fixes, and verification in [`CHANGELOG.md`](file:///CHANGELOG.md).
    ```bash
    git add app/build.gradle.kts CHANGELOG.md
-   git commit -m "chore(release): bump version to v1.5.1"
+   git commit -m "chore(release): bump version to v1.6.0"
    ```
 3. **Create Annotated Git Tag & Push:**
    ```bash
-   git tag -a v1.5.1 -m "Release v1.5.1: <Summary of changes>"
+   git tag -a v1.6.0 -m "Release v1.6.0: <Summary of changes>"
    git push origin main --tags
    ```
 4. **Sync Back to `dev`:**

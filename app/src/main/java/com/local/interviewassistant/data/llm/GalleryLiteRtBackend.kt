@@ -18,6 +18,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class GalleryLiteRtBackend(private val context: Context) : LlmInferenceBackend {
 
@@ -35,8 +36,12 @@ class GalleryLiteRtBackend(private val context: Context) : LlmInferenceBackend {
     private val isGenerating = AtomicBoolean(false)
     @Volatile private var currentGenerationId = 0
 
+    override suspend fun initializeSuspend(config: AppConfig) = withContext(liteRtDispatcher) {
+        initializeInternal(config)
+    }
+
     override fun initialize(config: AppConfig) {
-        // We must perform all LiteRT operations on the single thread
+        // Perform all LiteRT operations on the dedicated single thread
         kotlinx.coroutines.runBlocking(liteRtDispatcher) {
             initializeInternal(config)
         }
@@ -239,6 +244,12 @@ class GalleryLiteRtBackend(private val context: Context) : LlmInferenceBackend {
         try { conv?.close() } catch (_: Exception) {}
         try { eng?.close() } catch (_: Exception) {}
         isGenerating.set(false)
+    }
+
+    override suspend fun closeSuspend() = withContext(liteRtDispatcher) {
+        currentGenerationId++
+        currentAppConfig = null
+        closeSynchronously()
     }
 
     override fun close() {

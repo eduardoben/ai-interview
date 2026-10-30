@@ -1,14 +1,18 @@
 package com.local.interviewassistant.service
 
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.graphics.PixelFormat
 import android.provider.Settings
+import android.util.Log
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.platform.ComposeView
 import androidx.core.app.NotificationCompat
@@ -18,37 +22,45 @@ import androidx.lifecycle.lifecycleScope
 import com.local.interviewassistant.core.di.AppContainer
 import com.local.interviewassistant.ui.overlay.FloatingHudOverlay
 import com.local.interviewassistant.ui.theme.StealthOledTheme
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.util.concurrent.atomic.AtomicBoolean
 
 class AssistantForegroundService : LifecycleService() {
 
     companion object {
+        private const val TAG = "AssistantFGS"
         const val ACTION_START = "com.local.interviewassistant.action.START"
         const val ACTION_STOP = "com.local.interviewassistant.action.STOP"
         const val NOTIFICATION_CHANNEL_ID = "interview_assistant_channel"
         const val NOTIFICATION_ID = 1001
+        private const val REQUEST_CODE_STOP = 2001
     }
 
     private var windowManager: WindowManager? = null
     private var overlayView: ComposeView? = null
     private var overlayLifecycleOwner: OverlayLifecycleOwner? = null
 
+    private val isStopping = AtomicBoolean(false)
+    private val isTornDown = AtomicBoolean(false)
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         super.onStartCommand(intent, flags, startId)
         when (intent?.action) {
             ACTION_START -> startAssistantService()
-            ACTION_STOP -> stopAssistantService()
+            ACTION_STOP -> stopAssistantServiceSafely()
         }
         return START_NOT_STICKY
     }
 
     private fun startAssistantService() {
+        isStopping.set(false)
+        isTornDown.set(false)
+
         createNotificationChannel()
-        val notification = NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
-            .setContentTitle("Interview Assistant Active")
-            .setContentText("Listening and generating answers...")
-            .setSmallIcon(android.R.drawable.ic_btn_speak_now)
-            .build()
+        val notification = buildOngoingNotification()
 
         ServiceCompat.startForeground(
             this,
@@ -68,6 +80,28 @@ class AssistantForegroundService : LifecycleService() {
         if (Settings.canDrawOverlays(this) && overlayView == null) {
             setupOverlay(appContainer)
         }
+    }
+
+    private fun buildOngoingNotification(): Notification {
+        val stopIntent = Intent(this, AssistantForegroundService::class.java).apply {
+            action = ACTION_STOP
+        }
+        val stopPendingIntent = PendingIntent.getService(
+            this,
+            REQUEST_CODE_STOP,
+            stopIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        return NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
+            .setContentTitle("AI Interview Assistant Active")
+            .setContentText("Transcribing spoken audio and generating prompt suggestions.")
+            .setSmallIcon(android.R.drawable.ic_btn_speak_now)
+            .setOngoing(true)
+            .setCategory(NotificationCompat.CATEGORY_SERVICE)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .addAction(android.R.drawable.ic_media_pause, "Stop Assistant", stopPendingIntent)
+            .build()
     }
 
     private fun setupOverlay(appContainer: AppContainer) {
@@ -96,7 +130,9 @@ class AssistantForegroundService : LifecycleService() {
                 val isPrompterVisible = appContainer.isPrompterScreenVisible.collectAsState().value
 
                 // Stealth ergonomics: Auto-hide floating overlay when user is on full-screen Prompter inside the app
-                visibility = if (isPrompterVisible) View.GONE else View.VISIBLE
+                LaunchedEffect(isPrompterVisible) {
+                    visibility = if (isPrompterVisible) View.GONE else View.VISIBLE
+                }
 
                 StealthOledTheme {
                     FloatingHudOverlay(
@@ -107,7 +143,7 @@ class AssistantForegroundService : LifecycleService() {
                         onSelectSegment = { segment -> coordinator.selectTranscriptSegmentForAnswer(segment) },
                         onSelectCategory = { category -> coordinator.selectCategory(category) },
                         onToggleMinimize = { coordinator.setMinimized(!uiState.isMinimized) },
-                        onCloseService = { stopAssistantService() },
+                        onCloseService = { stopAssistantServiceSafely() },
                         onDrag = { dx, dy ->
                             layoutParams.x += dx.toInt()
                             layoutParams.y += dy.toInt()
@@ -133,29 +169,60 @@ class AssistantForegroundService : LifecycleService() {
         manager.createNotificationChannel(channel)
     }
 
-    private fun stopAssistantService() {
+    private fun teardownOverlayView() {
+        overlayView?.let {
+            try {
+                windowManager?.removeView(it)
+            } catch (_: Exception) {}
+        }
+        overlayView = null
+        overlayLifecycleOwner?.onDestroy()
+        overlayLifecycleOwner = null
+    }
+
+    private fun stopAssistantServiceSafely() {
+        if (!isStopping.compareAndSet(false, true)) {
+            Log.d(TAG, "Teardown already in progress, ignoring duplicate call.")
+            return
+        }
+
         val appContainer = AppContainer.getInstance(this)
         appContainer.isServiceRunning.value = false
 
-        lifecycleScope.launch {
-            appContainer.pipelineCoordinator.stop()
-
-            overlayView?.let {
+        // Retain FOREGROUND_SERVICE priority while async JNI cleanup executes on supervisor scope
+        appContainer.appScope.launch {
+            withContext(NonCancellable) {
                 try {
-                    windowManager?.removeView(it)
-                } catch (_: Exception) {}
-            }
-            overlayView = null
-            overlayLifecycleOwner?.onDestroy()
-            overlayLifecycleOwner = null
+                    Log.d(TAG, "Halting AssistantPipelineCoordinator...")
+                    appContainer.pipelineCoordinator.stop()
+                } catch (t: Throwable) {
+                    Log.e(TAG, "Error stopping pipeline coordinator", t)
+                }
 
-            stopForeground(STOP_FOREGROUND_REMOVE)
-            stopSelf()
+                withContext(Dispatchers.Main) {
+                    teardownOverlayView()
+                    isTornDown.set(true)
+                    Log.d(TAG, "Overlay removed. Stopping foreground and calling stopSelf().")
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    stopSelf()
+                }
+            }
         }
     }
 
     override fun onDestroy() {
-        stopAssistantService()
+        // Fallback guard if onDestroy was triggered directly by OS
+        if (isTornDown.compareAndSet(false, true)) {
+            val appContainer = AppContainer.getInstance(this)
+            appContainer.isServiceRunning.value = false
+            teardownOverlayView()
+            appContainer.appScope.launch {
+                withContext(NonCancellable) {
+                    runCatching { appContainer.pipelineCoordinator.stop() }
+                        .onFailure { Log.e(TAG, "Error in emergency JNI teardown", it) }
+                }
+            }
+        }
         super.onDestroy()
     }
 }

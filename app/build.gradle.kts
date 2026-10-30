@@ -3,6 +3,7 @@ import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URI
 import java.security.MessageDigest
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
@@ -107,6 +108,13 @@ tasks.named("preBuild") {
     dependsOn("downloadSherpaOnnxAar")
 }
 
+val keystorePropertiesFile = rootProject.file("keystore.properties")
+val keystoreProperties = Properties().apply {
+    if (keystorePropertiesFile.exists()) {
+        keystorePropertiesFile.inputStream().use { load(it) }
+    }
+}
+
 android {
     namespace = "com.local.interviewassistant"
     compileSdk = 37
@@ -115,19 +123,46 @@ android {
         applicationId = "com.local.interviewassistant"
         minSdk = 34
         targetSdk = 37
-        versionCode = 9
-        versionName = "1.5.1"
+        versionCode = 10
+        versionName = "1.6.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        
+
         ndk {
             abiFilters += listOf("arm64-v8a")
         }
     }
 
+    signingConfigs {
+        create("release") {
+            val resolvedStorePath = keystoreProperties.getProperty("STORE_FILE")
+                ?: System.getenv("KEYSTORE_PATH")
+                ?: "keystore/upload-key.jks"
+            storeFile = file(resolvedStorePath)
+            storePassword = keystoreProperties.getProperty("STORE_PASSWORD")
+                ?: System.getenv("KEYSTORE_PASSWORD")
+                ?: ""
+            keyAlias = keystoreProperties.getProperty("KEY_ALIAS")
+                ?: System.getenv("KEY_ALIAS")
+                ?: ""
+            keyPassword = keystoreProperties.getProperty("KEY_PASSWORD")
+                ?: System.getenv("KEY_PASSWORD")
+                ?: ""
+            enableV1Signing = false
+            enableV2Signing = true
+            enableV3Signing = true
+            enableV4Signing = true
+        }
+    }
+
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            val releaseSigning = signingConfigs.getByName("release")
+            if (releaseSigning.storeFile?.exists() == true && !releaseSigning.storePassword.isNullOrBlank()) {
+                signingConfig = releaseSigning
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -163,18 +198,18 @@ dependencies {
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
-    
+
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.service)
-    
+
     implementation(libs.androidx.savedstate)
-    
+
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.android)
-    
+
     implementation(libs.litertlm.android)
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.androidx.datastore.preferences)

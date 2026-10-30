@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.6.0] - 2026-10-29
+
+### 🛡️ Phase 1 Production Hardening: R8/ProGuard Rules, Non-Blocking Teardown, Auto-Backup Privacy & Zero-Allocation Audio Ring Buffer
+- **Production ProGuard / R8 Rules & Shrinking (`app/proguard-rules.pro` & `app/build.gradle.kts`):** Authored R8 full-mode keep rules preserving `com.google.ai.edge.litertlm` and `com.k2fsa.sherpa.onnx` native JNI bindings, enum class and member retention (`InterviewCategory.valueOf`), domain models, and coroutine dispatchers; enabled `isMinifyEnabled = true` and `isShrinkResources = true` for release builds.
+- **Release Signing Pipeline (`app/build.gradle.kts` & `.gitignore`):** Added release keystore configuration reading from `keystore.properties` or environment variables (`KEYSTORE_PATH`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`) with V2/V3/V4 signing enabled.
+- **Mutex-Guarded Lifecycle & Non-Blocking FGS Teardown (`AssistantPipelineCoordinator` & `AssistantForegroundService`):** Serialized `start()` and `stop()` via `lifecycleMutex`, added accessible `"Stop Assistant"` notification action (`PendingIntent.FLAG_IMMUTABLE`), and refactored teardown onto `AppContainer.appScope` (`withContext(NonCancellable)`) while retaining `FOREGROUND_SERVICE` priority until JNI cleanup finishes.
+- **Google Play FGS Manifest Alignment (`AndroidManifest.xml`):** Removed uninvoked `|dataSync` type from `AssistantForegroundService` so it strictly declares `android:foregroundServiceType="microphone"`.
+- **Android Auto-Backup Cloud Leak Prevention (`data_extraction_rules.xml` & `backup_rules.xml`):** Configured cloud backup and device transfer exclusion rules for `interview_session_history.json` and `models/` to uphold the 100% air-gapped zero-cloud privacy guarantee.
+- **Non-Blocking Coroutine Backend Hooks (`LlmInferenceBackend`, `GalleryLiteRtBackend`, `LiteRtGemmaEngine`):** Added `initializeSuspend()` and `closeSuspend()` routing directly via `withContext(liteRtDispatcher)` without blocking caller threads.
+- **3-Tier RAM Qualification Gate (`DeviceHardwareDetector`):** Added `RamReadinessTier` (`OPTIMAL` >= 11.5 GB, `CONSTRAINED` 7–11.5 GB, `UNSUPPORTED` < 7 GB) and memory pressure advisories to `HardwareProfile`.
+- **Zero-Allocation Audio Frame Buffering (`CircularFloatRingBuffer` & `SherpaVadSttEngine`):** Replaced per-frame `FloatArray` reallocation and `copyOfRange` slicing in `SherpaVadSttEngine.processAudioChunk()` with a reusable `CircularFloatRingBuffer` and pre-allocated window buffer.
+- Bumped application `versionCode = 10` and `versionName = "1.6.0"`.
+
+---
+
 ## [1.5.1] - 2026-10-29
 
 ### 🛠️ Backend Fallback Wiring, Static Analysis Hardening, UI Refinements & Production Readiness Plan

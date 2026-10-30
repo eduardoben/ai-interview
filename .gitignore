@@ -22,3 +22,6 @@ local.properties
 *.apk
 .agents
 skills-lock.json
+keystore.properties
+*.jks
+*.keystore

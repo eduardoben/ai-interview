@@ -2,6 +2,7 @@ package com.local.interviewassistant.data.stt
 
 import com.local.interviewassistant.core.model.AppConfig
 import com.local.interviewassistant.core.model.TranscriptSegment
+import com.local.interviewassistant.data.audio.CircularFloatRingBuffer
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -35,7 +36,10 @@ class SherpaVadSttEngine(
     val isSpeechActive: StateFlow<Boolean> = _isSpeechActive.asStateFlow()
 
     private val mutex = Mutex()
-    private var audioBuffer = FloatArray(0)
+    private val ringBuffer = CircularFloatRingBuffer(
+        initialCapacity = maxOf(config.sampleRateHz * 2, config.vadWindowSizeSamples * 16)
+    )
+    private val reusableWindow = FloatArray(config.vadWindowSizeSamples)
 
     // Phase 3: Utterance audio accumulation for high-fidelity second-pass rescoring
     private val utteranceAudioBuffer = mutableListOf<FloatArray>()
@@ -64,16 +68,11 @@ class SherpaVadSttEngine(
 
     suspend fun processAudioChunk(samples: FloatArray) {
         mutex.withLock {
-            val newBuffer = FloatArray(audioBuffer.size + samples.size)
-            audioBuffer.copyInto(newBuffer)
-            samples.copyInto(newBuffer, audioBuffer.size)
-            audioBuffer = newBuffer
+            ringBuffer.write(samples, 0, samples.size)
 
-            while (audioBuffer.size >= config.vadWindowSizeSamples) {
-                val window = audioBuffer.copyOfRange(0, config.vadWindowSizeSamples)
-                audioBuffer = audioBuffer.copyOfRange(config.vadWindowSizeSamples, audioBuffer.size)
-                
-                processWindow(window)
+            while (ringBuffer.size >= config.vadWindowSizeSamples) {
+                ringBuffer.read(reusableWindow, 0, config.vadWindowSizeSamples)
+                processWindow(reusableWindow)
             }
         }
     }
@@ -167,7 +166,7 @@ class SherpaVadSttEngine(
 
     suspend fun reset() {
         mutex.withLock {
-            audioBuffer = FloatArray(0)
+            ringBuffer.clear()
             utteranceAudioBuffer.clear()
             speechFrameCount = 0
             silenceFrameCount = 0
@@ -179,6 +178,7 @@ class SherpaVadSttEngine(
     }
 
     fun release() {
+        ringBuffer.clear()
         backend.release()
         try { offlineRescorer?.release() } catch (_: Throwable) {}
         utteranceAudioBuffer.clear()

@@ -17,6 +17,26 @@ enum class DelegateType {
     CPU_MMAP
 }
 
+enum class RamReadinessTier {
+    /**
+     * 12 GB+ RAM (e.g. Pixel 9 Pro, Pixel 10 Pro, Galaxy S24 Ultra).
+     * Ample headroom for full Gemma 4 E2B + Pass 2 Whisper + video meetings simultaneously.
+     */
+    OPTIMAL,
+
+    /**
+     * 8 GB RAM (e.g. Pixel 8 base, Pixel 9 base, Galaxy S24 base).
+     * Tight memory headroom under simultaneous video conferencing.
+     */
+    CONSTRAINED,
+
+    /**
+     * < 7 GB RAM (e.g. 6 GB / 4 GB budget devices).
+     * Insufficient physical RAM to load 3.1 GB LLM without high OOM risk.
+     */
+    UNSUPPORTED
+}
+
 data class HardwareProfile(
     val tier: HardwareTier,
     val preferredDelegate: DelegateType,
@@ -26,7 +46,9 @@ data class HardwareProfile(
     val recommendedLlmFileName: String,
     val recommendedLlmDownloadUrl: String,
     val expectedLlmBytes: Long,
-    val autoEnableWhisperRescorer: Boolean
+    val autoEnableWhisperRescorer: Boolean,
+    val ramTier: RamReadinessTier = RamReadinessTier.OPTIMAL,
+    val ramWarningMessage: String? = null
 )
 
 data class SystemDeviceInfo(
@@ -49,6 +71,8 @@ object DeviceHardwareDetector {
 
     const val EXPECTED_TPU_LLM_BYTES = 3_113_545_589L // ~3.11 GB
     const val RAM_THRESHOLD_GPU_MB = 7500L // 8 GB+ devices
+    const val RAM_OPTIMAL_THRESHOLD_MB = 11_500L // 12 GB+ RAM devices
+    const val RAM_CONSTRAINED_THRESHOLD_MB = 7_000L // 8 GB RAM devices
 
     /**
      * Probes live system metrics on Android 17 (API 37) and classifies the hardware profile.
@@ -104,6 +128,20 @@ object DeviceHardwareDetector {
         val totalRamMb = info.totalRamBytes / (1024 * 1024)
         val availableRamMb = info.availableRamBytes / (1024 * 1024)
 
+        val ramTier = when {
+            totalRamMb >= RAM_OPTIMAL_THRESHOLD_MB -> RamReadinessTier.OPTIMAL
+            totalRamMb >= RAM_CONSTRAINED_THRESHOLD_MB -> RamReadinessTier.CONSTRAINED
+            else -> RamReadinessTier.UNSUPPORTED
+        }
+
+        val ramWarning = when (ramTier) {
+            RamReadinessTier.CONSTRAINED ->
+                "8 GB RAM Detected: Running alongside live video meeting apps may cause memory pressure."
+            RamReadinessTier.UNSUPPORTED ->
+                "Low Memory Alert: Device has under 7 GB RAM. On-device LLM inference requires at least 8 GB RAM (12 GB+ recommended)."
+            RamReadinessTier.OPTIMAL -> null
+        }
+
         val socLower = info.socModel.lowercase().trim()
         val hwLower = info.hardware.lowercase().trim()
         val devLower = info.device.lowercase().trim()
@@ -128,7 +166,9 @@ object DeviceHardwareDetector {
                 devLower = devLower,
                 mdlLower = mdlLower,
                 totalRamMb = totalRamMb,
-                availableRamMb = availableRamMb
+                availableRamMb = availableRamMb,
+                ramTier = ramTier,
+                ramWarning = ramWarning
             )
         }
 
@@ -151,7 +191,9 @@ object DeviceHardwareDetector {
                 recommendedLlmFileName = UNIVERSAL_GPU_LLM_FILENAME,
                 recommendedLlmDownloadUrl = UNIVERSAL_GPU_LLM_URL,
                 expectedLlmBytes = EXPECTED_GPU_LLM_BYTES,
-                autoEnableWhisperRescorer = true
+                autoEnableWhisperRescorer = true,
+                ramTier = ramTier,
+                ramWarningMessage = ramWarning
             )
         } else {
             // CPU Tier (6 GB devices / low memory)
@@ -164,7 +206,9 @@ object DeviceHardwareDetector {
                 recommendedLlmFileName = UNIVERSAL_GPU_LLM_FILENAME,
                 recommendedLlmDownloadUrl = UNIVERSAL_GPU_LLM_URL,
                 expectedLlmBytes = EXPECTED_GPU_LLM_BYTES,
-                autoEnableWhisperRescorer = false
+                autoEnableWhisperRescorer = false,
+                ramTier = ramTier,
+                ramWarningMessage = ramWarning
             )
         }
     }
@@ -175,7 +219,9 @@ object DeviceHardwareDetector {
         devLower: String,
         mdlLower: String,
         totalRamMb: Long,
-        availableRamMb: Long
+        availableRamMb: Long,
+        ramTier: RamReadinessTier,
+        ramWarning: String?
     ): HardwareProfile {
         val (generation, fileName) = when {
             socLower.contains("g6") || hwLower.contains("malibu") || mdlLower.contains("pixel 11") ->
@@ -202,7 +248,9 @@ object DeviceHardwareDetector {
             recommendedLlmFileName = fileName,
             recommendedLlmDownloadUrl = "$LLM_BASE_URL$fileName",
             expectedLlmBytes = EXPECTED_TPU_LLM_BYTES,
-            autoEnableWhisperRescorer = true
+            autoEnableWhisperRescorer = true,
+            ramTier = ramTier,
+            ramWarningMessage = ramWarning
         )
     }
 }

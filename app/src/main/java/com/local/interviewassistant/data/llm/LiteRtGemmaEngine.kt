@@ -59,7 +59,7 @@ class LiteRtGemmaEngine(
         engineMutex.withLock {
             try {
                 if (customBackend != null) {
-                    customBackend.initialize(config)
+                    customBackend.initializeSuspend(config)
                     _isInitialized.value = true
                     return@withContext Result.success(Unit)
                 }
@@ -368,7 +368,7 @@ class LiteRtGemmaEngine(
     override suspend fun release() = withContext(liteRtDispatcher) {
         engineMutex.withLock {
             if (customBackend != null) {
-                try { customBackend.close() } catch (_: Throwable) {}
+                try { customBackend.closeSuspend() } catch (_: Throwable) {}
                 _isInitialized.value = false
                 return@withContext
             }

@@ -19,8 +19,9 @@ interface LlmEngine {
 
 interface LlmInferenceBackend {
     fun initialize(config: AppConfig)
+    suspend fun initializeSuspend(config: AppConfig) = initialize(config)
     fun generateAsync(prompt: String, onPartialResult: (partialText: String, done: Boolean) -> Unit, onError: (Throwable) -> Unit)
     fun cancel()
     fun close()
+    suspend fun closeSuspend() = close()
 }
-

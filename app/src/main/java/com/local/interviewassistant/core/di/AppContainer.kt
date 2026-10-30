@@ -99,7 +99,7 @@ class AppContainer private constructor(private val context: Context) {
     val isServiceRunning = MutableStateFlow(false)
     val isPrompterScreenVisible = MutableStateFlow(false)
 
-    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    val appScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     val pipelineCoordinator: AssistantPipelineCoordinator by lazy {
         AssistantPipelineCoordinator(

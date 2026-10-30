@@ -55,7 +55,7 @@
             android:name=".service.AssistantForegroundService"
             android:enabled="true"
             android:exported="false"
-            android:foregroundServiceType="microphone|dataSync"
+            android:foregroundServiceType="microphone"
             tools:ignore="ForegroundServicePermission" />
 
         <service

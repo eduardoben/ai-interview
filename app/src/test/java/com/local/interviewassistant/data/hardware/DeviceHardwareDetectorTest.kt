@@ -2,6 +2,8 @@ package com.local.interviewassistant.data.hardware
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -28,6 +30,8 @@ class DeviceHardwareDetectorTest {
         assertTrue(profile.recommendedLlmDownloadUrl.endsWith("gemma-4-E2B-it_Google_Tensor_G4.litertlm"))
         assertEquals(DeviceHardwareDetector.EXPECTED_TPU_LLM_BYTES, profile.expectedLlmBytes)
         assertTrue(profile.autoEnableWhisperRescorer)
+        assertEquals(RamReadinessTier.OPTIMAL, profile.ramTier)
+        assertNull(profile.ramWarningMessage)
     }
 
     @Test
@@ -37,7 +41,7 @@ class DeviceHardwareDetectorTest {
             hardware = "zuma",
             device = "husky",
             model = "Pixel 8 Pro",
-            totalRamBytes = 12_000_000_000L,
+            totalRamBytes = 12_500_000_000L,
             availableRamBytes = 6_000_000_000L,
             hasNpuFeature = true,
             hasNativeTensorLib = true
@@ -49,6 +53,7 @@ class DeviceHardwareDetectorTest {
         assertEquals(DelegateType.NPU_GOOGLE_TENSOR, profile.preferredDelegate)
         assertEquals("gemma-4-E2B-it_Google_Tensor_G3.litertlm", profile.recommendedLlmFileName)
         assertTrue(profile.recommendedLlmDownloadUrl.endsWith("gemma-4-E2B-it_Google_Tensor_G3.litertlm"))
+        assertEquals(RamReadinessTier.OPTIMAL, profile.ramTier)
     }
 
     @Test
@@ -112,6 +117,8 @@ class DeviceHardwareDetectorTest {
         assertEquals(DeviceHardwareDetector.UNIVERSAL_GPU_LLM_FILENAME, profile6.recommendedLlmFileName)
         assertEquals(DeviceHardwareDetector.UNIVERSAL_GPU_LLM_URL, profile6.recommendedLlmDownloadUrl)
         assertTrue(profile6.autoEnableWhisperRescorer)
+        assertEquals(RamReadinessTier.CONSTRAINED, profile6.ramTier)
+        assertNotNull(profile6.ramWarningMessage)
 
         // Pixel 7 (Tensor G2, panther)
         val pixel7 = SystemDeviceInfo(
@@ -150,6 +157,8 @@ class DeviceHardwareDetectorTest {
         assertEquals(DelegateType.CPU_MMAP, profile.preferredDelegate)
         assertEquals(DeviceHardwareDetector.UNIVERSAL_GPU_LLM_FILENAME, profile.recommendedLlmFileName)
         assertFalse(profile.autoEnableWhisperRescorer)
+        assertEquals(RamReadinessTier.UNSUPPORTED, profile.ramTier)
+        assertNotNull(profile.ramWarningMessage)
     }
 
     @Test
@@ -159,7 +168,7 @@ class DeviceHardwareDetectorTest {
             hardware = "zumapro",
             device = "caiman",
             model = "Pixel 9",
-            totalRamBytes = 12_000_000_000L,
+            totalRamBytes = 12_500_000_000L,
             availableRamBytes = 6_000_000_000L,
             hasNpuFeature = false,
             hasNativeTensorLib = false
@@ -189,6 +198,7 @@ class DeviceHardwareDetectorTest {
         assertEquals(HardwareTier.GPU, profile.tier)
         assertEquals(DelegateType.GPU_LITERT, profile.preferredDelegate)
         assertTrue("Whisper rescorer should be enabled on 7500MB+ devices", profile.autoEnableWhisperRescorer)
+        assertEquals(RamReadinessTier.CONSTRAINED, profile.ramTier)
     }
 
     @Test
