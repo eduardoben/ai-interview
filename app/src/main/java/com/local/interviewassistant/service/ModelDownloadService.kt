@@ -14,7 +14,6 @@ import androidx.core.app.ServiceCompat
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
 import com.local.interviewassistant.core.di.AppContainer
-import com.local.interviewassistant.core.model.AppConfig
 import com.local.interviewassistant.data.hardware.DeviceHardwareDetector
 import com.local.interviewassistant.data.provisioning.ErrorReason
 import com.local.interviewassistant.data.provisioning.ModelProvisioningManager
@@ -40,7 +39,7 @@ class ModelDownloadService : LifecycleService() {
     private var lastNotificationUpdateTime = 0L
 
     private val notificationManager by lazy {
-        getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        getSystemService(NOTIFICATION_SERVICE) as NotificationManager
     }
 
     companion object {
@@ -69,14 +68,17 @@ class ModelDownloadService : LifecycleService() {
             context.startForegroundService(intent)
         }
 
+        @Suppress("unused")
         fun startSpeechDownload(context: Context) {
             startAllModelsDownload(context)
         }
 
+        @Suppress("unused")
         fun startRescorerDownload(context: Context) {
             startAllModelsDownload(context)
         }
 
+        @Suppress("unused", "UNUSED_PARAMETER")
         fun startLlmDownload(context: Context, customUrl: String? = null, hfToken: String? = null) {
             startAllModelsDownload(context, hfToken)
         }
@@ -316,7 +318,7 @@ class ModelDownloadService : LifecycleService() {
 
     private fun acquireLocks() {
         try {
-            val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+            val powerManager = getSystemService(POWER_SERVICE) as PowerManager
             wakeLock = powerManager.newWakeLock(
                 PowerManager.PARTIAL_WAKE_LOCK,
                 "AIInterviewAssistant:ModelDownloadWakeLock"
@@ -325,7 +327,7 @@ class ModelDownloadService : LifecycleService() {
                 acquire(4 * 60 * 60 * 1000L)
             }
 
-            val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
+            val wifiManager = applicationContext.getSystemService(WIFI_SERVICE) as? WifiManager
             wifiLock = wifiManager?.createWifiLock(
                 WifiManager.WIFI_MODE_FULL_LOW_LATENCY,
                 "AIInterviewAssistant:ModelDownloadWifiLock"

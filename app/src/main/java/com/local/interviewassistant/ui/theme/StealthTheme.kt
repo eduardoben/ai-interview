@@ -14,9 +14,11 @@ import androidx.compose.ui.unit.sp
 val StealthBackground = Color(0xFF06070A)
 val StealthSurface = Color(0xFF0E1017)
 val StealthSurfaceHigh = Color(0xFF161922)
+@Suppress("unused")
 val StealthSurfaceElevated = Color(0xFF1E222E)
 
 val StealthBorder = Color(0xFF1C202B)
+@Suppress("unused")
 val StealthBorderSubtle = Color(0xFF151821)
 val StealthBorderHigh = Color(0xFF282E3E)
 
@@ -30,24 +32,29 @@ val StealthStatusEmerald = Color(0xFF10B981)
 val StealthStatusAmber = Color(0xFFF59E0B)
 val StealthStatusCoral = Color(0xFFEF4444)
 
+/**
+ * Strict 4-Size, 2-Weight Typography System:
+ * - Sizes: 20.sp (Headline/Prompter), 15.sp (Title), 13.sp (Body), 11.sp (Label/Micro)
+ * - Weights: FontWeight.Normal (400) for body/descriptions, FontWeight.SemiBold (600) for titles/CTAs/badges
+ */
 val StealthTypography = Typography(
     headlineSmall = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.SemiBold,
-        fontSize = 22.sp,
+        fontSize = 20.sp,
         lineHeight = 28.sp,
-        letterSpacing = (-0.3).sp
+        letterSpacing = (-0.2).sp
     ),
     titleMedium = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.SemiBold,
         fontSize = 15.sp,
-        lineHeight = 21.sp,
+        lineHeight = 22.sp,
         letterSpacing = (-0.1).sp
     ),
     titleSmall = TextStyle(
         fontFamily = FontFamily.SansSerif,
-        fontWeight = FontWeight.Medium,
+        fontWeight = FontWeight.SemiBold,
         fontSize = 13.sp,
         lineHeight = 18.sp,
         letterSpacing = 0.sp
@@ -55,37 +62,37 @@ val StealthTypography = Typography(
     bodyLarge = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.Normal,
-        fontSize = 16.sp,
-        lineHeight = 24.sp,
+        fontSize = 15.sp,
+        lineHeight = 22.sp,
         letterSpacing = 0.1.sp
     ),
     bodyMedium = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.Normal,
         fontSize = 13.sp,
-        lineHeight = 19.sp,
+        lineHeight = 20.sp,
         letterSpacing = 0.1.sp
     ),
     bodySmall = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.Normal,
-        fontSize = 12.sp,
-        lineHeight = 17.sp,
+        fontSize = 11.sp,
+        lineHeight = 16.sp,
         letterSpacing = 0.15.sp
     ),
     labelMedium = TextStyle(
         fontFamily = FontFamily.SansSerif,
-        fontWeight = FontWeight.Medium,
-        fontSize = 12.sp,
-        lineHeight = 16.sp,
-        letterSpacing = 0.3.sp
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 13.sp,
+        lineHeight = 18.sp,
+        letterSpacing = 0.2.sp
     ),
     labelSmall = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.SemiBold,
-        fontSize = 10.sp,
-        lineHeight = 14.sp,
-        letterSpacing = 0.6.sp
+        fontSize = 11.sp,
+        lineHeight = 16.sp,
+        letterSpacing = 0.5.sp
     )
 )
 

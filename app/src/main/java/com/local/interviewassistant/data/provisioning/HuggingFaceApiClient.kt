@@ -22,12 +22,14 @@ class HuggingFaceApiClient(private val context: Context) {
         preferences[HF_TOKEN_KEY]
     }
 
+    @Suppress("unused")
     suspend fun saveToken(token: String) {
         context.dataStore.edit { preferences ->
             preferences[HF_TOKEN_KEY] = token
         }
     }
 
+    @Suppress("unused")
     suspend fun clearToken() {
         context.dataStore.edit { preferences ->
             preferences.remove(HF_TOKEN_KEY)

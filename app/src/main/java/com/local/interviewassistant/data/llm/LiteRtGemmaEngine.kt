@@ -31,9 +31,10 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
 class LiteRtGemmaEngine(
-    private val context: Context,
+    private val context: Context?,
     private val config: AppConfig,
-    private val systemPrompt: String? = null
+    private val systemPrompt: String? = null,
+    private val customBackend: LlmInferenceBackend? = null
 ) : LlmEngine {
     private val _isInitialized = MutableStateFlow(false)
     override val isInitialized: StateFlow<Boolean> = _isInitialized.asStateFlow()
@@ -57,9 +58,17 @@ class LiteRtGemmaEngine(
     override suspend fun initialize(): Result<Unit> = withContext(liteRtDispatcher) {
         engineMutex.withLock {
             try {
+                if (customBackend != null) {
+                    customBackend.initialize(config)
+                    _isInitialized.value = true
+                    return@withContext Result.success(Unit)
+                }
+
                 if (engine != null) {
                     return@withContext Result.success(Unit)
                 }
+
+                val appContext = context ?: throw IllegalStateException("Android Context required for native LiteRT initialization")
 
                 val modelFile = config.activeLlmModelFile
                 if (!modelFile.exists()) {
@@ -70,17 +79,12 @@ class LiteRtGemmaEngine(
                         modelFile.name.contains("tpu", ignoreCase = true) ||
                         modelFile.name.contains("npu", ignoreCase = true)
 
-                val attemptBackends = mutableListOf<Pair<Backend, String>>()
-                if (isTensorTpuModelFile) {
-                    val nativeLibDir = context.applicationInfo.nativeLibraryDir
-                    attemptBackends.add(Backend.NPU(nativeLibraryDir = nativeLibDir) to "NPU (nativeLibraryDir: $nativeLibDir)")
-                    attemptBackends.add(Backend.NPU() to "NPU (system default)")
-                } else if (config.useGpuDelegate) {
-                    attemptBackends.add(Backend.GPU() to "GPU")
-                    attemptBackends.add(Backend.CPU() to "CPU Fallback")
-                } else {
-                    attemptBackends.add(Backend.CPU() to "CPU")
-                }
+                val attemptBackends = BackendResolver.getFallbackSequence(
+                    context = appContext,
+                    isTensorTpuModelFile = isTensorTpuModelFile,
+                    useGpuDelegate = config.useGpuDelegate,
+                    preferredDelegate = config.preferredDelegate
+                )
 
                 var initialized = false
                 val errors = mutableListOf<String>()
@@ -96,7 +100,7 @@ class LiteRtGemmaEngine(
                         modelPath = modelFile.absolutePath,
                         backend = backend,
                         maxNumTokens = if (needsMaxTokens) 2048 else null,
-                        cacheDir = context.cacheDir.absolutePath
+                        cacheDir = appContext.cacheDir.absolutePath
                     )
 
                     val newEngine = Engine(engineConfig)
@@ -132,7 +136,7 @@ class LiteRtGemmaEngine(
                                 modelPath = standardGpuModel.absolutePath,
                                 backend = Backend.GPU(),
                                 maxNumTokens = 2048,
-                                cacheDir = context.cacheDir.absolutePath
+                                cacheDir = appContext.cacheDir.absolutePath
                             )
                             val newEngine = Engine(fallbackEngineConfig)
                             newEngine.initialize()
@@ -163,7 +167,7 @@ class LiteRtGemmaEngine(
                 _isInitialized.value = true
                 Result.success(Unit)
             } catch (t: Throwable) {
-                Result.failure(if (t is Exception) t else RuntimeException(t))
+                Result.failure((t as? Exception) ?: RuntimeException(t))
             }
         }
     }
@@ -191,6 +195,67 @@ class LiteRtGemmaEngine(
     }
 
     override fun generateAnswerStream(question: String): Flow<LlmStreamEvent> = callbackFlow {
+        if (customBackend != null) {
+            if (!_isInitialized.value) {
+                trySend(LlmStreamEvent.Error(IllegalStateException("Engine not initialized")))
+                close()
+                return@callbackFlow
+            }
+            val formattedPrompt = config.formatGemmaPrompt(question)
+            val genId = generationIdCounter.incrementAndGet()
+            val callbackFinished = AtomicBoolean(false)
+            tracker.startTracking()
+            val accumulatedText = StringBuilder()
+
+            customBackend.generateAsync(
+                prompt = formattedPrompt,
+                onPartialResult = { rawChunk, done ->
+                    if (generationIdCounter.get() != genId || callbackFinished.get()) return@generateAsync
+                    val partial = rawChunk.replace("<end_of_turn>", "")
+                    if (partial.isNotEmpty()) {
+                        tracker.recordToken()
+                        accumulatedText.append(partial)
+                        trySend(LlmStreamEvent.PartialToken(partial, accumulatedText.toString(), tracker.getTtftMs()))
+                    }
+                    if (done && callbackFinished.compareAndSet(false, true)) {
+                        tracker.stopTracking()
+                        tracker.logMetrics("LiteRtGemmaEngine")
+                        context?.let { MemoryMonitor.logMemoryUsage(it, "LiteRtGemmaEngine") }
+                        trySend(
+                            LlmStreamEvent.Completed(
+                                accumulatedText.toString().trim(),
+                                tracker.getTtftMs(),
+                                tracker.getTotalDurationMs(),
+                                tracker.getDecodeTokensPerSecond(),
+                                tracker.getTokenCount()
+                            )
+                        )
+                        close()
+                    }
+                },
+                onError = { throwable ->
+                    if (callbackFinished.compareAndSet(false, true)) {
+                        if (generationIdCounter.get() == genId) {
+                            val msg = throwable.message ?: ""
+                            if (!msg.contains("CANCELLED", ignoreCase = true)) {
+                                trySend(LlmStreamEvent.Error(throwable))
+                            }
+                            close()
+                        }
+                    }
+                }
+            )
+
+            awaitClose {
+                if (!callbackFinished.get()) {
+                    try {
+                        customBackend.cancel()
+                    } catch (_: Throwable) {}
+                }
+            }
+            return@callbackFlow
+        }
+
         if (!_isInitialized.value || engine == null) {
             trySend(LlmStreamEvent.Error(IllegalStateException("Engine not initialized")))
             close()
@@ -261,7 +326,7 @@ class LiteRtGemmaEngine(
                         if (generationIdCounter.get() == genId) {
                             tracker.stopTracking()
                             tracker.logMetrics("LiteRtGemmaEngine")
-                            MemoryMonitor.logMemoryUsage(context, "LiteRtGemmaEngine")
+                            context?.let { MemoryMonitor.logMemoryUsage(it, "LiteRtGemmaEngine") }
                             trySend(
                                 LlmStreamEvent.Completed(
                                     accumulatedText.toString().trim(),
@@ -302,6 +367,12 @@ class LiteRtGemmaEngine(
 
     override suspend fun release() = withContext(liteRtDispatcher) {
         engineMutex.withLock {
+            if (customBackend != null) {
+                try { customBackend.close() } catch (_: Throwable) {}
+                _isInitialized.value = false
+                return@withContext
+            }
+
             // Strict Teardown Sequence: wait for any in-flight C++ worker callback before closing
             awaitAndClosePreviousConversation()
 

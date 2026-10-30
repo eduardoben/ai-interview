@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -35,8 +36,8 @@ import com.local.interviewassistant.ui.theme.StealthTextSecondary
 @Composable
 fun FormattedTeleprompterAnswer(
     text: String,
-    fontSize: TextUnit = 20.sp,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    fontSize: TextUnit = 20.sp
 ) {
     val lines = text.split("\n")
     var inCodeBlock = false
@@ -81,21 +82,22 @@ fun FormattedTeleprompterAnswer(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 5.dp),
+                        .padding(vertical = 4.dp),
                     verticalAlignment = Alignment.Top
                 ) {
                     Box(
                         modifier = Modifier
-                            .padding(top = (fontSize.value * 0.52f).dp)
-                            .size(5.dp)
+                            .padding(top = 8.dp)
+                            .size(4.dp)
                             .background(StealthAccentIndigo, CircleShape)
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
                         text = annotatedText,
-                        fontSize = fontSize,
-                        lineHeight = (fontSize.value * 1.48f).sp,
-                        letterSpacing = 0.1.sp,
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontSize = fontSize,
+                            lineHeight = (fontSize.value * 1.48f).sp
+                        ),
                         color = StealthTextPrimary,
                         modifier = Modifier.weight(1f)
                     )
@@ -103,9 +105,10 @@ fun FormattedTeleprompterAnswer(
             } else {
                 Text(
                     text = annotatedText,
-                    fontSize = fontSize,
-                    lineHeight = (fontSize.value * 1.48f).sp,
-                    letterSpacing = 0.1.sp,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontSize = fontSize,
+                        lineHeight = (fontSize.value * 1.48f).sp
+                    ),
                     color = StealthTextPrimary,
                     modifier = Modifier.padding(vertical = 4.dp)
                 )
@@ -145,17 +148,17 @@ private fun CodeBlockCard(code: String) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 8.dp)
-            .background(Color(0xFF040508), RoundedCornerShape(10.dp))
-            .border(0.5.dp, StealthBorder, RoundedCornerShape(10.dp))
+            .background(Color(0xFF040508), RoundedCornerShape(8.dp))
+            .border(0.5.dp, StealthBorder, RoundedCornerShape(8.dp))
             .padding(12.dp)
             .horizontalScroll(rememberScrollState())
     ) {
         Text(
             text = code,
-            color = StealthTextSecondary,
-            fontFamily = FontFamily.Monospace,
-            fontSize = 13.sp,
-            lineHeight = 19.sp
+            style = MaterialTheme.typography.bodyMedium.copy(
+                fontFamily = FontFamily.Monospace
+            ),
+            color = StealthTextSecondary
         )
     }
 }

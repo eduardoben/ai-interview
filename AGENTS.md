@@ -55,12 +55,12 @@ This document serves as the authoritative technical context guide for AI Coding 
 - **`OfflineRescorerBackend` / `SherpaOfflineWhisperRescorer`**: Second-pass offline recognizer contract wrapping `com.k2fsa.sherpa.onnx.OfflineRecognizer` with `OfflineWhisperModelConfig` (int8 Whisper tiny.en). Falls back cleanly to Pass 1 streaming result if offline models are absent or disabled.
 - **`ModelProvisioningManager`**: Automates speech model lifecycle with `.stt_version` tracking (`STT_MODEL_VERSION = "2023-06-21-gigaspeech"`). Provides `downloadOfflineRescorerModel()` for optional high-accuracy second-pass ASR rescoring.
 
-### 3. Hardware Profiling & LLM Backend Architecture (v1.4)
+### 3. Hardware Profiling & LLM Backend Architecture (v1.4 - v1.5.1)
 - **`DeviceHardwareDetector`**: Probes device SoC model (`Build.SOC_MODEL`), total RAM, NPU system features, and presence of `libLiteRtDispatch_GoogleTensor.so` on Android 17 (API 37). Automatically classifies system into `HardwareTier.TPU`, `GPU`, or `CPU`.
-- **`BackendResolver`**: Negotiates LiteRT delegates based on user preference (`preferredDelegate`) and detected hardware capabilities (`NPU_GOOGLE_TENSOR`, `GPU_LITERT`, `CPU_MMAP`), providing clean fallback and error propagation.
+- **`BackendResolver`**: Negotiates LiteRT delegates based on user preference (`preferredDelegate`) and detected hardware capabilities (`NPU_GOOGLE_TENSOR`, `GPU_LITERT`, `CPU_MMAP`), providing ordered fallback sequences (`getFallbackSequence()`) consumed directly by `LiteRtGemmaEngine.initialize()`.
 - **`AppConfig` Domain Subdirectories**: Reorganized model layout into dedicated folders (`vad/`, `asr/`, `whisper/`, `llm/`) with seamless fallback to legacy root directory files.
-- **`GalleryLiteRtBackend`**: Manages LiteRT `Engine` and `Conversation` sessions, supporting NPU and GPU delegation with clean synchronous resource teardown (`closeSynchronously()`).
-- **`LiteRtGemmaEngine`**: Wraps backend generation into a Kotlin `Flow<LlmStreamEvent>` emitting `PartialToken`, `Completed`, and `Error` events with TTFT latency tracking and dynamic system prompt fallback.
+- **`GalleryLiteRtBackend`**: Manages LiteRT `Engine` and `Conversation` sessions, supporting NPU, GPU, and CPU delegation with clean synchronous resource teardown (`closeSynchronously()`).
+- **`LiteRtGemmaEngine`**: Wraps backend generation into a Kotlin `Flow<LlmStreamEvent>` emitting `PartialToken`, `Completed`, and `Error` events with TTFT latency tracking, dynamic system prompt fallback, and injectable `customBackend` support for unit testing.
 - **Native Shims (`libLiteRtDispatch_GoogleTensor.so`)**: Placed in `app/src/main/jniLibs/arm64-v8a/` to enable hardware-accelerated EdgeTPU execution on Tensor G3/G4/G5 SoCs.
 
 ### 4. Service & Pipeline Coordinator
@@ -71,6 +71,7 @@ This document serves as the authoritative technical context guide for AI Coding 
 
 ### 5. Instrumentation & Real-Device Hardware Verification
 - **`RealDevicePipelineIntegrationTest`**: Grounded test suite verifying physical device specs (Pixel 10 Pro XL, Tensor G5, API 37), on-disk model layouts, sub-millisecond punctuation latency (<0.25ms), Sherpa-ONNX streaming Zipformer frame processing (<8ms), LiteRT EdgeTPU NPU execution via `libLiteRtDispatch_GoogleTensor.so`, and background service contracts.
+- **Production Readiness Blueprint (`docs/production_readiness_plan.md`)**: Authoritative roadmap and specification for Phase 1–4 production hardening, Google Play Store compliance, ASO strategy, and Stealth OLED brand assets.
 
 ---
 
@@ -100,7 +101,7 @@ This project follows a **Two-Branch (`main` + `dev`) GitFlow with Annotated Git 
   - Tested on-device or via unit tests before merging into `main`.
 
 ### B. Release Workflow Checklist
-When cutting a new release (e.g., `v1.4.0`):
+When cutting a new release (e.g., `v1.5.1`):
 1. **Merge `dev` into `main`:**
    ```bash
    git checkout main
@@ -111,11 +112,11 @@ When cutting a new release (e.g., `v1.4.0`):
    - Document new additions, changes, fixes, and verification in [`CHANGELOG.md`](file:///CHANGELOG.md).
    ```bash
    git add app/build.gradle.kts CHANGELOG.md
-   git commit -m "chore(release): bump version to v1.4.0"
+   git commit -m "chore(release): bump version to v1.5.1"
    ```
 3. **Create Annotated Git Tag & Push:**
    ```bash
-   git tag -a v1.4.0 -m "Release v1.4.0: <Summary of changes>"
+   git tag -a v1.5.1 -m "Release v1.5.1: <Summary of changes>"
    git push origin main --tags
    ```
 4. **Sync Back to `dev`:**

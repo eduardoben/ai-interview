@@ -24,10 +24,10 @@ object HardwareUtils {
         val lowerModel = Build.MODEL.lowercase(Locale.ROOT)
         val lowerDevice = Build.DEVICE.lowercase(Locale.ROOT)
         val lowerBoard = Build.BOARD.lowercase(Locale.ROOT)
-        val lowerSocModel = (Build.SOC_MODEL ?: "").lowercase(Locale.ROOT)
+        val lowerSocModel = Build.SOC_MODEL.lowercase(Locale.ROOT)
         val lowerHardware = Build.HARDWARE.lowercase(Locale.ROOT)
 
-        val isGoogle = (Build.SOC_MANUFACTURER ?: Build.MANUFACTURER).equals("Google", ignoreCase = true)
+        val isGoogle = Build.SOC_MANUFACTURER.ifBlank { Build.MANUFACTURER }.equals("Google", ignoreCase = true)
         
         // Check Pixel model name
         val pixelMatch = Regex("""pixel\s+(\d+)""").find(lowerModel)
@@ -53,6 +53,7 @@ object HardwareUtils {
     /**
      * Checks if a Neural Processing Unit (NPU) is available on the device.
      */
+    @Suppress("unused")
     fun isTpuAvailable(context: Context): Boolean {
         // Strict API 37+ feature check
         if (context.packageManager.hasSystemFeature("android.hardware.neural_processing_unit")) {
@@ -64,6 +65,7 @@ object HardwareUtils {
         return isTensorG3OrHigher()
     }
 
+    @Suppress("UNUSED_PARAMETER")
     fun isGpuAvailable(context: Context): Boolean {
         return true
     }

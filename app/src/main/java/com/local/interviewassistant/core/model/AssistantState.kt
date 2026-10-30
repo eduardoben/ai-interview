@@ -14,6 +14,7 @@ sealed interface AssistantState {
     val isProcessing: Boolean
         get() = (this is Initializing) || (this is GeneratingAnswer)
 
+    @Suppress("unused")
     val activeQuestionOrNull: String?
         get() = when (this) {
             is GeneratingAnswer -> detectedQuestion
@@ -21,6 +22,7 @@ sealed interface AssistantState {
             else -> null
         }
 
+    @Suppress("unused")
     val activeAnswerOrNull: String?
         get() = when (this) {
             is GeneratingAnswer -> streamingAnswer

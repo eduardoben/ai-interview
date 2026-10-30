@@ -38,6 +38,7 @@ import com.local.interviewassistant.core.model.InterviewCategory
 import com.local.interviewassistant.core.model.TranscriptSegment
 import com.local.interviewassistant.ui.theme.*
 
+@Suppress("UNUSED_PARAMETER")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PrompterScreen(

@@ -66,7 +66,7 @@ class GalleryLiteRtBackend(private val context: Context) : LlmInferenceBackend {
         val attemptBackends = BackendResolver.getFallbackSequence(
             context = context,
             isTensorTpuModelFile = isTensorTpuModelFile,
-            useGpuDelegate = true,
+            useGpuDelegate = config.useGpuDelegate,
             preferredDelegate = config.preferredDelegate
         )
 
@@ -79,10 +79,11 @@ class GalleryLiteRtBackend(private val context: Context) : LlmInferenceBackend {
         // as the EdgeTPU/GPU compiler requires the exact dimension defined at compile time.
         for ((backend, label) in attemptBackends) {
             try {
+                val needsMaxTokens = !isTensorTpuModelFile || (backend !is Backend.NPU)
                 val engineConfig = EngineConfig(
                     modelPath = resolvedPath,
                     backend = backend,
-                    maxNumTokens = if (isTensorTpuModelFile) null else 2048,
+                    maxNumTokens = if (needsMaxTokens) 2048 else null,
                     cacheDir = cacheDir
                 )
                 val newEngine = Engine(engineConfig)
@@ -104,7 +105,14 @@ class GalleryLiteRtBackend(private val context: Context) : LlmInferenceBackend {
 
         if (isTensorTpuModelFile) {
             val standardGpuModel = config.llmModelFile
-            if (standardGpuModel.exists() && standardGpuModel.length() >= 100 * 1024 * 1024L) {
+            val isDifferentGpuFile = standardGpuModel.exists() &&
+                    standardGpuModel.absolutePath != modelFile.absolutePath &&
+                    !standardGpuModel.name.contains("Tensor", ignoreCase = true) &&
+                    !standardGpuModel.name.contains("tpu", ignoreCase = true) &&
+                    standardGpuModel.length() != modelFile.length() &&
+                    standardGpuModel.length() >= 100 * 1024 * 1024L
+
+            if (isDifferentGpuFile) {
                 try {
                     val fallbackEngineConfig = EngineConfig(
                         modelPath = standardGpuModel.absolutePath,

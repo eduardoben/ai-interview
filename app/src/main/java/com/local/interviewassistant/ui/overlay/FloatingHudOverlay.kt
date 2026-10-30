@@ -1,6 +1,10 @@
 package com.local.interviewassistant.ui.overlay
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -17,11 +21,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -32,6 +39,7 @@ import com.local.interviewassistant.core.model.TranscriptSegment
 import com.local.interviewassistant.ui.prompter.FormattedTeleprompterAnswer
 import com.local.interviewassistant.ui.theme.*
 
+@Suppress("UNUSED_PARAMETER")
 @Composable
 fun FloatingHudOverlay(
     uiState: CopilotUiState,
@@ -60,9 +68,32 @@ fun FloatingHudOverlay(
         label = "OverlayStatusColor"
     )
 
+    val isDetectingSpeech = uiState.pipelineState is AssistantState.DetectingSpeech ||
+            uiState.livePartialTranscript.isNotBlank()
+
+    val infiniteTransition = rememberInfiniteTransition(label = "HudSpeechPulse")
+    val micPulseAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.35f,
+        targetValue = if (isDetectingSpeech) 1.0f else 0.75f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 750),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "MicPulseAlpha"
+    )
+
     if (uiState.isMinimized) {
-        Row(
+        // Minimized Pill with 8pt grid spacing, 44dp minimum touch target, and soft elevation shadow
+        Box(
             modifier = modifier
+                .padding(8.dp)
+                .shadow(
+                    elevation = 16.dp,
+                    shape = RoundedCornerShape(50),
+                    ambientColor = Color.Black,
+                    spotColor = StealthAccentIndigo.copy(alpha = 0.45f)
+                )
+                .heightIn(min = 44.dp)
                 .clip(RoundedCornerShape(50))
                 .background(Color(0xF506070A))
                 .border(0.5.dp, StealthBorderHigh, RoundedCornerShape(50))
@@ -73,18 +104,18 @@ fun FloatingHudOverlay(
                         onDrag(dragAmount.x, dragAmount.y)
                     }
                 }
-                .padding(horizontal = 16.dp, vertical = 9.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            contentAlignment = Alignment.Center
         ) {
-            Box(modifier = Modifier.size(7.dp).background(statusColor, CircleShape))
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                "Copilot",
-                color = StealthTextPrimary,
-                fontSize = 12.sp,
-                letterSpacing = 0.2.sp,
-                fontWeight = FontWeight.SemiBold
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(modifier = Modifier.size(8.dp).background(statusColor, CircleShape))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Copilot",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = StealthTextPrimary
+                )
+            }
         }
     } else {
         val scrollState = rememberScrollState()
@@ -114,16 +145,24 @@ fun FloatingHudOverlay(
             }
         }
 
+        // Outer 8.dp margin prevents WindowManager ComposeView from clipping the 16.dp drop shadow
         Column(
             modifier = modifier
-                .width(344.dp)
-                .heightIn(max = 396.dp)
-                // 96% opaque OLED background to eliminate background bleed-through
+                .padding(8.dp)
+                .width(352.dp)
+                .heightIn(max = 416.dp)
+                .shadow(
+                    elevation = 16.dp,
+                    shape = RoundedCornerShape(16.dp),
+                    ambientColor = Color.Black,
+                    spotColor = StealthAccentIndigo.copy(alpha = 0.40f)
+                )
+                // 96% opaque OLED surface with 0.5.dp top-lit border to lift off underlying dark apps
                 .background(Color(0xF506070A), RoundedCornerShape(16.dp))
                 .border(0.5.dp, StealthBorderHigh, RoundedCornerShape(16.dp))
-                .padding(horizontal = 14.dp, vertical = 10.dp),
+                .padding(horizontal = 16.dp, vertical = 12.dp),
         ) {
-            // Subtle Top Drag Handle + Header Bar
+            // Subtle Top Drag Handle + Header Bar (44dp accessible hit targets for Minimize/Close)
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -137,11 +176,11 @@ fun FloatingHudOverlay(
                 Box(
                     modifier = Modifier
                         .width(32.dp)
-                        .height(3.dp)
+                        .height(4.dp)
                         .background(StealthBorderHigh, RoundedCornerShape(50))
                         .align(Alignment.CenterHorizontally)
                 )
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -158,78 +197,97 @@ fun FloatingHudOverlay(
                         is AssistantState.Error -> "ERROR"
                     }
 
-                    Box(modifier = Modifier.size(7.dp).background(statusColor, CircleShape))
-                    Spacer(modifier = Modifier.width(7.dp))
+                    Box(modifier = Modifier.size(8.dp).background(statusColor, CircleShape))
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = if (uiState.lastTtftMs > 0) "$statusText • ${uiState.lastTtftMs}ms" else statusText,
+                        style = MaterialTheme.typography.labelSmall,
                         color = StealthTextPrimary,
-                        fontSize = 10.sp,
-                        letterSpacing = 0.6.sp,
-                        fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.weight(1f)
                     )
 
+                    // 44x44dp touch target wrapping a clean 28dp visual circle
                     Box(
                         modifier = Modifier
-                            .size(30.dp)
+                            .size(44.dp)
                             .clip(CircleShape)
-                            .background(StealthSurfaceHigh)
                             .clickable { onToggleMinimize() },
                         contentAlignment = Alignment.Center
                     ) {
-                        StealthIcons.MinimizeLine(color = StealthTextSecondary, size = 12.dp)
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .background(StealthSurfaceHigh, CircleShape)
+                                .border(0.5.dp, StealthBorder, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            StealthIcons.MinimizeLine(color = StealthTextSecondary, size = 12.dp)
+                        }
                     }
-                    Spacer(modifier = Modifier.width(6.dp))
+
+                    // 44x44dp touch target wrapping a clean 28dp visual circle
                     Box(
                         modifier = Modifier
-                            .size(30.dp)
+                            .size(44.dp)
                             .clip(CircleShape)
-                            .background(StealthSurfaceHigh)
                             .clickable { onCloseService() },
                         contentAlignment = Alignment.Center
                     ) {
-                        StealthIcons.CloseCross(color = StealthTextSecondary, size = 12.dp)
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .background(StealthSurfaceHigh, CircleShape)
+                                .border(0.5.dp, StealthBorder, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            StealthIcons.CloseCross(color = StealthTextSecondary, size = 12.dp)
+                        }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(6.dp))
-
-            // Quick Category Chips
+            // Quick Category Chips (44dp touch target height with compact 28dp visual pill)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 2.dp)
                     .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 InterviewCategory.entries.forEach { category ->
                     val isSelected = uiState.selectedCategory == category
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(50))
-                            .background(
-                                if (isSelected) StealthAccentIndigo.copy(alpha = 0.2f) else StealthSurfaceHigh
-                            )
-                            .border(
-                                width = if (isSelected) 1.dp else 0.5.dp,
-                                color = if (isSelected) StealthAccentIndigo else StealthBorder,
-                                shape = RoundedCornerShape(50)
-                            )
-                            .clickable { onSelectCategory(category) }
-                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                            .heightIn(min = 44.dp)
+                            .clickable { onSelectCategory(category) },
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = category.displayName,
-                            fontSize = 10.sp,
-                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                            color = if (isSelected) StealthTextPrimary else StealthTextSecondary
-                        )
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(50))
+                                .background(
+                                    if (isSelected) StealthAccentIndigo.copy(alpha = 0.22f) else StealthSurfaceHigh
+                                )
+                                .border(
+                                    width = if (isSelected) 1.dp else 0.5.dp,
+                                    color = if (isSelected) StealthAccentIndigo else StealthBorder,
+                                    shape = RoundedCornerShape(50)
+                                )
+                                .padding(horizontal = 12.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = category.displayName,
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+                                ),
+                                color = if (isSelected) StealthTextPrimary else StealthTextSecondary
+                            )
+                        }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
             // Zone 1: Top-Anchored Question & Formatted Answer
             Column(
@@ -243,22 +301,20 @@ fun FloatingHudOverlay(
                         modifier = Modifier
                             .fillMaxWidth()
                             .background(StealthSurfaceHigh, RoundedCornerShape(8.dp))
-                            .padding(horizontal = 10.dp, vertical = 7.dp),
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Box(
                             modifier = Modifier
-                                .width(2.5.dp)
+                                .width(4.dp)
                                 .height(16.dp)
                                 .background(StealthAccentIndigo, RoundedCornerShape(2.dp))
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = uiState.activeQuestion,
-                            color = StealthTextPrimary,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            lineHeight = 16.sp
+                            style = MaterialTheme.typography.titleSmall,
+                            color = StealthTextPrimary
                         )
                     }
                     Spacer(modifier = Modifier.height(8.dp))
@@ -267,40 +323,86 @@ fun FloatingHudOverlay(
                 if (!uiState.activeAnswer.isNullOrBlank()) {
                     FormattedTeleprompterAnswer(
                         text = uiState.activeAnswer,
-                        fontSize = 14.sp
+                        fontSize = 15.sp
                     )
                 } else if (uiState.pipelineState is AssistantState.GeneratingAnswer) {
-                    Text(
-                        text = "Synthesizing answer...",
-                        color = StealthStatusAmber,
-                        fontSize = 12.sp,
-                        fontStyle = FontStyle.Italic
-                    )
+                    Row(
+                        modifier = Modifier.padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                            color = StealthStatusAmber
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Synthesizing answer...",
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontStyle = FontStyle.Italic
+                            ),
+                            color = StealthStatusAmber
+                        )
+                    }
                 } else {
-                    Text(
-                        text = "Listening for questions...",
-                        color = StealthTextMuted,
-                        fontSize = 12.sp
-                    )
+                    // Welcoming, structured Empty State (Peak-End & Emotional Design Rule)
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .background(StealthStatusEmerald.copy(alpha = 0.12f), CircleShape)
+                                .border(0.5.dp, StealthStatusEmerald.copy(alpha = 0.35f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            StealthIcons.Microphone(
+                                color = StealthStatusEmerald,
+                                size = 16.dp,
+                                modifier = Modifier.alpha(micPulseAlpha)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Ready for your interview",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = StealthTextPrimary
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Speak naturally or select a category above.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = StealthTextMuted,
+                            textAlign = TextAlign.Center
+                        )
+                    }
                 }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Zone 2: Compact Bottom STT Ticker
+            // Zone 2: Compact Bottom STT Ticker with pulsing Microphone micro-animation
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(StealthSurface, RoundedCornerShape(8.dp))
-                    .border(0.5.dp, StealthBorder, RoundedCornerShape(8.dp))
-                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                    .border(
+                        0.5.dp,
+                        if (isDetectingSpeech) StealthStatusEmerald.copy(alpha = 0.45f) else StealthBorder,
+                        RoundedCornerShape(8.dp)
+                    )
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 StealthIcons.Microphone(
-                    color = if (uiState.livePartialTranscript.isNotBlank()) StealthStatusEmerald else StealthTextMuted,
-                    size = 12.dp
+                    color = if (isDetectingSpeech) StealthStatusEmerald else StealthTextMuted,
+                    size = 12.dp,
+                    modifier = Modifier.alpha(if (isDetectingSpeech) micPulseAlpha else 1f)
                 )
-                Spacer(modifier = Modifier.width(7.dp))
+                Spacer(modifier = Modifier.width(8.dp))
                 val transcriptText = when {
                     uiState.livePartialTranscript.isNotBlank() -> "${uiState.livePartialTranscript}..."
                     uiState.transcriptHistory.isNotEmpty() -> uiState.transcriptHistory.last().text
@@ -308,8 +410,8 @@ fun FloatingHudOverlay(
                 }
                 Text(
                     text = transcriptText,
-                    color = if (uiState.livePartialTranscript.isNotBlank()) StealthStatusEmerald else StealthTextMuted,
-                    fontSize = 11.sp,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (isDetectingSpeech) StealthStatusEmerald else StealthTextMuted,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -317,58 +419,72 @@ fun FloatingHudOverlay(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Zone 3: Footer Action Buttons
+            // Zone 3: Footer Action Buttons (44dp minimum height + 60/30/10 visual hierarchy)
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Button(
-                    onClick = onForceAnswer,
-                    enabled = uiState.pipelineState !is AssistantState.Paused && uiState.pipelineState !is AssistantState.GeneratingAnswer,
+                // Primary CTA (60% focal weight): Soft indigo glow halo + solid primary fill
+                Box(
                     modifier = Modifier
-                        .weight(1.35f)
-                        .height(38.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = StealthAccentIndigo),
-                    shape = RoundedCornerShape(10.dp),
-                    contentPadding = PaddingValues(0.dp)
+                        .weight(1.4f)
+                        .height(44.dp)
+                        .background(StealthAccentIndigo.copy(alpha = 0.14f), RoundedCornerShape(12.dp))
+                        .padding(2.dp)
                 ) {
-                    Text("Answer Now", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                    Button(
+                        onClick = onForceAnswer,
+                        enabled = uiState.pipelineState !is AssistantState.Paused &&
+                                uiState.pipelineState !is AssistantState.GeneratingAnswer,
+                        modifier = Modifier.fillMaxSize(),
+                        colors = ButtonDefaults.buttonColors(containerColor = StealthAccentIndigo),
+                        shape = RoundedCornerShape(10.dp),
+                        contentPadding = PaddingValues(0.dp)
+                    ) {
+                        Text(
+                            text = "Answer Now",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = Color.White
+                        )
+                    }
                 }
 
+                // Secondary Action (30% tonal weight): Subtle outlined surface button
                 OutlinedButton(
                     onClick = onPauseToggle,
                     modifier = Modifier
                         .weight(1f)
-                        .height(38.dp),
+                        .height(44.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
                         containerColor = StealthSurface,
                         contentColor = StealthTextPrimary
                     ),
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RoundedCornerShape(12.dp),
                     border = BorderStroke(0.5.dp, StealthBorderHigh),
                     contentPadding = PaddingValues(0.dp)
                 ) {
                     Text(
                         text = if (uiState.pipelineState is AssistantState.Paused) "Resume" else "Pause",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = StealthTextPrimary
                     )
                 }
 
-                OutlinedButton(
+                // Tertiary Action (10% quiet weight): Low-emphasis ghost button
+                TextButton(
                     onClick = onClear,
                     modifier = Modifier
-                        .weight(0.9f)
-                        .height(38.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = StealthSurface,
-                        contentColor = StealthTextSecondary
-                    ),
-                    shape = RoundedCornerShape(10.dp),
-                    border = BorderStroke(0.5.dp, StealthBorder),
+                        .weight(0.8f)
+                        .height(44.dp),
+                    shape = RoundedCornerShape(12.dp),
                     contentPadding = PaddingValues(0.dp)
                 ) {
-                    Text("Clear", fontSize = 11.sp)
+                    Text(
+                        text = "Clear",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = StealthTextSecondary
+                    )
                 }
             }
         }

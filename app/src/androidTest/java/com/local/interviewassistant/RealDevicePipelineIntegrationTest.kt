@@ -8,7 +8,6 @@ import com.local.interviewassistant.data.llm.LiteRtGemmaEngine
 import com.local.interviewassistant.data.llm.LlmStreamEvent
 import com.local.interviewassistant.data.stt.QuestionPunctuationEngine
 import com.local.interviewassistant.data.stt.SherpaOnnxRuntimeBackend
-import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals

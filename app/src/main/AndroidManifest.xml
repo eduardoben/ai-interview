@@ -43,7 +43,6 @@
         <activity
             android:name=".ui.main.MainActivity"
             android:exported="true"
-            android:label="@string/app_name"
             android:theme="@style/Theme.AIInterviewAssistant"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>

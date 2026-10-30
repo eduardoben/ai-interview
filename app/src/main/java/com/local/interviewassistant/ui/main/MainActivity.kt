@@ -1,7 +1,7 @@
 package com.local.interviewassistant.ui.main
 
 import android.Manifest
-import android.content.Context
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.ConnectivityManager
@@ -34,6 +34,7 @@ import com.local.interviewassistant.ui.theme.StealthOledTheme
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
+@SuppressLint("InvalidFragmentVersionForActivityResult")
 class MainActivity : ComponentActivity() {
 
     private var readinessStatus by mutableStateOf<AppContainer.ReadinessStatus?>(null)
@@ -184,7 +185,7 @@ class MainActivity : ComponentActivity() {
         val profile = DeviceHardwareDetector.detectHardware(this)
         hardwareProfile = profile
 
-        val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+        val cm = getSystemService(CONNECTIVITY_SERVICE) as? ConnectivityManager
         isMeteredNetwork = cm?.isActiveNetworkMetered ?: false
 
         val appContainer = AppContainer.getInstance(this)

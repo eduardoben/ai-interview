@@ -12,6 +12,7 @@ import androidx.work.workDataOf
 /**
  * Manages dispatching of WorkManager tasks for downloading models.
  */
+@Suppress("unused")
 class DownloadRepository(private val context: Context) {
 
     fun startModelDownload(modelId: String) {

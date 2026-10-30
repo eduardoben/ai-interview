@@ -107,6 +107,7 @@ class SherpaOfflineWhisperRescorer : OfflineRescorerBackend {
 /**
  * No-op implementation when offline rescoring is disabled or during lightweight unit testing.
  */
+@Suppress("unused")
 class NoOpOfflineRescorer : OfflineRescorerBackend {
     override suspend fun initialize(config: AppConfig): Result<Unit> = Result.success(Unit)
     override val isAvailable: Boolean = false

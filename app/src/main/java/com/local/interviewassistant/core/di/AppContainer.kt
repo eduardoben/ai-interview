@@ -112,6 +112,7 @@ class AppContainer private constructor(private val context: Context) {
         )
     }
 
+    @Suppress("unused")
     val activeCoordinator: AssistantPipelineCoordinator
         get() = pipelineCoordinator
 

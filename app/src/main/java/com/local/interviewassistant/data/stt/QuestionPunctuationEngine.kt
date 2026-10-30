@@ -25,7 +25,7 @@ object QuestionPunctuationEngine {
         "DI", "CI", "CD", "CI/CD", "AWS", "GCP", "BPE", "VAD", "STT", "TTS", "ASR", "LLM",
         "STAR", "KPI", "KPIS", "ROI", "EBITDA", "P&L", "OKRS", "OKR", "SLA", "SLO", "SLI",
         "QA", "UI", "UX", "PR", "OS", "IDE", "DB", "RDBMS", "ACID", "BASE", "ORM",
-        "AIDL", "IPC", "HAL", "OOM", "ANR", "FPS", "TTFT", "TPS"
+        "AIDL", "HAL", "OOM", "ANR", "FPS", "TTFT", "TPS"
     )
 
     // Proper nouns with specific casing

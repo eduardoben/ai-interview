@@ -56,14 +56,12 @@ object DeviceHardwareDetector {
     fun detectHardware(context: Context): HardwareProfile {
         val am = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
         val memInfo = ActivityManager.MemoryInfo()
-        if (am != null) {
-            am.getMemoryInfo(memInfo)
-        }
+        am?.getMemoryInfo(memInfo)
 
-        val soc = try { Build.SOC_MODEL.orEmpty() } catch (_: Throwable) { "" }
-        val hw = try { Build.HARDWARE.orEmpty() } catch (_: Throwable) { "" }
-        val dev = try { Build.DEVICE.orEmpty() } catch (_: Throwable) { "" }
-        val mdl = try { Build.MODEL.orEmpty() } catch (_: Throwable) { "" }
+        val soc = try { Build.SOC_MODEL } catch (_: Throwable) { "" }
+        val hw = try { Build.HARDWARE } catch (_: Throwable) { "" }
+        val dev = try { Build.DEVICE } catch (_: Throwable) { "" }
+        val mdl = try { Build.MODEL } catch (_: Throwable) { "" }
 
         val hasNpuFeature = try {
             context.packageManager.hasSystemFeature("android.hardware.neural_processing_unit")
@@ -124,7 +122,7 @@ object DeviceHardwareDetector {
 
         // Check if device is Tensor G3..G6 with NPU capability and dispatch library
         if (isTensorBrand && !isTensorG1OrG2 && (info.hasNpuFeature || info.hasNativeTensorLib)) {
-            val tensorProfile = resolveTensorTpuProfile(
+            return resolveTensorTpuProfile(
                 socLower = socLower,
                 hwLower = hwLower,
                 devLower = devLower,
@@ -132,9 +130,6 @@ object DeviceHardwareDetector {
                 totalRamMb = totalRamMb,
                 availableRamMb = availableRamMb
             )
-            if (tensorProfile != null) {
-                return tensorProfile
-            }
         }
 
         // Memory ceiling evaluation for GPU vs CPU tier
@@ -181,7 +176,7 @@ object DeviceHardwareDetector {
         mdlLower: String,
         totalRamMb: Long,
         availableRamMb: Long
-    ): HardwareProfile? {
+    ): HardwareProfile {
         val (generation, fileName) = when {
             socLower.contains("g6") || hwLower.contains("malibu") || mdlLower.contains("pixel 11") ->
                 "G6" to "gemma-4-E2B-it_Google_Tensor_G6.litertlm"

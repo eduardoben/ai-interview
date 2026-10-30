@@ -18,12 +18,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.os.ConfigurationCompat
 import com.local.interviewassistant.data.history.AggregateTelemetry
 import com.local.interviewassistant.data.history.QuestionAnswerRecord
 import com.local.interviewassistant.ui.prompter.FormattedTeleprompterAnswer
@@ -43,6 +45,11 @@ fun UsageScreen(
     hardwareSocName: String? = null
 ) {
     val context = LocalContext.current
+    val configuration = LocalConfiguration.current
+    val sdf = remember(configuration) {
+        val locale = ConfigurationCompat.getLocales(configuration).get(0) ?: Locale.US
+        SimpleDateFormat("MMM dd, HH:mm", locale)
+    }
     var selectedRecord by remember { mutableStateOf<QuestionAnswerRecord?>(null) }
     var showClearDialog by remember { mutableStateOf(false) }
 
@@ -85,7 +92,6 @@ fun UsageScreen(
 
     if (selectedRecord != null) {
         val record = selectedRecord!!
-        val sdf = SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault())
         ModalBottomSheet(
             onDismissRequest = { selectedRecord = null },
             containerColor = StealthSurface,
@@ -291,7 +297,6 @@ fun UsageScreen(
                 }
             }
         } else {
-            val sdf = SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault())
             LazyColumn(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(8.dp)

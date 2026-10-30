@@ -1,8 +1,6 @@
 package com.local.interviewassistant.data.provisioning
 
-import android.content.Context
 import com.local.interviewassistant.core.model.AppConfig
-import com.local.interviewassistant.data.hardware.DeviceHardwareDetector
 import com.local.interviewassistant.data.hardware.HardwareProfile
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -22,6 +20,7 @@ import java.net.URI
 enum class ErrorReason {
     INSUFFICIENT_STORAGE,
     NETWORK_ERROR,
+    @Suppress("unused")
     FILE_CORRUPTION,
     SERVICE_TIMEOUT,
     CANCELLED,
@@ -304,6 +303,7 @@ class ModelProvisioningManager(
         return newState
     }
 
+    @Suppress("unused")
     fun resetState(profile: HardwareProfile? = null) {
         if (profile != null) {
             checkProvisioningStatus(profile)
@@ -468,7 +468,7 @@ class ModelProvisioningManager(
         fileIndex: Int,
         totalFiles: Int,
         authToken: String?
-    ) {
+    ) = withContext(Dispatchers.IO) {
         val targetFile = entry.targetFile
         val parent = targetFile.parentFile ?: config.modelsRootDir
         if (!parent.exists()) parent.mkdirs()
@@ -507,7 +507,6 @@ class ModelProvisioningManager(
 
         var lastSpeedCalcTime = System.currentTimeMillis()
         var bytesSinceLastCalc = 0L
-        var currentSpeed = 0L
 
         val fos = FileOutputStream(tmpFile, isAppend)
         activeFileOutputStream = fos
@@ -527,7 +526,7 @@ class ModelProvisioningManager(
                         val now = System.currentTimeMillis()
                         val elapsed = now - lastSpeedCalcTime
                         if (elapsed >= 500L) {
-                            currentSpeed = (bytesSinceLastCalc * 1000L) / elapsed
+                            val currentSpeed = (bytesSinceLastCalc * 1000L) / elapsed
                             lastSpeedCalcTime = now
                             bytesSinceLastCalc = 0L
 
@@ -567,6 +566,7 @@ class ModelProvisioningManager(
         }
     }
 
+    @Suppress("UNUSED_PARAMETER")
     suspend fun importModelFromStream(
         inputStreamProvider: () -> InputStream?,
         targetFile: File,

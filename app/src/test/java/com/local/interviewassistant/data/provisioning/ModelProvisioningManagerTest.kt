@@ -2,7 +2,6 @@ package com.local.interviewassistant.data.provisioning
 
 import com.local.interviewassistant.core.model.AppConfig
 import com.local.interviewassistant.data.hardware.DelegateType
-import com.local.interviewassistant.data.hardware.DeviceHardwareDetector
 import com.local.interviewassistant.data.hardware.HardwareProfile
 import com.local.interviewassistant.data.hardware.HardwareTier
 import kotlinx.coroutines.test.runTest
@@ -14,8 +13,6 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import java.io.ByteArrayInputStream
 import java.io.File
-import java.io.IOException
-import java.io.InputStream
 
 class ModelProvisioningManagerTest {
 
@@ -33,23 +30,6 @@ class ModelProvisioningManagerTest {
         expectedLlmBytes = 3_113_545_589L,
         autoEnableWhisperRescorer = true
     )
-
-    private class RangeTestStreamFetcher(
-        private val fullPayload: ByteArray,
-        val recordedRanges: MutableList<Long> = mutableListOf()
-    ) : StreamFetcher {
-        override fun openStream(url: String, rangeOffset: Long, authToken: String?): StreamResponse {
-            recordedRanges.add(rangeOffset)
-            val offset = rangeOffset.toInt().coerceAtMost(fullPayload.size)
-            val remaining = fullPayload.copyOfRange(offset, fullPayload.size)
-            val statusCode = if (rangeOffset > 0L) 206 else 200
-            return StreamResponse(
-                statusCode = statusCode,
-                inputStream = ByteArrayInputStream(remaining),
-                contentLength = remaining.size.toLong()
-            )
-        }
-    }
 
     @Test
     fun testHttp206RangeResumeAppendsBytesWithoutRestartingFromZero() = runTest {
@@ -259,15 +239,13 @@ class ModelProvisioningManagerTest {
         val fullPayloadSize = 2_100_000
         val fullPayload = ByteArray(fullPayloadSize) { 0x02 }
 
-        val mockFetcher = object : StreamFetcher {
-            override fun openStream(url: String, rangeOffset: Long, authToken: String?): StreamResponse {
-                // Server returns 200 OK (ignoring Range header) with full file
-                return StreamResponse(
-                    statusCode = 200,
-                    inputStream = ByteArrayInputStream(fullPayload),
-                    contentLength = fullPayload.size.toLong()
-                )
-            }
+        val mockFetcher = StreamFetcher { _, _, _ ->
+            // Server returns 200 OK (ignoring Range header) with full file
+            StreamResponse(
+                statusCode = 200,
+                inputStream = ByteArrayInputStream(fullPayload),
+                contentLength = fullPayload.size.toLong()
+            )
         }
 
         val storageChecker = StorageChecker { 10_000_000_000L }
@@ -301,17 +279,15 @@ class ModelProvisioningManagerTest {
         var callCount = 0
         val recordedOffsets = mutableListOf<Long>()
 
-        val mockFetcher = object : StreamFetcher {
-            override fun openStream(url: String, rangeOffset: Long, authToken: String?): StreamResponse {
-                callCount++
-                recordedOffsets.add(rangeOffset)
-                return if (rangeOffset > 0L) {
-                    // Simulate server rejecting range offset with 416
-                    StreamResponse(statusCode = 416, inputStream = ByteArrayInputStream(ByteArray(0)), contentLength = 0L)
-                } else {
-                    // Offset 0 succeeds with 200 OK
-                    StreamResponse(statusCode = 200, inputStream = ByteArrayInputStream(fullPayload), contentLength = fullPayload.size.toLong())
-                }
+        val mockFetcher = StreamFetcher { _, rangeOffset, _ ->
+            callCount++
+            recordedOffsets.add(rangeOffset)
+            if (rangeOffset > 0L) {
+                // Simulate server rejecting range offset with 416
+                StreamResponse(statusCode = 416, inputStream = ByteArrayInputStream(ByteArray(0)), contentLength = 0L)
+            } else {
+                // Offset 0 succeeds with 200 OK
+                StreamResponse(statusCode = 200, inputStream = ByteArrayInputStream(fullPayload), contentLength = fullPayload.size.toLong())
             }
         }
 

@@ -10,6 +10,7 @@ plugins {
 }
 
 tasks.register("downloadSherpaOnnxAar") {
+    description = "Downloads and verifies the Sherpa-ONNX AAR bundle"
     val aarFile = layout.projectDirectory.file("libs/sherpa-onnx.aar").asFile
     val tempFile = layout.projectDirectory.file("libs/sherpa-onnx.aar.tmp").asFile
     val expectedSha256 = "6d1bf9a2ede218d9f33115f494058b83ae5c2af8a8275e64353c3de8c83a2603"
@@ -114,8 +115,8 @@ android {
         applicationId = "com.local.interviewassistant"
         minSdk = 34
         targetSdk = 37
-        versionCode = 8
-        versionName = "1.5.0"
+        versionCode = 9
+        versionName = "1.5.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         
@@ -182,8 +183,8 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation("androidx.test:runner:1.6.2")
-    androidTestImplementation("androidx.test:rules:1.6.1")
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.rules)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
 }

@@ -10,6 +10,8 @@ savedstate = "1.5.0"
 litertlmAndroid = "0.18.1"
 junit = "4.13.2"
 androidxJunit = "1.3.0"
+androidxTestRunner = "1.6.2"
+androidxTestRules = "1.6.1"
 work = "2.12.0"
 datastore = "1.3.0"
 sherpaOnnx = "1.12.21"
@@ -17,6 +19,8 @@ sherpaOnnx = "1.12.21"
 [libraries]
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidxJunit" }
+androidx-test-runner = { group = "androidx.test", name = "runner", version.ref = "androidxTestRunner" }
+androidx-test-rules = { group = "androidx.test", name = "rules", version.ref = "androidxTestRules" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
 androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }

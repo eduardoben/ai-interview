@@ -31,7 +31,7 @@ data class AggregateTelemetry(
     val avgDecodeTps: Float = 0f
 )
 
-class SessionHistoryRepository(private val storageDir: File) {
+class SessionHistoryRepository(storageDir: File) {
 
     private val historyFile = File(storageDir, "interview_session_history.json")
     private val _records = MutableStateFlow<List<QuestionAnswerRecord>>(emptyList())

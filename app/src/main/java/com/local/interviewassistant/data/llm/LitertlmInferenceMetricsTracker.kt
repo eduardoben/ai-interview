@@ -51,8 +51,8 @@ class LitertlmInferenceMetricsTracker {
         val ttft = getTtftMs()
         val totalMs = getTotalDurationMs()
         val decodeTps = getDecodeTokensPerSecond()
-        Log.i(tag, "Inference completed. TTFT: $ttft ms | Total: $totalMs ms | Decode TPS: $decodeTps tokens/s | Total Tokens: $tokenCount")
+        try {
+            Log.i(tag, "Inference completed. TTFT: $ttft ms | Total: $totalMs ms | Decode TPS: $decodeTps tokens/s | Total Tokens: $tokenCount")
+        } catch (_: Throwable) {}
     }
 }
-
-

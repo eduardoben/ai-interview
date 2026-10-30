@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.5.1] - 2026-10-29
+
+### 🛠️ Backend Fallback Wiring, Static Analysis Hardening, UI Refinements & Production Readiness Plan
+- **Production Readiness Plan & Roadmap (`docs/production_readiness_plan.md`):** Authored comprehensive 1,685-line production engineering audit, Google Play Store compliance blueprint (Target SDK 37, 16 KB ELF segment alignment audit, FGS declarations, zero-data Data Safety), competitive benchmarking against *InterviewMan*, ASO metadata specification, Stealth OLED brand identity system, and a 4-phase execution roadmap.
+- **Dynamic Backend Fallback Sequencing (`BackendResolver` & `LiteRtGemmaEngine`):** Wired `BackendResolver.getFallbackSequence()` directly into `LiteRtGemmaEngine.initialize()` and aligned `GalleryLiteRtBackend` (`CPU_MMAP` support and custom backend injection for deterministic unit testing).
+- **OLED Stealth Theme & Teleprompter Polish:** Refined `StealthTheme` 4-size/2-weight typography scale, `FloatingHudOverlay` 44dp touch targets and drop shadow spacing, `PrompterScreen` layout hierarchy, and `FormattedTeleprompterAnswer` Compose modifier parameter ordering.
+- **Compose Observable Locale & Android 17 Lint Compliance:** Replaced static `Locale.getDefault()` calls in `UsageScreen` with reactive `ConfigurationCompat.getLocales(LocalConfiguration.current)`, cleaned up redundant null/elvis checks on non-null `Build.SOC_MODEL` / `Build.SOC_MANUFACTURER` constants in `DeviceHardwareDetector` and `HardwareUtils`, and enforced `Dispatchers.IO` confinement in `ModelProvisioningManager.downloadFileWithResume()`.
+- **Release Log Guarding & Test Suite Expansion:** Guarded diagnostic `Log.i` calls with `BuildConfig.DEBUG` in `LitertlmInferenceMetricsTracker` and `MemoryMonitor`, removed duplicate `"IPC"` entry in `QuestionPunctuationEngine`, migrated test runner dependencies to `gradle/libs.versions.toml`, and expanded `Phase4LlmEngineTest` to verify custom backend injection and error propagation.
+- Bumped application `versionCode = 9` and `versionName = "1.5.1"`.
+
+---
+
 ## [1.5.0] - 2026-10-28
 
 ### 🚀 Stealth Teleprompter Redesign, Real-Time Streaming Auto-Scroll & Settings Context Preservation

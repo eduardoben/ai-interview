@@ -16,21 +16,19 @@ An on-device, real-time **AI Interview Copilot** for Android powered by **Sherpa
   - **Pixel Tensor TPU/NPU Acceleration:** Direct southbound delegation to `Backend.NPU(nativeLibraryDir = context.applicationInfo.nativeLibraryDir)` for AOT EdgeTPU models (`gemma-4-E2B-it_Google_Tensor_G5.litertlm`). Bundles the native `libLiteRtDispatch_GoogleTensor.so` dispatch shim in `app/src/main/jniLibs/arm64-v8a/` to interface with the Pixel EdgeTPU HAL.
   - **Universal GPU Acceleration:** `Backend.GPU()` OpenCL/Vulkan delegate for standard Gemma models (`gemma-4-E2B-it.litertlm`).
   - **Thread-Safe JNI Dispatcher:** Serializes all native C++ `Engine` and `Conversation` operations on a dedicated `LiteRT-GPU-Thread` single-threaded executor, preventing native stack corruption.
-  - **Fail-Safe Fallback & File Integrity:** Automatically falls back to the universal GPU model if TPU allocation fails, while validating file integrity so corrupt or mislabeled files are detected immediately.
+  - **Fail-Safe Fallback & File Integrity:** Automatically negotiates fallback sequences via `BackendResolver` to the universal GPU/CPU model if TPU allocation fails, while validating file integrity so corrupt or mislabeled files are detected immediately.
 
 - **📥 Background Model Provisioning Service (`ModelDownloadService`):**
-  - **Screen-Off & Lock Screen Persistence:** Operates as a foreground service with `FOREGROUND_SERVICE_TYPE_DATA_SYNC` and a partial `WakeLock`, preventing Android Doze mode and CPU suspension from severing downloads when the user blocks their phone.
+  - **Screen-Off & Lock Screen Persistence:** Operates as a foreground service with `FOREGROUND_SERVICE_TYPE_DATA_SYNC` and a partial `WakeLock`, preventing Android Doze mode and CPU suspension from severing downloads when the user locks their phone.
   - **Real-Time Notification Progress:** Ongoing notification with live progress bar, MB downloaded/total, and in-notification cancellation.
 
 - **🧪 On-Device Integration & Latency Test Suite:**
   - Hardware-grounded test suite (`RealDevicePipelineIntegrationTest`) running directly on physical Pixel 10 Pro XL hardware.
   - Validates EdgeTPU NPU execution, Sherpa-ONNX streaming Zipformer frame processing latency (<8ms), question truecasing latency (<0.25ms), and foreground download service contracts.
 
-- **🖥️ Floating System Overlay HUD:**
-  - Compact, draggable floating overlay (`TYPE_APPLICATION_OVERLAY`) accessible over any app.
-  - **Live Transcript Stream:** Displays real-time spoken text and highlights auto-detected interview questions.
-  - **Quick-Action Category Chips:** One-tap category switching (*General*, *System Design*, *Algorithms*, *Behavioral STAR*, *QA / Code Review*) adapting prompt style and domain context on the fly.
-  - **Response Panel & Controls:** Streaming LLM candidate answers with live Time-To-First-Token (TTFT) metrics, *Answer Now* force trigger, *Pause/Resume*, and *Clear*.
+- **🖥️ Stealth OLED Teleprompter & Floating System Overlay HUD:**
+  - **Multi-Tab Stealth AppShell:** Full-screen low-glare OLED teleprompter (`PrompterScreen`), live telemetry & Q&A session history (`UsageScreen`), hyperparameter & context controls (`SettingsScreen`), and hardware/asset diagnostics (`InfoScreen`).
+  - **Draggable Floating Overlay (`FloatingHudOverlay`):** Compact `TYPE_APPLICATION_OVERLAY` accessible over any app with intelligent `autoFollowStream` scrolling, 44dp accessible hit targets, live TTFT metrics, and quick-action category chips (*General*, *System Design*, *Algorithms*, *Behavioral STAR*, *QA / Code Review*).
 
 ---
 
@@ -39,10 +37,10 @@ An on-device, real-time **AI Interview Copilot** for Android powered by **Sherpa
 ```mermaid
 graph TD
     A["Microphone (AudioRecord - Direct Unfiltered)"] -->|16kHz PCM Float Stream| B["SherpaVadSttEngine (Silero VAD + GigaSpeech Zipformer)"]
-    B -->|Pass 1: Low-Latency Streaming Tokens| F["FloatingHudOverlay (Live Partial HUD)"]
+    B -->|Pass 1: Low-Latency Streaming Tokens| F["FloatingHudOverlay / PrompterScreen"]
     B -->|Pass 2 Endpoint: Audio Buffer + Offline Rescorer / QuestionPunctuationEngine| C["AssistantPipelineCoordinator"]
-    C -->|Punctuated & Truecased Question| D["LiteRtGemmaEngine (GalleryLiteRtBackend)"]
-    D -->|Pixel Tensor TPU / GPU Execution| E["Gemma 4 E2B IT Model"]
+    C -->|Punctuated & Truecased Question| D["LiteRtGemmaEngine (BackendResolver -> GalleryLiteRtBackend)"]
+    D -->|Pixel Tensor TPU / GPU / CPU Execution| E["Gemma 4 E2B IT Model"]
     E -->|Streaming Answer Tokens| F
 ```
 
@@ -52,6 +50,8 @@ graph TD
 
 ```
 AIInterviewAssistant/
+├── docs/
+│   └── production_readiness_plan.md           # Production Readiness Audit, Play Store Compliance & Roadmap
 ├── app/
 │   ├── src/main/
 │   │   ├── jniLibs/arm64-v8a/                 # Native binaries (libLiteRtDispatch_GoogleTensor.so)
@@ -68,9 +68,11 @@ AIInterviewAssistant/
 │   │   │   │   ├── audio/AudioCaptureSource.kt    # AudioRecord Stream & Hardware Filters
 │   │   │   │   ├── hardware/                      # Hardware Profiling & NPU Detection
 │   │   │   │   │   └── DeviceHardwareDetector.kt  # Android 17 SoC, RAM & NPU Delegate Profiler
+│   │   │   │   ├── history/                       # Session History & Telemetry Persistence
+│   │   │   │   │   └── SessionHistoryRepository.kt# Local JSON Q&A History & Markdown Export
 │   │   │   │   ├── llm/                           # LiteRT-LM & MediaPipe Engines
 │   │   │   │   │   ├── BackendResolver.kt         # Intelligent Dynamic Hardware Delegate Negotiator
-│   │   │   │   │   ├── GalleryLiteRtBackend.kt    # LiteRT-LM Native Engine & NPU/GPU Delegation
+│   │   │   │   │   ├── GalleryLiteRtBackend.kt    # LiteRT-LM Native Engine & NPU/GPU/CPU Delegation
 │   │   │   │   │   ├── LiteRtGemmaEngine.kt       # Thread-Safe JNI Flow Generator
 │   │   │   │   │   └── LlmInferenceBackend.kt     # Backend Abstractions
 │   │   │   │   ├── provisioning/                  # Model Provisioning & Downloads
@@ -87,11 +89,18 @@ AIInterviewAssistant/
 │   │   │   │   ├── ModelDownloadService.kt        # Background Model Download Service (WakeLock + DataSync)
 │   │   │   │   └── OverlayLifecycleOwner.kt       # Custom Lifecycle Owner for Overlay Views
 │   │   │   └── ui/
+│   │   │       ├── info/InfoScreen.kt             # System Diagnostics, Hardware Profile & Asset Manifest
 │   │   │       ├── main/
-│   │   │       │   ├── DashboardScreen.kt         # Adaptive Android 17 Dashboard & Hardware Chip UI
-│   │   │       │   └── MainActivity.kt            # Entry Activity & Permission Handlers
-│   │   │       └── overlay/
-│   │   │           └── FloatingHudOverlay.kt      # Floating Compose Overlay HUD
+│   │   │       │   ├── AppShell.kt                # Multi-Tab Navigation Shell & Stealth Dimmer Scrim
+│   │   │       │   └── MainActivity.kt            # Entry Activity, Volume Key Shortcuts & Permissions
+│   │   │       ├── overlay/
+│   │   │       │   └── FloatingHudOverlay.kt      # Draggable Floating Compose Overlay HUD
+│   │   │       ├── prompter/
+│   │   │       │   ├── FormattedTeleprompterAnswer.kt # Markdown & Code Block Teleprompter Renderer
+│   │   │       │   └── PrompterScreen.kt          # Full-Screen Stealth Teleprompter & Focus Mode
+│   │   │       ├── settings/SettingsScreen.kt     # LLM Hyperparameters, Delegates & Context Presets
+│   │   │       ├── theme/                         # Low-Glare OLED Stealth Palette & Custom Vector Icons
+│   │   │       └── usage/UsageScreen.kt           # Session Q&A History, Telemetry & Markdown Export
 ```
 
 ---
@@ -122,7 +131,7 @@ AIInterviewAssistant/
 
 ## 🚀 Verified Benchmarks (Google Pixel 10 Pro XL)
 
-Measured live on physical Pixel 10 Pro XL hardware (Android 15 / 16, Google Tensor G5 SoC):
+Measured live on physical Pixel 10 Pro XL hardware (Android 15 / 16 / 17, Google Tensor G5 SoC):
 
 - **NPU (Tensor G5 EdgeTPU) Execution:**
   - **Time-to-First-Token (TTFT):** **215 ms – 276 ms**
@@ -164,12 +173,9 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 ## ⚙️ Hardware & Model Provisioning Guide
 
-1. **Launch the App:** Open **AI Interview Assistant** and grant Microphone, Notification, and System Overlay permissions on the dashboard.
-2. **Download Speech Models:** Tap **Auto-Download Speech Models (VAD + STT)** to download Silero VAD and Zipformer STT models.
-3. **Select / Download LLM Model:**
-   - **Google Pixel Tensor Devices:** Tap **Pixel TPU Variant** to download the pre-compiled AOT EdgeTPU model.
-   - **All Other Devices:** Tap **GPU Variant** for the universal OpenCL GPU model.
-4. **Start Assistant:** Tap **Start Interview Assistant** — the draggable floating HUD will appear over all apps.
+1. **Launch the App:** Open **AI Interview Assistant** and navigate to the **System** tab to grant Microphone, Notification, and System Overlay permissions.
+2. **Download All Neural Models:** Tap **Download Missing Assets** to automatically provision Silero VAD, Zipformer STT, Whisper Offline Rescorer, and the hardware-matched Gemma 4 LLM in a single background-resilient workflow.
+3. **Start Assistant:** Navigate to **Prompter** and tap **Start** — use the full-screen stealth teleprompter or switch to any app with the draggable floating HUD.
 
 ---
 
@@ -203,7 +209,7 @@ I/LiteRtGemmaEngine: Successfully initialized LiteRT engine on backend 'GPU' for
 
 This repository uses a two-branch workflow with Semantic Versioning and Annotated Git Tags:
 
-- **`main`**: Protected, production-ready branch. Releases and tags (`v1.3.0`, `v1.4.0`) are created here.
+- **`main`**: Protected, production-ready branch. Releases and tags (`v1.3.0`, `v1.4.0`, `v1.5.0`, `v1.5.1`) are created here.
 - **`dev`**: Active feature development, experimentation, and bug fixes.
 
 ### Release Checklist:
@@ -212,10 +218,10 @@ This repository uses a two-branch workflow with Semantic Versioning and Annotate
 git checkout main && git merge dev
 
 # 2. Update app/build.gradle.kts (versionCode/versionName) and CHANGELOG.md
-git commit -am "chore(release): bump version to v1.4.0"
+git commit -am "chore(release): bump version to v1.5.1"
 
 # 3. Tag release and push
-git tag -a v1.4.0 -m "Release v1.4.0: <Summary of changes>"
+git tag -a v1.5.1 -m "Release v1.5.1: <Summary of changes>"
 git push origin main --tags
 
 # 4. Keep dev synced with release commit
