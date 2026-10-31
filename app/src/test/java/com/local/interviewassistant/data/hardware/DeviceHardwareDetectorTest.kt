@@ -237,4 +237,129 @@ class DeviceHardwareDetectorTest {
         assertEquals(DelegateType.NPU_GOOGLE_TENSOR, profile.preferredDelegate)
         assertEquals("gemma-4-E2B-it_Google_Tensor_G4.litertlm", profile.recommendedLlmFileName)
     }
+
+    @Test
+    fun detectHardware_pixel7_android13_routesToGpuTierWithConstrainedRamWarning() {
+        val pixel7 = SystemDeviceInfo(
+            socModel = "Tensor G2",
+            hardware = "cloudripper",
+            device = "panther",
+            model = "Pixel 7",
+            totalRamBytes = 8_000_000_000L,
+            availableRamBytes = 4_000_000_000L,
+            hasNpuFeature = true,
+            hasNativeTensorLib = true
+        )
+        val profile = DeviceHardwareDetector.classify(pixel7)
+        assertEquals(HardwareTier.GPU, profile.tier)
+        assertEquals(DelegateType.GPU_LITERT, profile.preferredDelegate)
+        assertEquals(RamReadinessTier.CONSTRAINED, profile.ramTier)
+        assertNotNull(profile.ramWarningMessage)
+    }
+
+    @Test
+    fun detectHardware_pixel7Pro_android13_routesToGpuTierWithOptimalRam() {
+        val pixel7Pro = SystemDeviceInfo(
+            socModel = "Tensor G2",
+            hardware = "cloudripper",
+            device = "cheetah",
+            model = "Pixel 7 Pro",
+            totalRamBytes = 12_500_000_000L,
+            availableRamBytes = 6_000_000_000L,
+            hasNpuFeature = true,
+            hasNativeTensorLib = true
+        )
+        val profile = DeviceHardwareDetector.classify(pixel7Pro)
+        assertEquals(HardwareTier.GPU, profile.tier)
+        assertEquals(DelegateType.GPU_LITERT, profile.preferredDelegate)
+        assertEquals(RamReadinessTier.OPTIMAL, profile.ramTier)
+        assertNull(profile.ramWarningMessage)
+    }
+
+    @Test
+    fun detectHardware_galaxyS23_android13_routesToGpuTier() {
+        val galaxyS23 = SystemDeviceInfo(
+            socModel = "SM8550",
+            hardware = "kalama",
+            device = "dm1q",
+            model = "Galaxy S23",
+            totalRamBytes = 8_000_000_000L,
+            availableRamBytes = 4_000_000_000L,
+            hasNpuFeature = false,
+            hasNativeTensorLib = false
+        )
+        val profile = DeviceHardwareDetector.classify(galaxyS23)
+        assertEquals(HardwareTier.GPU, profile.tier)
+        assertEquals(DelegateType.GPU_LITERT, profile.preferredDelegate)
+        assertEquals(RamReadinessTier.CONSTRAINED, profile.ramTier)
+        assertEquals("SM8550", profile.socName)
+    }
+
+    @Test
+    fun detectHardware_android13_unknownSocModel_fallsBackToHardwareName() {
+        val oemDevice = SystemDeviceInfo(
+            socModel = "unknown",
+            hardware = "kalama",
+            device = "oem_device",
+            model = "OEM Smartphone",
+            totalRamBytes = 8_000_000_000L,
+            availableRamBytes = 4_000_000_000L,
+            hasNpuFeature = false,
+            hasNativeTensorLib = false
+        )
+        val profile = DeviceHardwareDetector.classify(oemDevice)
+        assertEquals("kalama", profile.socName)
+    }
+
+    @Test
+    fun detectHardware_android13_unknownSocAndHardware_fallsBackToModelName() {
+        val oemDevice = SystemDeviceInfo(
+            socModel = "UNKNOWN",
+            hardware = "unknown",
+            device = "barbet",
+            model = "Pixel 5a",
+            totalRamBytes = 8_000_000_000L,
+            availableRamBytes = 4_000_000_000L,
+            hasNpuFeature = false,
+            hasNativeTensorLib = false
+        )
+        val profile = DeviceHardwareDetector.classify(oemDevice)
+        assertEquals("Pixel 5a", profile.socName)
+    }
+
+    @Test
+    fun detectHardware_android13_allHardwareFieldsBlankOrUnknown_fallsBackToStandardDevice() {
+        val oemDevice = SystemDeviceInfo(
+            socModel = "unknown",
+            hardware = "   ",
+            device = "unknown",
+            model = "UNKNOWN",
+            totalRamBytes = 8_000_000_000L,
+            availableRamBytes = 4_000_000_000L,
+            hasNpuFeature = false,
+            hasNativeTensorLib = false
+        )
+        val profile = DeviceHardwareDetector.classify(oemDevice)
+        assertEquals("Standard Device", profile.socName)
+    }
+
+    @Test
+    fun detectHardware_android13_budgetDeviceWithSub7GbRam_routesToCpuTierWithUnsupportedRam() {
+        val budgetDevice = SystemDeviceInfo(
+            socModel = "MT6769V/CZ",
+            hardware = "mt6769",
+            device = "budget_phone",
+            model = "Budget 4GB Phone",
+            totalRamBytes = 4_000_000_000L,
+            availableRamBytes = 1_500_000_000L,
+            hasNpuFeature = false,
+            hasNativeTensorLib = false
+        )
+        val profile = DeviceHardwareDetector.classify(budgetDevice)
+        assertEquals(HardwareTier.CPU, profile.tier)
+        assertEquals(DelegateType.CPU_MMAP, profile.preferredDelegate)
+        assertEquals(RamReadinessTier.UNSUPPORTED, profile.ramTier)
+        assertFalse(profile.autoEnableWhisperRescorer)
+        assertNotNull(profile.ramWarningMessage)
+    }
 }

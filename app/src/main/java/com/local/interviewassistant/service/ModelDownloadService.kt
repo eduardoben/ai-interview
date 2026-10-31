@@ -8,7 +8,9 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.net.wifi.WifiManager
+import android.os.Build
 import android.os.PowerManager
+import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.lifecycle.LifecycleService
@@ -23,16 +25,18 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import java.util.Locale
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Foreground Service dedicated to performing uninterrupted model downloads
- * in the background, compliant with Android 17 (API 37) guidelines.
+ * in the background, compliant with Android 13–17 (API 33–37) guidelines.
  *
  * Utilizes FOREGROUND_SERVICE_TYPE_DATA_SYNC, a partial WakeLock (4h timeout),
- * a high-perf WifiLock, and mandatory onTimeout() handling.
+ * a high-perf WifiLock, and mandatory onTimeout() handling across Android 14+ (API 34/35).
  */
 class ModelDownloadService : LifecycleService() {
 
+    private val isHandlingTimeout = AtomicBoolean(false)
     private var wakeLock: PowerManager.WakeLock? = null
     private var wifiLock: WifiManager.WifiLock? = null
     private var downloadJob: Job? = null
@@ -99,6 +103,7 @@ class ModelDownloadService : LifecycleService() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         super.onStartCommand(intent, flags, startId)
+        isHandlingTimeout.set(false)
 
         when (intent?.action) {
             ACTION_DOWNLOAD_ALL,
@@ -121,12 +126,21 @@ class ModelDownloadService : LifecycleService() {
         super.onDestroy()
     }
 
+    @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
+    override fun onTimeout(startId: Int) {
+        super.onTimeout(startId)
+        handleTimeout(startId)
+    }
+
+    @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
     override fun onTimeout(startId: Int, fgsType: Int) {
         super.onTimeout(startId, fgsType)
         handleTimeout(startId)
     }
 
     fun handleTimeout(startId: Int) {
+        if (!isHandlingTimeout.compareAndSet(false, true)) return
+        releaseLocks()
         downloadJob?.cancel()
         downloadJob = null
         val appContainer = AppContainer.getInstance(this)

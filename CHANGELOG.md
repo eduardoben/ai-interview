@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.9.0] - 2026-10-30
+
+### 🚀 Phase 4: Android 13+ (minSdk 33) Backwards Compatibility, Multi-ABI Emulation & Multi-Device Virtual Test Fleet
+- **Android 13+ (`minSdk = 33`) Architecture & Ecosystem Expansion:**
+  - Expanded supported Android ecosystem from Android 17 preview down through Android 16, 15, 14, and 13 (`minSdk = 33`), making the application compatible with over 90% of active Android devices globally.
+  - **Foreground Service Guarding (`ModelDownloadService` & `DownloadWorker`):** Guarded Android 15+ (API 35) `dataSync` 6-hour timeout limits and cancellation callbacks with runtime API checks (`Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM`), ensuring safe background model downloads on Android 13 and 14 without crashing.
+  - **Thermal & Memory Hardware Guarding (`DeviceHardwareDetector` & `HardwareUtils`):** Added API-level guarding for `PowerManager.getThermalHeadroom()` (API 35+), gracefully falling back to standard thermal status listeners on Android 13/14, and guarded `ActivityManager.RunningAppProcessInfo` memory queries.
+- **Multi-ABI Native Architecture (`arm64-v8a` + `x86_64`):**
+  - Added `"x86_64"` alongside `"arm64-v8a"` in `ndk.abiFilters` in `app/build.gradle.kts`.
+  - Enables native Intel/AMD x86_64 execution inside PC Android Studio emulators without emulation translation penalties, while retaining native `arm64-v8a` for physical hardware and EdgeTPU NPU dispatch shims.
+- **Multi-Device Virtual Test Fleet & Desktop Launcher Suite:**
+  - Designed, instantiated, and benchmarked 4 customized Android Virtual Devices (AVDs) running concurrently on Windows:
+    - **Google Pixel 10 Pro XL** (Android 17 / API 37, 1344×2992, 480 dpi, Flagship Phone)
+    - **Samsung Galaxy S25 Ultra** (Android 17 / API 37, 1440×3120, 500 dpi, Flagship Phone)
+    - **Samsung Galaxy Tab S7+** (Android 17 / API 37, 2800×1752, 280 dpi, 12.4″ Tablet)
+    - **Samsung Galaxy A54 5G** (Android 13 / API 33, 1080×2340, 400 dpi, Mid-Tier Phone)
+  - Created a one-click desktop launcher `Launch Android Emulators.bat` on the user's Desktop (`C:\Users\Master\Desktop\Launch Android Emulators.bat`).
+  - Added repository automation scripts under `scripts/`: `launch_emulators.bat`, `launch_all_emulators.bat`, `launch_all.ps1`, and `launch_emulators_service.py`.
+- **Adversarial & Cross-Version Automated Verification:**
+  - Authored `AdversarialEdgeCaseStressTest.kt` verifying Android 13–17 version boundaries, missing EdgeTPU shims, and thermal status transitions.
+  - Added 12 new unit tests in `DeviceHardwareDetectorTest.kt` verifying RAM readiness and hardware tier classification on Android 13 through Android 17.
+  - Verified live deployment and UI rendering on physical Pixel 10 Pro XL (Tensor G5, Android 17) and emulated Samsung Galaxy A54 5G (Android 13 / API 33).
+- Bumped application `versionCode = 13` and `versionName = "1.9.0"`.
+
+---
+
 ## [1.8.0] - 2026-10-30
 
 ### 🏛️ Phase 3 Production Hardening: MVVM Architecture, Room Database, Jetpack DataStore, Adaptive Icons & Play Store Dossier
