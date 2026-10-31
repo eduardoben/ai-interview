@@ -128,15 +128,15 @@ android {
 
     defaultConfig {
         applicationId = "com.local.interviewassistant"
-        minSdk = 34
+        minSdk = 33
         targetSdk = 37
-        versionCode = 12
-        versionName = "1.8.0"
+        versionCode = 13
+        versionName = "1.9.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         ndk {
-            abiFilters += listOf("arm64-v8a")
+            abiFilters += listOf("arm64-v8a", "x86_64")
         }
     }
 

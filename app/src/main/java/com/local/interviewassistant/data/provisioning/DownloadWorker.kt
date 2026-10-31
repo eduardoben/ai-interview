@@ -1,5 +1,7 @@
 package com.local.interviewassistant.data.provisioning
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.Context
 import android.content.pm.ServiceInfo
 import androidx.core.app.NotificationCompat
@@ -18,6 +20,8 @@ class DownloadWorker(
     companion object {
         const val KEY_MODEL_ID = "model_id"
         const val NOTIFICATION_ID = 1001
+        private const val CHANNEL_ID = "download_channel"
+        private const val CHANNEL_NAME = "Model Downloads"
     }
 
     override suspend fun doWork(): Result {
@@ -56,8 +60,24 @@ class DownloadWorker(
         }
     }
 
+    override suspend fun getForegroundInfo(): ForegroundInfo = createForegroundInfo("Model", 0)
+
+    private fun ensureNotificationChannel() {
+        val notificationManager = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+            ?: return
+        val channel = NotificationChannel(
+            CHANNEL_ID,
+            CHANNEL_NAME,
+            NotificationManager.IMPORTANCE_LOW
+        ).apply {
+            setShowBadge(false)
+        }
+        notificationManager.createNotificationChannel(channel)
+    }
+
     private fun createForegroundInfo(modelName: String, progress: Int): ForegroundInfo {
-        val notification = NotificationCompat.Builder(applicationContext, "download_channel")
+        ensureNotificationChannel()
+        val notification = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
             .setContentTitle("Downloading Model")
             .setContentText("Downloading $modelName ($progress%)")
             .setSmallIcon(android.R.drawable.stat_sys_download)

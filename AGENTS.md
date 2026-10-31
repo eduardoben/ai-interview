@@ -58,7 +58,7 @@ This document serves as the authoritative technical context guide for AI Coding 
 - **`ModelProvisioningManager`**: Automates speech model lifecycle with `.stt_version` tracking (`STT_MODEL_VERSION = "2023-06-21-gigaspeech"`). Provides `downloadOfflineRescorerModel()` for optional high-accuracy second-pass ASR rescoring.
 
 ### 3. Hardware Profiling, LLM Backend & Thermal Protection (v1.4 - v1.8.0)
-- **`DeviceHardwareDetector`**: Probes device SoC model (`Build.SOC_MODEL`), total RAM, NPU system features, and presence of `libLiteRtDispatch_GoogleTensor.so` on Android 17 (API 37). Automatically classifies system into `HardwareTier.TPU`, `GPU`, or `CPU`, and evaluates `RamReadinessTier` (`OPTIMAL` >= 11.5 GB, `CONSTRAINED` 7–11.5 GB, `UNSUPPORTED` < 7 GB).
+- **`DeviceHardwareDetector`**: Probes device SoC model (`Build.SOC_MODEL`), total RAM, NPU system features, and presence of `libLiteRtDispatch_GoogleTensor.so` on Android 13 through Android 17 (API 33–37). Automatically classifies system into `HardwareTier.TPU`, `GPU`, or `CPU`, and evaluates `RamReadinessTier` (`OPTIMAL` >= 11.5 GB, `CONSTRAINED` 7–11.5 GB, `UNSUPPORTED` < 7 GB).
 - **`BackendResolver`**: Negotiates LiteRT delegates based on user preference (`preferredDelegate`) and detected hardware capabilities (`NPU_GOOGLE_TENSOR`, `GPU_LITERT`, `CPU_MMAP`), providing ordered fallback sequences (`getFallbackSequence()`) consumed directly by `LiteRtGemmaEngine.initialize()`.
 - **Thermal Throttling Protection**: `AssistantPipelineCoordinator` monitors `PowerManager.OnThermalStatusChangedListener`; under `THERMAL_STATUS_SEVERE` (3) or higher, caps generation at 256 tokens and informs `SherpaVadSttEngine` to bypass Whisper rescoring.
 - **`GalleryLiteRtBackend`**: Manages LiteRT `Engine` and `Conversation` sessions, supporting NPU, GPU, and CPU delegation with suspending `initializeSuspend()` / `closeSuspend()` and clean synchronous resource teardown (`closeSynchronously()`).
@@ -76,6 +76,18 @@ This document serves as the authoritative technical context guide for AI Coding 
 - **`PrompterScreen` Decomposition**: Split 874-line monolithic screen into focused, isolated composables in `com.local.interviewassistant.ui.prompter.components`: `PrompterHeader`, `CategoryChipRow`, `TeleprompterDisplay`, `LiveTranscriptBar`, `TranscriptHistorySheet`, `ThumbControlDock`, and `StealthDimmerDialog`.
 - **`AppDatabase` & `InterviewSessionDao` (Room Database)**: Replaces flat-file JSON persistence (`interview_session_history.json`). Backed by Android Room 2.8.5 with automatic schema validation, indexed timestamps, and reactive `Flow<List<InterviewSessionEntity>>` streams. `SessionHistoryRepository` performs atomic one-time migration and cleanup of legacy JSON records.
 - **`UserPreferencesRepository` (Jetpack DataStore)**: Replaces synchronous, blocking `SharedPreferences` with asynchronous, non-blocking `DataStore<Preferences>`, configured with `SharedPreferencesMigration(context, "llm_prefs")`.
+
+### 7. Multi-ABI Emulation & AVD Testing Fleet (v1.9.0)
+- **Multi-ABI Native Architecture (`arm64-v8a` + `x86_64`):**
+  - Configured `ndk.abiFilters += listOf("arm64-v8a", "x86_64")` in `app/build.gradle.kts`.
+  - Enables native Intel/AMD x86_64 execution inside PC Android Studio emulators without emulation translation penalties, while retaining native `arm64-v8a` for physical hardware and EdgeTPU NPU dispatch shims.
+- **Multi-Device Virtual Test Fleet:**
+  - Standardized custom AVD specifications for:
+    - `Pixel_10_Pro_XL` (Android 17 / API 37, 1344×2992, 480 dpi, Flagship Phone)
+    - `Galaxy_S25_Ultra` (Android 17 / API 37, 1440×3120, 500 dpi, Flagship Phone)
+    - `Galaxy_Tab_S7_Plus` (Android 17 / API 37, 2800×1752, 280 dpi, 12.4″ Tablet)
+    - `Galaxy_A54_5G` (Android 13 / API 33, 1080×2340, 400 dpi, Mid-Tier Baseline)
+  - Fleet Automation Scripts: `scripts/launch_emulators.bat`, `scripts/launch_all_emulators.bat`, `scripts/launch_all.ps1`, `scripts/launch_emulators_service.py`, and desktop launcher.
 
 ### 6. Testing & Verification Harness (v1.8.0)
 - **Headless Test Mock Suite (`FakeLlmBackend` in `com.local.interviewassistant.test`)**: Emulates LiteRT C++ generation streams for continuous integration runners without downloading multi-gigabyte model weights.

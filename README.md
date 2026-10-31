@@ -76,7 +76,7 @@ AIInterviewAssistant/
 │   │   │   │   │   ├── AudioCaptureSource.kt      # AudioRecord Stream & Hardware Filters
 │   │   │   │   │   └── CircularFloatRingBuffer.kt # Zero-Allocation Circular Float Ring Buffer
 │   │   │   │   ├── hardware/                      # Hardware Profiling & NPU Detection
-│   │   │   │   │   └── DeviceHardwareDetector.kt  # Android 17 SoC, 3-Tier RAM Gate & NPU Profiler
+│   │   │   │   │   └── DeviceHardwareDetector.kt  # Android 13–17 SoC, 3-Tier RAM Gate & NPU Profiler
 │   │   │   │   ├── history/                       # Session History & Telemetry Persistence
 │   │   │   │   │   └── SessionHistoryRepository.kt# Local JSON Q&A History & Markdown Export
 │   │   │   │   ├── llm/                           # LiteRT-LM & MediaPipe Engines
@@ -217,11 +217,28 @@ I/LiteRtGemmaEngine: Successfully initialized LiteRT engine on backend 'GPU' for
 
 ---
 
+## 📱 Multi-Device Virtual Test Fleet & Emulator Launcher
+
+The project includes pre-configured Android Virtual Device (AVD) specifications and automation scripts for cross-form-factor and multi-OS testing across Windows:
+
+| Device Model | Form Factor | Android Target | Resolution & Density | Memory & Cores |
+|---|---|---|---|---|
+| **Google Pixel 10 Pro XL** | Flagship Smartphone | Android 17 (API 37) | 1344 × 2992 (480 dpi) | 4 GB RAM / 4 vCPUs |
+| **Samsung Galaxy S25 Ultra** | Flagship Smartphone | Android 17 (API 37) | 1440 × 3120 (500 dpi) | 4 GB RAM / 4 vCPUs |
+| **Samsung Galaxy Tab S7+** | 12.4″ Productivity Tablet | Android 17 (API 37) | 2800 × 1752 (280 dpi) | 4 GB RAM / 4 vCPUs |
+| **Samsung Galaxy A54 5G** | Higher-Mid Tier Smartphone | **Android 13 (API 33)** | 1080 × 2340 (400 dpi) | 4 GB RAM / 4 vCPUs |
+
+### Instant Launchers:
+- **Desktop Shortcut:** Double-click `Launch Android Emulators.bat` on the Desktop for an interactive launcher menu.
+- **Project Batch Launcher:** [`scripts/launch_emulators.bat`](scripts/launch_emulators.bat) or [`scripts/launch_all_emulators.bat`](scripts/launch_all_emulators.bat).
+
+---
+
 ## 🌿 Version Control & Branching Strategy
 
 This repository uses a two-branch workflow with Semantic Versioning and Annotated Git Tags:
 
-- **`main`**: Protected, production-ready branch. Releases and tags (`v1.3.0`, `v1.4.0`, `v1.5.0`, `v1.5.1`, `v1.6.0`) are created here.
+- **`main`**: Protected, production-ready branch. Releases and tags (`v1.3.0`, `v1.4.0`, `v1.5.0`, `v1.7.0`, `v1.8.0`, `v1.9.0`) are created here.
 - **`dev`**: Active feature development, experimentation, and bug fixes.
 
 ### Release Checklist:
@@ -230,10 +247,10 @@ This repository uses a two-branch workflow with Semantic Versioning and Annotate
 git checkout main && git merge dev
 
 # 2. Update app/build.gradle.kts (versionCode/versionName) and CHANGELOG.md
-git commit -am "chore(release): bump version to v1.6.0"
+git commit -am "chore(release): bump version to v1.9.0"
 
 # 3. Tag release and push
-git tag -a v1.6.0 -m "Release v1.6.0: <Summary of changes>"
+git tag -a v1.9.0 -m "Release v1.6.0: <Summary of changes>"
 git push origin main --tags
 
 # 4. Keep dev synced with release commit

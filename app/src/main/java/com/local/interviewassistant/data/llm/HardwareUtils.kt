@@ -24,10 +24,11 @@ object HardwareUtils {
         val lowerModel = Build.MODEL.lowercase(Locale.ROOT)
         val lowerDevice = Build.DEVICE.lowercase(Locale.ROOT)
         val lowerBoard = Build.BOARD.lowercase(Locale.ROOT)
-        val lowerSocModel = Build.SOC_MODEL.lowercase(Locale.ROOT)
+        val lowerSocModel = runCatching { Build.SOC_MODEL }.getOrNull().orEmpty().lowercase(Locale.ROOT)
         val lowerHardware = Build.HARDWARE.lowercase(Locale.ROOT)
 
-        val isGoogle = Build.SOC_MANUFACTURER.ifBlank { Build.MANUFACTURER }.equals("Google", ignoreCase = true)
+        val socManufacturer = runCatching { Build.SOC_MANUFACTURER }.getOrNull().orEmpty()
+        val isGoogle = socManufacturer.ifBlank { Build.MANUFACTURER }.equals("Google", ignoreCase = true)
         
         // Check Pixel model name
         val pixelMatch = Regex("""pixel\s+(\d+)""").find(lowerModel)

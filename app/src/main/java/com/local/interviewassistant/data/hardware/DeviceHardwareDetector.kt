@@ -173,12 +173,10 @@ object DeviceHardwareDetector {
         }
 
         // Memory ceiling evaluation for GPU vs CPU tier
-        val effectiveSocName = when {
-            info.socModel.isNotBlank() -> info.socModel
-            info.hardware.isNotBlank() -> info.hardware
-            info.model.isNotBlank() -> info.model
-            else -> "Standard Device"
-        }
+        val effectiveSocName = sanitizeSocField(info.socModel)
+            ?: sanitizeSocField(info.hardware)
+            ?: sanitizeSocField(info.model)
+            ?: "Standard Device"
 
         return if (totalRamMb >= RAM_THRESHOLD_GPU_MB) {
             // GPU Tier (8 GB+ devices)
@@ -211,6 +209,11 @@ object DeviceHardwareDetector {
                 ramWarningMessage = ramWarning
             )
         }
+    }
+
+    private fun sanitizeSocField(value: String): String? {
+        val trimmed = value.trim()
+        return if (trimmed.isEmpty() || trimmed.equals("unknown", ignoreCase = true)) null else trimmed
     }
 
     private fun resolveTensorTpuProfile(
