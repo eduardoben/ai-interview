@@ -66,8 +66,15 @@ object HardwareUtils {
         return isTensorG3OrHigher()
     }
 
-    @Suppress("UNUSED_PARAMETER")
     fun isGpuAvailable(context: Context): Boolean {
+        // x86_64 emulators (goldfish/ranchu) lack OpenCL support required by LiteRT's native sampler.
+        val isEmulator = Build.HARDWARE.contains("goldfish", ignoreCase = true) ||
+                Build.HARDWARE.contains("ranchu", ignoreCase = true) ||
+                Build.FINGERPRINT.contains("generic", ignoreCase = true) ||
+                Build.MODEL.contains("sdk", ignoreCase = true)
+        if (isEmulator) {
+            return false
+        }
         return true
     }
 }

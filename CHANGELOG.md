@@ -10,6 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.10.0] - 2026-10-31
 
 ### 🎧 Automated Multi-Audio E2E Interview Test Suite & Decoupled `:test-suite` Standalone Architecture
+- **Clean Directory Separation Between Production App & Tests:**
+  - Fully segregated `:app` and `:test-suite` directories: completely removed legacy `app/src/androidTest` and duplicated `app/src/test/java/.../e2e/` test harnesses from the `:app` module.
+  - Cleaned `app/build.gradle.kts` by removing redundant `androidTestImplementation` test runner dependencies.
+  - Relocated and consolidated all E2E instrumentation tests (`ParameterizedInterviewE2ETest.kt`, `RealDevicePipelineIntegrationTest.kt`), synthetic audio assets, and evaluation harnesses into `:test-suite/src/main/`.
+  - Added `models/` directory to `.gitignore` to prevent host-downloaded multi-gigabyte neural network models from cluttering the source tree.
+- **Hardware Fallback & Emulator Robustness:**
+  - Hardened `HardwareUtils.isGpuAvailable()` to detect Android Studio emulator environments (`goldfish`, `ranchu`, `sdk`, `generic`) and return `false`, preventing native OpenCL sampler initialization crashes and ensuring clean fallback to LiteRT memory-mapped CPU execution.
 - **Decoupled Standalone Test Architecture (`:test-suite` Module):**
   - Created standalone test module `:test-suite` via `com.android.test` plugin targeting `:app`, completely segregating multi-megabyte audio assets, synthetic fixtures, and E2E instrumentation code from the production `:app` module.
   - Production release builds (`:app:assembleRelease`, `:app:bundleRelease`) now contain zero test assets, zero mock audio feeds, and zero test harness code.

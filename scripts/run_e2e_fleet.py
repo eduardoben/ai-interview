@@ -539,9 +539,11 @@ def execute_test_on_device(
         print(f"[{serial}] Clearing logcat buffer...")
         run_adb(["logcat", "-c"], adb_path=adb_path, serial=serial, timeout=30)
 
-        # 4. Run instrumentation
+        # 4. Clean remote results and run instrumentation
+        remote_e2e_dir = "/sdcard/Android/data/com.local.interviewassistant/files/e2e"
+        run_adb(["shell", f"mkdir -p '{remote_e2e_dir}' && rm -f '{remote_e2e_dir}'/*_result.json"], adb_path=adb_path, serial=serial, timeout=30)
+
         test_class = "com.local.interviewassistant.e2e.ParameterizedInterviewE2ETest"
-        # Standalone :test-suite uses .testsuite package; legacy uses .test
         runner_pkg = "com.local.interviewassistant.testsuite" if (ROOT_DIR / TEST_SUITE_APK_REL).exists() or (ROOT_DIR / "test-suite").exists() else "com.local.interviewassistant.test"
         runner = f"{runner_pkg}/androidx.test.runner.AndroidJUnitRunner"
         inst_cmd = [
@@ -558,6 +560,23 @@ def execute_test_on_device(
         if "FAILURES!!!" in out or code != 0:
             print(f"[{serial}] [WARN] Instrumentation reported failures or non-zero exit code: {code}")
             device_report["status"] = "FAIL"
+
+        # 4b. Capture Snapshot
+        snapshot_dir = reports_dir / "snapshots"
+        snapshot_dir.mkdir(parents=True, exist_ok=True)
+        local_snapshot = snapshot_dir / f"{serial}_{avd_name}_snapshot.png"
+        run_adb(["shell", "screencap", "-p", f"/sdcard/{serial}_snapshot.png"], adb_path=adb_path, serial=serial, timeout=30)
+        run_adb(["pull", f"/sdcard/{serial}_snapshot.png", str(local_snapshot)], adb_path=adb_path, serial=serial, timeout=30)
+        run_adb(["shell", f"rm -f /sdcard/{serial}_snapshot.png"], adb_path=adb_path, serial=serial, timeout=10)
+        if local_snapshot.exists():
+            device_report["snapshotPath"] = str(local_snapshot)
+            print(f"[{serial}] Captured device snapshot to {local_snapshot}")
+            try:
+                brain_snapshots = Path(r"C:\Users\Master\.gemini\antigravity\brain\1683f741-2a6b-419e-8400-dbbea34231ed\snapshots")
+                brain_snapshots.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(local_snapshot, brain_snapshots / local_snapshot.name)
+            except Exception as e_snap:
+                print(f"[{serial}] [WARN] Could not copy snapshot to brain: {e_snap}")
 
         # 5. Capture logcat
         code_log, out_log, _ = run_adb(["logcat", "-d", "-v", "time"], adb_path=adb_path, serial=serial, timeout=60)
@@ -755,6 +774,12 @@ def main():
         help="Maximum number of rounds to execute (default: 2)."
     )
     parser.add_argument(
+        "--round",
+        type=int,
+        default=None,
+        help="Execute a specific round (e.g. 1 or 2)."
+    )
+    parser.add_argument(
         "--skip-build",
         action="store_true",
         help="Skip Gradle APK compilation step."
@@ -843,10 +868,9 @@ def main():
 
     else:
         # Fleet execution in rounds of 2 concurrent devices
-        num_rounds = min(args.rounds, len(FLEET_ROUNDS))
+        selected_rounds = [r for r in FLEET_ROUNDS if r["round_id"] == args.round] if args.round else FLEET_ROUNDS[:args.rounds]
 
-        for r_idx in range(num_rounds):
-            round_info = FLEET_ROUNDS[r_idx]
+        for round_info in selected_rounds:
             round_id = round_info["round_id"]
             round_name = round_info["name"]
             target_avds = round_info["devices"]
