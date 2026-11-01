@@ -1,0 +1,53 @@
+[
+  {
+    "turnId": "turn_01_hr",
+    "id": "turn_01_hr",
+    "filename": "turn_01_hr.wav",
+    "topic": "HR Behavioral (Conflict Resolution & Prioritization)",
+    "groundTruthRaw": "Can you describe a situation where you had a conflict with a stakeholder over roadmap prioritization, and what action you took to achieve a successful resolution?",
+    "groundTruthNormalized": "can you describe a situation where you had a conflict with a stakeholder over roadmap prioritization and what action you took to achieve a successful resolution",
+    "mustContainHotwords": [
+      "conflict",
+      "resolution",
+      "stakeholder",
+      "prioritization",
+      "situation",
+      "action"
+    ],
+    "expectedLlmKeywords": [
+      "star",
+      "listen",
+      "compromise",
+      "escalate",
+      "communication"
+    ],
+    "expectLikelyQuestion": true,
+    "maxAllowedWer": 0.15,
+    "audioDurationSec": 9.0
+  },
+  {
+    "turnId": "turn_02_ml",
+    "id": "turn_02_ml",
+    "filename": "turn_02_ml.wav",
+    "topic": "Machine Learning (Transformer Architecture & Algorithms)",
+    "groundTruthRaw": "Can you explain how a transformer architecture handles self-attention in Python algorithms, and what is the difference between gradient descent and Adam optimization to prevent overfitting?",
+    "groundTruthNormalized": "can you explain how a transformer architecture handles self attention in python algorithms and what is the difference between gradient descent and adam optimization to prevent overfitting",
+    "mustContainHotwords": [
+      "can you explain",
+      "architecture",
+      "python",
+      "algorithms",
+      "what is the difference between"
+    ],
+    "expectedLlmKeywords": [
+      "transformer",
+      "attention",
+      "gradient",
+      "weights",
+      "overfitting"
+    ],
+    "expectLikelyQuestion": true,
+    "maxAllowedWer": 0.15,
+    "audioDurationSec": 10.848
+  }
+]

@@ -23,4 +23,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "AI Interview Assistant"
-include(":app")
+include(":app", ":test-suite")

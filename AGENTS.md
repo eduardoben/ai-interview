@@ -89,7 +89,20 @@ This document serves as the authoritative technical context guide for AI Coding 
     - `Galaxy_A54_5G` (Android 13 / API 33, 1080×2340, 400 dpi, Mid-Tier Baseline)
   - Fleet Automation Scripts: `scripts/launch_emulators.bat`, `scripts/launch_all_emulators.bat`, `scripts/launch_all.ps1`, `scripts/launch_emulators_service.py`, and desktop launcher.
 
-### 6. Testing & Verification Harness (v1.8.0)
+### 6. Testing & Verification Harness (v1.8.0 - v1.9.0)
+- **Decoupled Standalone Test Module (`:test-suite`)**: Dedicated `com.android.test` module targeting `:app` via `targetProjectPath = ":app"`. Completely isolates heavy E2E audio fixtures, test harnesses, and instrumentation code from the production `:app` module, ensuring zero asset bloat or test seam contamination in release builds.
+- **Multi-Audio Parameterized E2E Suite (`ParameterizedInterviewE2ETest`)**: JUnit4 parameterized runner executing conversational interview turns (`assets/audio/interview_ground_truth.json`) with non-intrusive audio injection (`ScriptedWavAudioSource.kt`), test-scoped coordinator lifecycle (`E2ePipelineHarness.kt`), and warm model weight retention (`SharedWarmLlmEngineWrapper`).
+- **The 6 Quantitative Verification Gates**:
+  1. *Gate 1 (Pre-Flight)*: 6 required model files and valid GPU model size (2.58 GB).
+  2. *Gate 2 (VAD Segmentation)*: Exactly 1 segment, endpoint latency SLA <= 2000 ms.
+  3. *Gate 2b (Question Detection)*: Question detection evaluation with auto-fallback to `triggerAnswerGeneration()`.
+  4. *Gate 3 (WER)*: Word-level dynamic programming Levenshtein WER <= 0.15 with contraction normalization (`TranscriptEvaluator.kt`).
+  5. *Gate 4 (Hotwords Recall)*: 100% recall of required technical hotwords with compound bigram matching.
+  6. *Gate 5 (LLM Relevance & TTFT)*: Non-empty, >= max(2, 75%) keywords, TTFT <= 15000 ms on x86_64 CPU.
+  7. *Gate 6 (Stability & Memory)*: Zero crashes/ANRs, native heap + VmRSS growth < 50 MB after Turn 1 warmup.
+- **Ground Truth & Neural Audio Generator (`scripts/generate_ground_truth.py`)**: Synthesizes 16 kHz mono signed 16-bit PCM WAV fixtures using Edge-TTS neural voices (`turn_01_hr.wav`, `turn_02_ml.wav`) and auto-generates ground truth transcripts with faster-whisper.
+- **Concurrent 2-Device Fleet Runner (`scripts/run_e2e_fleet.py`)**: Concurrently executes tests across the virtual test fleet (Round 1: Pixel 10 Pro XL + Galaxy Tab S7+; Round 2: Galaxy S25 Ultra + Galaxy A54 5G) with differential model synchronization, logcat forensic scanning, and markdown summary matrix export to `build/e2e-reports/`.
+- **E2E Architecture & Operator Guide**: See [`docs/e2e_test_suite_guide.md`](file:///docs/e2e_test_suite_guide.md) for full operational runbooks.
 - **Headless Test Mock Suite (`FakeLlmBackend` in `com.local.interviewassistant.test`)**: Emulates LiteRT C++ generation streams for continuous integration runners without downloading multi-gigabyte model weights.
 - **`Phase2StabilityAndThermalTest`**: Asserts thermal status transitions (SEVERE/CRITICAL -> LIGHT), token truncation at 256 tokens, and memory trim cache reclamation.
 - **`RealDevicePipelineIntegrationTest`**: Grounded test suite verifying physical device specs (Pixel 10 Pro XL, Tensor G5, API 37), on-disk model layouts, sub-millisecond punctuation latency (<0.25ms), Sherpa-ONNX streaming Zipformer frame processing (<8ms), LiteRT EdgeTPU NPU execution via `libLiteRtDispatch_GoogleTensor.so`, and background service contracts.
