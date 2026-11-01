@@ -477,7 +477,8 @@ def execute_test_on_device(
     llm_mode: str,
     models_dir: Optional[str],
     dry_run: bool,
-    force_push: bool
+    force_push: bool,
+    test_class: str = "com.local.interviewassistant.e2e.ParameterizedInterviewE2ETest"
 ) -> Dict[str, Any]:
     """
     Executes E2E test lifecycle for a single target device.
@@ -543,7 +544,6 @@ def execute_test_on_device(
         remote_e2e_dir = "/sdcard/Android/data/com.local.interviewassistant/files/e2e"
         run_adb(["shell", f"mkdir -p '{remote_e2e_dir}' && rm -f '{remote_e2e_dir}'/*_result.json"], adb_path=adb_path, serial=serial, timeout=30)
 
-        test_class = "com.local.interviewassistant.e2e.ParameterizedInterviewE2ETest"
         runner_pkg = "com.local.interviewassistant.testsuite" if (ROOT_DIR / TEST_SUITE_APK_REL).exists() or (ROOT_DIR / "test-suite").exists() else "com.local.interviewassistant.test"
         runner = f"{runner_pkg}/androidx.test.runner.AndroidJUnitRunner"
         inst_cmd = [
@@ -808,11 +808,24 @@ def main():
         action="store_true",
         help="Force overwrite models during differential push."
     )
+    parser.add_argument(
+        "--test-class",
+        type=str,
+        default="e2e",
+        help="Test suite to run: 'e2e' (default, ParameterizedInterviewE2ETest), 'integration' (RealDevicePipelineIntegrationTest), or full class name."
+    )
 
     args = parser.parse_args()
 
     reports_dir = Path(args.reports_dir).resolve()
     reports_dir.mkdir(parents=True, exist_ok=True)
+
+    test_class_map = {
+        "e2e": "com.local.interviewassistant.e2e.ParameterizedInterviewE2ETest",
+        "integration": "com.local.interviewassistant.RealDevicePipelineIntegrationTest",
+        "hardware": "com.local.interviewassistant.RealDevicePipelineIntegrationTest"
+    }
+    resolved_test_class = test_class_map.get(args.test_class.lower(), args.test_class)
 
     adb_path = find_adb_path()
 
@@ -862,7 +875,8 @@ def main():
             llm_mode=args.llm_mode,
             models_dir=args.models_dir,
             dry_run=args.dry_run,
-            force_push=args.force_push
+            force_push=args.force_push,
+            test_class=resolved_test_class
         )
         all_reports.append(report)
 
@@ -913,7 +927,8 @@ def main():
                         args.llm_mode,
                         args.models_dir,
                         args.dry_run,
-                        args.force_push
+                        args.force_push,
+                        resolved_test_class
                     ): avd_name
                     for avd_name, serial, profile in round_tasks
                 }
