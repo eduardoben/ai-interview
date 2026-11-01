@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.10.0] - 2026-10-31
+
+### 🎧 Automated Multi-Audio E2E Interview Test Suite & Decoupled `:test-suite` Standalone Architecture
+- **Decoupled Standalone Test Architecture (`:test-suite` Module):**
+  - Created standalone test module `:test-suite` via `com.android.test` plugin targeting `:app`, completely segregating multi-megabyte audio assets, synthetic fixtures, and E2E instrumentation code from the production `:app` module.
+  - Production release builds (`:app:assembleRelease`, `:app:bundleRelease`) now contain zero test assets, zero mock audio feeds, and zero test harness code.
+- **Automated Multi-Audio Parameterized E2E Suite (`ParameterizedInterviewE2ETest`):**
+  - Implemented JUnit4 parameterized runner executing conversational interview turns from `assets/audio/interview_ground_truth.json`.
+  - Added non-intrusive `ScriptedWavAudioSource` with chunk-scanning RIFF WAV reader, monotonic 32 ms pacing, 2528 ms trailing silence, and nano-anchored endpoint timestamping.
+  - Added `E2ePipelineHarness` with `SharedWarmLlmEngineWrapper`, preventing per-turn coordinator teardowns from unloading the 2.58 GB LiteRT Gemma model (0 ms re-init).
+- **The 6 Emulator-Calibrated Verification Gates:**
+  - *Gate 1 (Pre-Flight)*: 6 required model files and valid GPU model size (2.58 GB).
+  - *Gate 2 (VAD Segmentation)*: Exactly 1 segment, endpoint latency SLA $\le 2000$ ms.
+  - *Gate 2b (Question Detection)*: Question detection evaluation with auto-fallback to `triggerAnswerGeneration()`.
+  - *Gate 3 (WER)*: Word-level dynamic programming Levenshtein WER $\le 0.15$ with contraction normalization (`TranscriptEvaluator`).
+  - *Gate 4 (Hotwords Recall)*: 100% recall of required technical hotwords with compound bigram matching.
+  - *Gate 5 (LLM Relevance & TTFT)*: Non-empty, $\ge \max(2, 75\%)$ keywords, TTFT $\le 15000$ ms on x86_64 CPU.
+  - *Gate 6 (Stability & Memory)*: Zero crashes/ANRs, native heap + VmRSS growth $< 50$ MB after Turn 1 warmup.
+- **Conversational Neural TTS Fixtures & Ground Truth Pipeline:**
+  - Added `scripts/generate_ground_truth.py` using Edge-TTS neural voices (`en-US-JennyNeural` for HR, `en-US-GuyNeural` for ML) and faster-whisper.
+  - Generated 16 kHz mono signed 16-bit PCM WAV fixtures (`turn_01_hr.wav`, `turn_02_ml.wav`) and `interview_ground_truth.json` with hotwords cross-validated against `AppConfig.ensureHotwordsFile()`.
+- **Concurrent Emulator Fleet Orchestrator (`scripts/run_e2e_fleet.py`):**
+  - Upgraded all 4 target AVDs to 8192 MB RAM (`hw.ramSize = 8192`).
+  - Implemented 2-device concurrent execution per round via `ThreadPoolExecutor(max_workers=2)`.
+  - Added differential model push (`scripts/push_models_to_fleet.py`), logcat forensic crash scanning, and structured reporting (`build/e2e-reports/fleet_summary.md`).
+  - Hardened for Windows consoles (`cp1252` and UTF-8 stream safety) with defensive subprocess timeouts.
+- **Comprehensive E2E Architecture & Operator Guide:**
+  - Published [`docs/e2e_test_suite_guide.md`](file:///docs/e2e_test_suite_guide.md).
+  - Updated `AGENTS.md` and `docs/production_readiness_plan.md` (`ENG-10` marked as RESOLVED).
+- Bumped application `versionCode = 14` and `versionName = "1.10.0"`.
+
+---
+
 ## [1.9.0] - 2026-10-30
 
 ### 🚀 Phase 4: Android 13+ (minSdk 33) Backwards Compatibility, Multi-ABI Emulation & Multi-Device Virtual Test Fleet
