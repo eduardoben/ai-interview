@@ -59,7 +59,7 @@ fun UsageScreen(
             title = {
                 Text(
                     "Clear Session History?",
-                    color = StealthTextPrimary,
+                    color = OledTextPrimary,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -67,7 +67,7 @@ fun UsageScreen(
             text = {
                 Text(
                     "This permanently deletes all saved interview Q&A records and resets local telemetry metrics.",
-                    color = StealthTextSecondary,
+                    color = OledTextSecondary,
                     fontSize = 12.sp,
                     lineHeight = 17.sp
                 )
@@ -77,15 +77,15 @@ fun UsageScreen(
                     showClearDialog = false
                     onClearHistory()
                 }) {
-                    Text("Clear All", color = StealthStatusCoral, fontWeight = FontWeight.SemiBold)
+                    Text("Clear All", color = OledStatusCoral, fontWeight = FontWeight.SemiBold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showClearDialog = false }) {
-                    Text("Cancel", color = StealthTextSecondary)
+                    Text("Cancel", color = OledTextSecondary)
                 }
             },
-            containerColor = StealthSurface,
+            containerColor = OledSurface,
             shape = RoundedCornerShape(16.dp)
         )
     }
@@ -94,8 +94,8 @@ fun UsageScreen(
         val record = selectedRecord!!
         ModalBottomSheet(
             onDismissRequest = { selectedRecord = null },
-            containerColor = StealthSurface,
-            contentColor = StealthTextPrimary,
+            containerColor = OledSurface,
+            contentColor = OledTextPrimary,
             shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
         ) {
             Column(
@@ -111,20 +111,20 @@ fun UsageScreen(
                 ) {
                     Box(
                         modifier = Modifier
-                            .background(StealthAccentIndigo.copy(alpha = 0.16f), RoundedCornerShape(6.dp))
+                            .background(OledAccentIndigo.copy(alpha = 0.16f), RoundedCornerShape(6.dp))
                             .padding(horizontal = 8.dp, vertical = 4.dp)
                     ) {
                         Text(
                             text = record.category.displayName,
                             fontSize = 11.sp,
-                            color = StealthAccentIndigoSoft,
+                            color = OledAccentIndigoSoft,
                             fontWeight = FontWeight.SemiBold
                         )
                     }
                     Text(
                         text = "${sdf.format(Date(record.timestamp))} • ${record.ttftMs}ms TTFT",
                         fontSize = 11.sp,
-                        color = StealthTextMuted
+                        color = OledTextMuted
                     )
                 }
 
@@ -134,10 +134,10 @@ fun UsageScreen(
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,
                     lineHeight = 21.sp,
-                    color = StealthTextPrimary
+                    color = OledTextPrimary
                 )
                 Spacer(modifier = Modifier.height(12.dp))
-                HorizontalDivider(thickness = 0.5.dp, color = StealthBorder)
+                HorizontalDivider(thickness = 0.5.dp, color = OledBorder)
                 Spacer(modifier = Modifier.height(12.dp))
 
                 FormattedTeleprompterAnswer(
@@ -154,7 +154,7 @@ fun UsageScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(48.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = StealthAccentIndigo),
+                    colors = ButtonDefaults.buttonColors(containerColor = OledAccentIndigo),
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Text("Share Q&A", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
@@ -167,7 +167,7 @@ fun UsageScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(StealthBackground)
+            .background(OledBackground)
             .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
         Row(
@@ -179,13 +179,13 @@ fun UsageScreen(
                 Text(
                     text = "Activity & Telemetry",
                     style = MaterialTheme.typography.headlineSmall,
-                    color = StealthTextPrimary
+                    color = OledTextPrimary
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = "On-device inference performance & saved Q&A log",
                     style = MaterialTheme.typography.bodySmall,
-                    color = StealthTextMuted
+                    color = OledTextMuted
                 )
             }
 
@@ -198,13 +198,13 @@ fun UsageScreen(
                         },
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
                     ) {
-                        Text("Export", fontSize = 12.sp, color = StealthAccentIndigoSoft, fontWeight = FontWeight.Medium)
+                        Text("Export", fontSize = 12.sp, color = OledAccentIndigoSoft, fontWeight = FontWeight.Medium)
                     }
                     TextButton(
                         onClick = { showClearDialog = true },
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
                     ) {
-                        Text("Clear", fontSize = 12.sp, color = StealthStatusCoral, fontWeight = FontWeight.Medium)
+                        Text("Clear", fontSize = 12.sp, color = OledStatusCoral, fontWeight = FontWeight.Medium)
                     }
                 }
             }
@@ -257,7 +257,7 @@ fun UsageScreen(
         Text(
             text = "SAVED INTERVIEW HISTORY",
             style = MaterialTheme.typography.labelSmall,
-            color = StealthTextMuted
+            color = OledTextMuted
         )
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -267,30 +267,30 @@ fun UsageScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
-                    .background(StealthSurface, RoundedCornerShape(16.dp))
-                    .border(0.5.dp, StealthBorder, RoundedCornerShape(16.dp)),
+                    .background(OledSurface, RoundedCornerShape(16.dp))
+                    .border(0.5.dp, OledBorder, RoundedCornerShape(16.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Box(
                         modifier = Modifier
                             .size(40.dp)
-                            .background(StealthSurfaceHigh, CircleShape),
+                            .background(OledSurfaceHigh, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
-                        StealthIcons.ActivityBar(color = StealthTextMuted, size = 18.dp)
+                        PrompterIcons.ActivityBar(color = OledTextMuted, size = 18.dp)
                     }
                     Spacer(modifier = Modifier.height(10.dp))
                     Text(
                         text = "No Saved Responses Yet",
-                        color = StealthTextSecondary,
+                        color = OledTextSecondary,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = "Generated answers from live sessions will appear here.",
-                        color = StealthTextMuted,
+                        color = OledTextMuted,
                         fontSize = 12.sp,
                         textAlign = TextAlign.Center
                     )
@@ -303,12 +303,12 @@ fun UsageScreen(
             ) {
                 items(records) { item ->
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = StealthSurface),
+                        colors = CardDefaults.cardColors(containerColor = OledSurface),
                         shape = RoundedCornerShape(14.dp),
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(14.dp))
-                            .border(0.5.dp, StealthBorder, RoundedCornerShape(14.dp))
+                            .border(0.5.dp, OledBorder, RoundedCornerShape(14.dp))
                             .clickable { selectedRecord = item }
                     ) {
                         Column(modifier = Modifier.padding(14.dp)) {
@@ -322,12 +322,12 @@ fun UsageScreen(
                                     fontSize = 10.sp,
                                     letterSpacing = 0.6.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = StealthAccentIndigoSoft
+                                    color = OledAccentIndigoSoft
                                 )
                                 Text(
                                     text = sdf.format(Date(item.timestamp)),
                                     fontSize = 11.sp,
-                                    color = StealthTextMuted
+                                    color = OledTextMuted
                                 )
                             }
                             Spacer(modifier = Modifier.height(6.dp))
@@ -335,7 +335,7 @@ fun UsageScreen(
                                 text = item.question,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = StealthTextPrimary,
+                                color = OledTextPrimary,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -344,7 +344,7 @@ fun UsageScreen(
                                 text = item.answer.replace("**", ""),
                                 fontSize = 12.sp,
                                 lineHeight = 17.sp,
-                                color = StealthTextSecondary,
+                                color = OledTextSecondary,
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -364,15 +364,15 @@ private fun MetricCard(
     modifier: Modifier = Modifier
 ) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = StealthSurface),
+        colors = CardDefaults.cardColors(containerColor = OledSurface),
         shape = RoundedCornerShape(14.dp),
-        modifier = modifier.border(0.5.dp, StealthBorder, RoundedCornerShape(14.dp))
+        modifier = modifier.border(0.5.dp, OledBorder, RoundedCornerShape(14.dp))
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.labelSmall,
-                color = StealthTextMuted
+                color = OledTextMuted
             )
             Spacer(modifier = Modifier.height(6.dp))
             Text(
@@ -380,13 +380,13 @@ private fun MetricCard(
                 fontSize = 20.sp,
                 fontWeight = FontWeight.SemiBold,
                 letterSpacing = (-0.3).sp,
-                color = StealthTextPrimary
+                color = OledTextPrimary
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = subtitle,
                 fontSize = 11.sp,
-                color = StealthTextSecondary,
+                color = OledTextSecondary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )

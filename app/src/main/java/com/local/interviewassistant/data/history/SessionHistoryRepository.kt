@@ -1,6 +1,9 @@
 package com.local.interviewassistant.data.history
 
 import com.local.interviewassistant.core.model.InterviewCategory
+import com.local.interviewassistant.data.history.db.AiContentReportDao
+import com.local.interviewassistant.data.history.db.AiContentReportEntity
+import com.local.interviewassistant.data.history.db.AppDatabase
 import com.local.interviewassistant.data.history.db.InterviewSessionDao
 import com.local.interviewassistant.data.history.db.InterviewSessionEntity
 import org.json.JSONArray
@@ -43,14 +46,19 @@ class SessionHistoryRepository(
     private val dao: InterviewSessionDao? = null,
     private val legacyStorageDir: File? = null,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
-    private val ioDispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.IO
+    private val ioDispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.IO,
+    reportDao: AiContentReportDao? = null
 ) {
+    private val activeReportDao: AiContentReportDao? = reportDao ?: AppDatabase.getInstance()?.aiContentReportDao()
+    private val inMemoryReports = mutableListOf<AiContentReportEntity>()
+
     // Secondary constructor for backward compatibility with existing constructor calls
     constructor(legacyStorageDir: File) : this(
         dao = null,
         legacyStorageDir = legacyStorageDir,
         scope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
-        ioDispatcher = Dispatchers.IO
+        ioDispatcher = Dispatchers.IO,
+        reportDao = null
     )
 
     private val legacyHistoryFile = legacyStorageDir?.let { File(it, "interview_session_history.json") }
@@ -224,5 +232,50 @@ class SessionHistoryRepository(
             sb.append("---\n\n")
         }
         return sb.toString()
+    }
+
+    suspend fun submitAiReport(
+        question: String?,
+        answer: String,
+        reason: AiReportReason,
+        comment: String? = null
+    ): AiContentReportEntity = withContext(ioDispatcher) {
+        val report = AiContentReportEntity(
+            question = question,
+            answer = answer,
+            reason = reason.name,
+            comment = comment
+        )
+        val rDao = activeReportDao
+        if (rDao != null) {
+            rDao.insertReport(report)
+        } else {
+            synchronized(inMemoryReports) {
+                inMemoryReports.add(0, report)
+            }
+        }
+        report
+    }
+
+    suspend fun getAiReports(): List<AiContentReportEntity> = withContext(ioDispatcher) {
+        val rDao = activeReportDao
+        if (rDao != null) {
+            rDao.getAllReports()
+        } else {
+            synchronized(inMemoryReports) {
+                inMemoryReports.toList()
+            }
+        }
+    }
+
+    suspend fun clearAllAiReports() = withContext(ioDispatcher) {
+        val rDao = activeReportDao
+        if (rDao != null) {
+            rDao.clearAllReports()
+        } else {
+            synchronized(inMemoryReports) {
+                inMemoryReports.clear()
+            }
+        }
     }
 }

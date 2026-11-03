@@ -13,18 +13,30 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.local.interviewassistant.core.di.AppContainer
 import com.local.interviewassistant.core.model.AssistantState
 import com.local.interviewassistant.core.model.TranscriptSegment
+import com.local.interviewassistant.data.history.AiReportReason
+import com.local.interviewassistant.ui.dialog.ReportAiContentDialog
 import com.local.interviewassistant.ui.prompter.FormattedTeleprompterAnswer
 import com.local.interviewassistant.ui.theme.*
+import kotlinx.coroutines.launch
 
 /**
  * Top-weighted Teleprompter reading zone displaying questions, streaming answers,
@@ -43,9 +55,13 @@ fun TeleprompterDisplay(
     autoFollowStream: Boolean,
     onAutoFollowChange: (Boolean) -> Unit,
     onSelectTranscriptSegment: (TranscriptSegment) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onReportAiContent: ((AiReportReason, String?) -> Unit)? = null
 ) {
     val scrollState = rememberScrollState()
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    var showReportDialog by remember { mutableStateOf(false) }
 
     // Disable auto-follow if the user manually drags upward to inspect earlier lines
     LaunchedEffect(scrollState.isScrollInProgress) {
@@ -75,8 +91,8 @@ fun TeleprompterDisplay(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .background(StealthSurface, RoundedCornerShape(16.dp))
-            .border(0.5.dp, StealthBorder, RoundedCornerShape(16.dp))
+            .background(OledSurface, RoundedCornerShape(16.dp))
+            .border(0.5.dp, OledBorder, RoundedCornerShape(16.dp))
             .padding(horizontal = 18.dp, vertical = 16.dp)
     ) {
         Column(
@@ -89,7 +105,7 @@ fun TeleprompterDisplay(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(StealthSurfaceHigh.copy(alpha = 0.7f), RoundedCornerShape(10.dp))
+                        .background(OledSurfaceHigh.copy(alpha = 0.7f), RoundedCornerShape(10.dp))
                         .padding(horizontal = 12.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -97,12 +113,12 @@ fun TeleprompterDisplay(
                         modifier = Modifier
                             .width(3.dp)
                             .height(22.dp)
-                            .background(StealthAccentIndigo, RoundedCornerShape(2.dp))
+                            .background(OledAccentIndigo, RoundedCornerShape(2.dp))
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
                         text = activeQuestion,
-                        color = StealthTextPrimary,
+                        color = OledTextPrimary,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium,
                         lineHeight = 20.sp
@@ -112,10 +128,63 @@ fun TeleprompterDisplay(
             }
 
             if (!activeAnswer.isNullOrBlank()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "AI PRACTICE RESPONSE",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = OledAccentIndigoSoft
+                    )
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(OledSurfaceHigh)
+                            .clickable { showReportDialog = true }
+                            .semantics { contentDescription = "Report AI-generated response" },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        PrompterIcons.Flag(color = OledTextSecondary, size = 15.dp)
+                    }
+                }
+
                 FormattedTeleprompterAnswer(
                     text = activeAnswer,
                     fontSize = fontSizeSp.sp
                 )
+
+                Spacer(modifier = Modifier.height(10.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "AI responses may contain inaccuracies. Verify facts independently.",
+                        fontSize = 11.sp,
+                        color = OledTextMuted,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Report",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = OledAccentIndigoSoft,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .clickable { showReportDialog = true }
+                            .padding(horizontal = 6.dp, vertical = 4.dp)
+                    )
+                }
             } else if (pipelineState is AssistantState.GeneratingAnswer) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -124,12 +193,12 @@ fun TeleprompterDisplay(
                     CircularProgressIndicator(
                         modifier = Modifier.size(14.dp),
                         strokeWidth = 1.75.dp,
-                        color = StealthStatusAmber
+                        color = OledStatusAmber
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
                         text = "Synthesizing response...",
-                        color = StealthStatusAmber,
+                        color = OledStatusAmber,
                         fontSize = 14.sp,
                         fontStyle = FontStyle.Italic
                     )
@@ -144,36 +213,36 @@ fun TeleprompterDisplay(
                     CircularProgressIndicator(
                         modifier = Modifier.size(24.dp),
                         strokeWidth = 2.dp,
-                        color = StealthAccentIndigo
+                        color = OledAccentIndigo
                     )
                     Spacer(modifier = Modifier.height(14.dp))
                     Text(
                         text = "Initializing On-Device Pipeline",
                         fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = StealthTextPrimary
+                        color = OledTextPrimary
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = "Allocating neural accelerator & speech streams",
                         fontSize = 12.sp,
-                        color = StealthTextMuted
+                        color = OledTextMuted
                     )
                 }
             } else if (pipelineState is AssistantState.Error) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(StealthStatusCoral.copy(alpha = 0.1f), RoundedCornerShape(10.dp))
-                        .border(0.5.dp, StealthStatusCoral.copy(alpha = 0.35f), RoundedCornerShape(10.dp))
+                        .background(OledStatusCoral.copy(alpha = 0.1f), RoundedCornerShape(10.dp))
+                        .border(0.5.dp, OledStatusCoral.copy(alpha = 0.35f), RoundedCornerShape(10.dp))
                         .padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    StealthIcons.AlertCircle(color = StealthStatusCoral, size = 16.dp)
+                    PrompterIcons.AlertCircle(color = OledStatusCoral, size = 16.dp)
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
                         text = pipelineState.message,
-                        color = StealthStatusCoral,
+                        color = OledStatusCoral,
                         fontSize = 13.sp,
                         lineHeight = 18.sp
                     )
@@ -183,16 +252,16 @@ fun TeleprompterDisplay(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(StealthSurfaceHigh, RoundedCornerShape(10.dp))
-                            .border(0.5.dp, StealthStatusEmerald.copy(alpha = 0.45f), RoundedCornerShape(10.dp))
+                            .background(OledSurfaceHigh, RoundedCornerShape(10.dp))
+                            .border(0.5.dp, OledStatusEmerald.copy(alpha = 0.45f), RoundedCornerShape(10.dp))
                             .padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        StealthIcons.Microphone(color = StealthStatusEmerald, size = 16.dp)
+                        PrompterIcons.Microphone(color = OledStatusEmerald, size = 16.dp)
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
                             text = "$livePartialTranscript...",
-                            color = StealthStatusEmerald,
+                            color = OledStatusEmerald,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Medium,
                             lineHeight = 21.sp
@@ -207,7 +276,7 @@ fun TeleprompterDisplay(
                         fontSize = 10.sp,
                         letterSpacing = 0.8.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = StealthTextMuted
+                        color = OledTextMuted
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     transcriptHistory.takeLast(5).reversed().forEach { seg ->
@@ -216,10 +285,10 @@ fun TeleprompterDisplay(
                                 .fillMaxWidth()
                                 .padding(vertical = 3.dp)
                                 .clip(RoundedCornerShape(10.dp))
-                                .background(StealthSurfaceHigh)
+                                .background(OledSurfaceHigh)
                                 .border(
                                     0.5.dp,
-                                    if (seg.isLikelyQuestion) StealthAccentIndigo.copy(alpha = 0.45f) else StealthBorder,
+                                    if (seg.isLikelyQuestion) OledAccentIndigo.copy(alpha = 0.45f) else OledBorder,
                                     RoundedCornerShape(10.dp)
                                 )
                                 .clickable { onSelectTranscriptSegment(seg) }
@@ -228,7 +297,7 @@ fun TeleprompterDisplay(
                         ) {
                             Text(
                                 text = seg.text,
-                                color = if (seg.isLikelyQuestion) StealthTextPrimary else StealthTextSecondary,
+                                color = if (seg.isLikelyQuestion) OledTextPrimary else OledTextSecondary,
                                 fontSize = 13.sp,
                                 lineHeight = 18.sp,
                                 modifier = Modifier.weight(1f)
@@ -236,7 +305,7 @@ fun TeleprompterDisplay(
                             Spacer(modifier = Modifier.width(10.dp))
                             Text(
                                 text = "Answer →",
-                                color = StealthAccentIndigoSoft,
+                                color = OledAccentIndigoSoft,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.SemiBold
                             )
@@ -255,20 +324,20 @@ fun TeleprompterDisplay(
                         modifier = Modifier
                             .size(44.dp)
                             .background(
-                                if (isServiceRunning) StealthStatusEmerald.copy(alpha = 0.12f)
-                                else StealthSurfaceHigh,
+                                if (isServiceRunning) OledStatusEmerald.copy(alpha = 0.12f)
+                                else OledSurfaceHigh,
                                 CircleShape
                             )
                             .border(
                                 0.5.dp,
-                                if (isServiceRunning) StealthStatusEmerald.copy(alpha = 0.35f)
-                                else StealthBorder,
+                                if (isServiceRunning) OledStatusEmerald.copy(alpha = 0.35f)
+                                else OledBorder,
                                 CircleShape
                             ),
                         contentAlignment = Alignment.Center
                     ) {
-                        StealthIcons.Microphone(
-                            color = if (isServiceRunning) StealthStatusEmerald else StealthTextSecondary,
+                        PrompterIcons.Microphone(
+                            color = if (isServiceRunning) OledStatusEmerald else OledTextSecondary,
                             size = 20.dp
                         )
                     }
@@ -277,23 +346,54 @@ fun TeleprompterDisplay(
                         text = if (isServiceRunning) "Listening for Questions" else "Teleprompter Ready",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = if (isServiceRunning) StealthTextPrimary else StealthTextSecondary
+                        color = if (isServiceRunning) OledTextPrimary else OledTextSecondary
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         text = if (isServiceRunning) {
                             "Speak naturally or tap the transcript bar below to enter a prompt."
                         } else {
-                            "Start the live copilot below to capture questions in real time."
+                            "Start the practice copilot below to capture questions in real time."
                         },
                         fontSize = 12.sp,
                         lineHeight = 17.sp,
-                        color = StealthTextMuted,
+                        color = OledTextMuted,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.widthIn(max = 260.dp)
                     )
                 }
             }
+        }
+
+        if (showReportDialog && !activeAnswer.isNullOrBlank()) {
+            ReportAiContentDialog(
+                question = activeQuestion,
+                answer = activeAnswer,
+                onDismiss = { showReportDialog = false },
+                onSubmit = { reason, comment ->
+                    showReportDialog = false
+                    if (onReportAiContent != null) {
+                        onReportAiContent(reason, comment)
+                    } else {
+                        coroutineScope.launch {
+                            try {
+                                val appContainer = AppContainer.getInstance(context)
+                                appContainer.sessionHistoryRepository.submitAiReport(
+                                    question = activeQuestion,
+                                    answer = activeAnswer,
+                                    reason = reason,
+                                    comment = comment
+                                )
+                                android.widget.Toast.makeText(
+                                    context,
+                                    "Report submitted. Thank you for your feedback.",
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
+                            } catch (_: Exception) {}
+                        }
+                    }
+                }
+            )
         }
     }
 }

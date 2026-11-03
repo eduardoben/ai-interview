@@ -26,6 +26,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontStyle
@@ -34,12 +35,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.local.interviewassistant.core.di.AppContainer
 import com.local.interviewassistant.core.model.AssistantState
 import com.local.interviewassistant.core.model.CopilotUiState
 import com.local.interviewassistant.core.model.InterviewCategory
 import com.local.interviewassistant.core.model.TranscriptSegment
+import com.local.interviewassistant.data.history.AiReportReason
 import com.local.interviewassistant.ui.prompter.FormattedTeleprompterAnswer
 import com.local.interviewassistant.ui.theme.*
+import kotlinx.coroutines.launch
 
 @Suppress("UNUSED_PARAMETER")
 @Composable
@@ -54,14 +58,18 @@ fun FloatingHudOverlay(
     onDrag: (dx: Float, dy: Float) -> Unit,
     modifier: Modifier = Modifier,
     onSelectCategory: (InterviewCategory) -> Unit = {},
+    onReportAiContent: ((AiReportReason, String?) -> Unit)? = null
 ) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    var showReportModal by remember { mutableStateOf(false) }
     val rawStatusColor = when (uiState.pipelineState) {
-        is AssistantState.Listening, is AssistantState.DetectingSpeech -> StealthStatusEmerald
-        is AssistantState.GeneratingAnswer -> StealthStatusAmber
-        is AssistantState.AnswerReady -> StealthAccentIndigoSoft
-        is AssistantState.Paused -> StealthStatusAmber
-        is AssistantState.Error -> StealthStatusCoral
-        else -> StealthTextSecondary
+        is AssistantState.Listening, is AssistantState.DetectingSpeech -> OledStatusEmerald
+        is AssistantState.GeneratingAnswer -> OledStatusAmber
+        is AssistantState.AnswerReady -> OledAccentIndigoSoft
+        is AssistantState.Paused -> OledStatusAmber
+        is AssistantState.Error -> OledStatusCoral
+        else -> OledTextSecondary
     }
 
     val statusColor by animateColorAsState(
@@ -93,12 +101,12 @@ fun FloatingHudOverlay(
                     elevation = 16.dp,
                     shape = RoundedCornerShape(50),
                     ambientColor = Color.Black,
-                    spotColor = StealthAccentIndigo.copy(alpha = 0.45f)
+                    spotColor = OledAccentIndigo.copy(alpha = 0.45f)
                 )
                 .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
                 .clip(RoundedCornerShape(50))
                 .background(Color(0xF506070A))
-                .border(0.5.dp, StealthBorderHigh, RoundedCornerShape(50))
+                .border(0.5.dp, OledBorderHigh, RoundedCornerShape(50))
                 .clickable { onToggleMinimize() }
                 .semantics { contentDescription = "Expand Copilot HUD" }
                 .pointerInput(Unit) {
@@ -116,7 +124,7 @@ fun FloatingHudOverlay(
                 Text(
                     text = "Copilot",
                     style = MaterialTheme.typography.titleSmall,
-                    color = StealthTextPrimary
+                    color = OledTextPrimary
                 )
             }
         }
@@ -149,7 +157,7 @@ fun FloatingHudOverlay(
         }
 
         // Outer 8.dp margin prevents WindowManager ComposeView from clipping the 16.dp drop shadow
-        Column(
+        Box(
             modifier = modifier
                 .padding(8.dp)
                 .width(352.dp)
@@ -158,18 +166,22 @@ fun FloatingHudOverlay(
                     elevation = 16.dp,
                     shape = RoundedCornerShape(16.dp),
                     ambientColor = Color.Black,
-                    spotColor = StealthAccentIndigo.copy(alpha = 0.40f)
+                    spotColor = OledAccentIndigo.copy(alpha = 0.40f)
                 )
                 // 96% opaque OLED surface with 0.5.dp top-lit border to lift off underlying dark apps
                 .background(Color(0xF506070A), RoundedCornerShape(16.dp))
-                .border(0.5.dp, StealthBorderHigh, RoundedCornerShape(16.dp))
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .border(0.5.dp, OledBorderHigh, RoundedCornerShape(16.dp))
         ) {
-            // Subtle Top Drag Handle + Header Bar (48dp accessible hit targets for Minimize/Close)
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .pointerInput(Unit) {
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+            ) {
+                // Subtle Top Drag Handle + Header Bar (48dp accessible hit targets for Minimize/Close)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .pointerInput(Unit) {
                         detectDragGestures { change, dragAmount ->
                             change.consume()
                             onDrag(dragAmount.x, dragAmount.y)
@@ -180,7 +192,7 @@ fun FloatingHudOverlay(
                     modifier = Modifier
                         .width(32.dp)
                         .height(4.dp)
-                        .background(StealthBorderHigh, RoundedCornerShape(50))
+                        .background(OledBorderHigh, RoundedCornerShape(50))
                         .align(Alignment.CenterHorizontally)
                 )
                 Spacer(modifier = Modifier.height(4.dp))
@@ -205,7 +217,7 @@ fun FloatingHudOverlay(
                     Text(
                         text = if (uiState.lastTtftMs > 0) "$statusText • ${uiState.lastTtftMs}ms" else statusText,
                         style = MaterialTheme.typography.labelSmall,
-                        color = StealthTextPrimary,
+                        color = OledTextPrimary,
                         modifier = Modifier.weight(1f)
                     )
 
@@ -213,14 +225,14 @@ fun FloatingHudOverlay(
                     if (uiState.isThermalThrottled) {
                         Box(
                             modifier = Modifier
-                                .background(StealthStatusAmber.copy(alpha = 0.2f), RoundedCornerShape(4.dp))
-                                .border(0.5.dp, StealthStatusAmber, RoundedCornerShape(4.dp))
+                                .background(OledStatusAmber.copy(alpha = 0.2f), RoundedCornerShape(4.dp))
+                                .border(0.5.dp, OledStatusAmber, RoundedCornerShape(4.dp))
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Text(
                                 text = "THROTTLED",
                                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Bold),
-                                color = StealthStatusAmber
+                                color = OledStatusAmber
                             )
                         }
                         Spacer(modifier = Modifier.width(6.dp))
@@ -238,11 +250,11 @@ fun FloatingHudOverlay(
                         Box(
                             modifier = Modifier
                                 .size(28.dp)
-                                .background(StealthSurfaceHigh, CircleShape)
-                                .border(0.5.dp, StealthBorder, CircleShape),
+                                .background(OledSurfaceHigh, CircleShape)
+                                .border(0.5.dp, OledBorder, CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
-                            StealthIcons.MinimizeLine(color = StealthTextSecondary, size = 12.dp)
+                            PrompterIcons.MinimizeLine(color = OledTextSecondary, size = 12.dp)
                         }
                     }
 
@@ -258,11 +270,11 @@ fun FloatingHudOverlay(
                         Box(
                             modifier = Modifier
                                 .size(28.dp)
-                                .background(StealthSurfaceHigh, CircleShape)
-                                .border(0.5.dp, StealthBorder, CircleShape),
+                                .background(OledSurfaceHigh, CircleShape)
+                                .border(0.5.dp, OledBorder, CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
-                            StealthIcons.CloseCross(color = StealthTextSecondary, size = 12.dp)
+                            PrompterIcons.CloseCross(color = OledTextSecondary, size = 12.dp)
                         }
                     }
                 }
@@ -289,11 +301,11 @@ fun FloatingHudOverlay(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(50))
                                 .background(
-                                    if (isSelected) StealthAccentIndigo.copy(alpha = 0.22f) else StealthSurfaceHigh
+                                    if (isSelected) OledAccentIndigo.copy(alpha = 0.22f) else OledSurfaceHigh
                                 )
                                 .border(
                                     width = if (isSelected) 1.dp else 0.5.dp,
-                                    color = if (isSelected) StealthAccentIndigo else StealthBorder,
+                                    color = if (isSelected) OledAccentIndigo else OledBorder,
                                     shape = RoundedCornerShape(50)
                                 )
                                 .padding(horizontal = 12.dp, vertical = 4.dp)
@@ -303,7 +315,7 @@ fun FloatingHudOverlay(
                                 style = MaterialTheme.typography.bodySmall.copy(
                                     fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
                                 ),
-                                color = if (isSelected) StealthTextPrimary else StealthTextSecondary
+                                color = if (isSelected) OledTextPrimary else OledTextSecondary
                             )
                         }
                     }
@@ -323,7 +335,7 @@ fun FloatingHudOverlay(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(StealthSurfaceHigh, RoundedCornerShape(8.dp))
+                            .background(OledSurfaceHigh, RoundedCornerShape(8.dp))
                             .padding(horizontal = 12.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -331,23 +343,71 @@ fun FloatingHudOverlay(
                             modifier = Modifier
                                 .width(4.dp)
                                 .height(16.dp)
-                                .background(StealthAccentIndigo, RoundedCornerShape(2.dp))
+                                .background(OledAccentIndigo, RoundedCornerShape(2.dp))
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = uiState.activeQuestion,
                             style = MaterialTheme.typography.titleSmall,
-                            color = StealthTextPrimary
+                            color = OledTextPrimary
                         )
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                 }
 
                 if (!uiState.activeAnswer.isNullOrBlank()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "AI RESPONSE",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = OledAccentIndigoSoft
+                        )
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(CircleShape)
+                                .background(OledSurfaceHigh)
+                                .clickable { showReportModal = true }
+                                .semantics { contentDescription = "Report AI Response" },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            PrompterIcons.Flag(color = OledTextSecondary, size = 13.dp)
+                        }
+                    }
+
                     FormattedTeleprompterAnswer(
                         text = uiState.activeAnswer,
                         fontSize = 15.sp
                     )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Verify facts independently",
+                            fontSize = 10.sp,
+                            color = OledTextMuted
+                        )
+                        Text(
+                            text = "Report",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = OledAccentIndigoSoft,
+                            modifier = Modifier
+                                .clickable { showReportModal = true }
+                                .padding(horizontal = 4.dp, vertical = 2.dp)
+                        )
+                    }
                 } else if (uiState.pipelineState is AssistantState.GeneratingAnswer) {
                     Row(
                         modifier = Modifier.padding(vertical = 8.dp),
@@ -356,7 +416,7 @@ fun FloatingHudOverlay(
                         CircularProgressIndicator(
                             modifier = Modifier.size(16.dp),
                             strokeWidth = 2.dp,
-                            color = StealthStatusAmber
+                            color = OledStatusAmber
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
@@ -364,7 +424,7 @@ fun FloatingHudOverlay(
                             style = MaterialTheme.typography.bodyMedium.copy(
                                 fontStyle = FontStyle.Italic
                             ),
-                            color = StealthStatusAmber
+                            color = OledStatusAmber
                         )
                     }
                 } else {
@@ -378,27 +438,27 @@ fun FloatingHudOverlay(
                         Box(
                             modifier = Modifier
                                 .size(36.dp)
-                                .background(StealthStatusEmerald.copy(alpha = 0.12f), CircleShape)
-                                .border(0.5.dp, StealthStatusEmerald.copy(alpha = 0.35f), CircleShape),
+                                .background(OledStatusEmerald.copy(alpha = 0.12f), CircleShape)
+                                .border(0.5.dp, OledStatusEmerald.copy(alpha = 0.35f), CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
-                            StealthIcons.Microphone(
-                                color = StealthStatusEmerald,
+                            PrompterIcons.Microphone(
+                                color = OledStatusEmerald,
                                 size = 16.dp,
                                 modifier = Modifier.alpha(micPulseAlpha)
                             )
                         }
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "Ready for your interview",
+                            text = "Ready for interview practice",
                             style = MaterialTheme.typography.titleSmall,
-                            color = StealthTextPrimary
+                            color = OledTextPrimary
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = "Speak naturally or select a category above.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = StealthTextMuted,
+                            color = OledTextMuted,
                             textAlign = TextAlign.Center
                         )
                     }
@@ -411,17 +471,17 @@ fun FloatingHudOverlay(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(StealthSurface, RoundedCornerShape(8.dp))
+                    .background(OledSurface, RoundedCornerShape(8.dp))
                     .border(
                         0.5.dp,
-                        if (isDetectingSpeech) StealthStatusEmerald.copy(alpha = 0.45f) else StealthBorder,
+                        if (isDetectingSpeech) OledStatusEmerald.copy(alpha = 0.45f) else OledBorder,
                         RoundedCornerShape(8.dp)
                     )
                     .padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                StealthIcons.Microphone(
-                    color = if (isDetectingSpeech) StealthStatusEmerald else StealthTextMuted,
+                PrompterIcons.Microphone(
+                    color = if (isDetectingSpeech) OledStatusEmerald else OledTextMuted,
                     size = 12.dp,
                     modifier = Modifier.alpha(if (isDetectingSpeech) micPulseAlpha else 1f)
                 )
@@ -434,7 +494,7 @@ fun FloatingHudOverlay(
                 Text(
                     text = transcriptText,
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (isDetectingSpeech) StealthStatusEmerald else StealthTextMuted,
+                    color = if (isDetectingSpeech) OledStatusEmerald else OledTextMuted,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -453,7 +513,7 @@ fun FloatingHudOverlay(
                     modifier = Modifier
                         .weight(1.4f)
                         .heightIn(min = 48.dp)
-                        .background(StealthAccentIndigo.copy(alpha = 0.14f), RoundedCornerShape(12.dp))
+                        .background(OledAccentIndigo.copy(alpha = 0.14f), RoundedCornerShape(12.dp))
                         .padding(2.dp)
                 ) {
                     Button(
@@ -463,7 +523,7 @@ fun FloatingHudOverlay(
                         modifier = Modifier
                             .fillMaxSize()
                             .semantics { contentDescription = "Force immediate answer generation" },
-                        colors = ButtonDefaults.buttonColors(containerColor = StealthAccentIndigo),
+                        colors = ButtonDefaults.buttonColors(containerColor = OledAccentIndigo),
                         shape = RoundedCornerShape(10.dp),
                         contentPadding = PaddingValues(0.dp)
                     ) {
@@ -483,17 +543,17 @@ fun FloatingHudOverlay(
                         .semantics { contentDescription = if (uiState.pipelineState is AssistantState.Paused) "Resume assistant listening" else "Pause assistant listening" }
                         .heightIn(min = 48.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = StealthSurface,
-                        contentColor = StealthTextPrimary
+                        containerColor = OledSurface,
+                        contentColor = OledTextPrimary
                     ),
                     shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(0.5.dp, StealthBorderHigh),
+                    border = BorderStroke(0.5.dp, OledBorderHigh),
                     contentPadding = PaddingValues(0.dp)
                 ) {
                     Text(
                         text = if (uiState.pipelineState is AssistantState.Paused) "Resume" else "Pause",
                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                        color = StealthTextPrimary
+                        color = OledTextPrimary
                     )
                 }
 
@@ -510,8 +570,176 @@ fun FloatingHudOverlay(
                     Text(
                         text = "Clear",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = StealthTextSecondary
+                        color = OledTextSecondary
                     )
+                }
+            }
+        }
+
+        // In-Tree Modal: Prevents WindowManager$BadTokenException in Foreground Service Overlay
+        if (showReportModal && !uiState.activeAnswer.isNullOrBlank()) {
+            ReportAiContentOverlayCard(
+                question = uiState.activeQuestion,
+                answer = uiState.activeAnswer,
+                onDismiss = { showReportModal = false },
+                onSubmit = { reason, comment ->
+                    showReportModal = false
+                    if (onReportAiContent != null) {
+                        onReportAiContent(reason, comment)
+                    } else {
+                        coroutineScope.launch {
+                            try {
+                                val appContainer = AppContainer.getInstance(context)
+                                appContainer.sessionHistoryRepository.submitAiReport(
+                                    question = uiState.activeQuestion,
+                                    answer = uiState.activeAnswer,
+                                    reason = reason,
+                                    comment = comment
+                                )
+                            } catch (_: Exception) {}
+                        }
+                    }
+                }
+            )
+        }
+    }
+}
+}
+
+/**
+ * In-Tree Composable Modal for reporting AI content inside the system overlay (Requirement R2, P0-03).
+ *
+ * CRITICAL ARCHITECTURAL CONSTRAINT:
+ * Standard Android [Dialog] or [AlertDialog] MUST NOT be used inside FloatingHudOverlay because
+ * AssistantForegroundService's WindowManager context throws WindowManager$BadTokenException.
+ * This component is rendered purely in-tree on the existing overlay surface.
+ */
+@Composable
+fun ReportAiContentOverlayCard(
+    question: String?,
+    answer: String,
+    onDismiss: () -> Unit,
+    onSubmit: (reason: AiReportReason, comment: String?) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var selectedReason by remember { mutableStateOf(AiReportReason.FACTUAL_INACCURACY) }
+    var userComment by remember { mutableStateOf("") }
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(Color(0xFA06070A), RoundedCornerShape(16.dp))
+            .border(0.5.dp, OledAccentIndigo.copy(alpha = 0.6f), RoundedCornerShape(16.dp))
+            .padding(14.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    PrompterIcons.Flag(color = OledStatusAmber, size = 16.dp)
+                    Text(
+                        text = "Report AI Response",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = OledTextPrimary
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clip(CircleShape)
+                        .background(OledSurfaceHigh)
+                        .clickable { onDismiss() }
+                        .semantics { contentDescription = "Close report dialog" },
+                    contentAlignment = Alignment.Center
+                ) {
+                    PrompterIcons.CloseCross(color = OledTextMuted, size = 12.dp)
+                }
+            }
+
+            Text(
+                text = "Reason for Report",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = OledTextPrimary
+            )
+
+            AiReportReason.values().forEach { reason ->
+                val isSelected = (reason == selectedReason)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { selectedReason = reason }
+                        .background(
+                            color = if (isSelected) OledSurfaceHigh else Color.Transparent,
+                            shape = RoundedCornerShape(6.dp)
+                        )
+                        .padding(horizontal = 4.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(
+                        selected = isSelected,
+                        onClick = { selectedReason = reason },
+                        colors = RadioButtonDefaults.colors(
+                            selectedColor = OledAccentIndigo,
+                            unselectedColor = OledTextMuted
+                        ),
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = reason.title,
+                        fontSize = 11.sp,
+                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                        color = if (isSelected) OledTextPrimary else OledTextSecondary
+                    )
+                }
+            }
+
+            OutlinedTextField(
+                value = userComment,
+                onValueChange = { userComment = it },
+                placeholder = { Text("Optional details...", fontSize = 11.sp) },
+                modifier = Modifier.fillMaxWidth(),
+                maxLines = 2,
+                textStyle = LocalTextStyle.current.copy(fontSize = 11.sp, color = OledTextPrimary),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = OledAccentIndigo,
+                    unfocusedBorderColor = OledBorder,
+                    focusedLabelColor = OledAccentIndigoSoft,
+                    unfocusedLabelColor = OledTextMuted
+                )
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TextButton(onClick = onDismiss) {
+                    Text("Cancel", color = OledTextMuted, fontSize = 12.sp)
+                }
+                Spacer(modifier = Modifier.width(6.dp))
+                Button(
+                    onClick = {
+                        val commentOrNull = userComment.trim().ifEmpty { null }
+                        onSubmit(selectedReason, commentOrNull)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = OledAccentIndigo),
+                    shape = RoundedCornerShape(6.dp)
+                ) {
+                    Text("Submit", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
                 }
             }
         }

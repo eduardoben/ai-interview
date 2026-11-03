@@ -54,7 +54,7 @@ fun SettingsScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(StealthBackground)
+            .background(OledBackground)
             .padding(horizontal = 16.dp, vertical = 12.dp)
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -63,22 +63,22 @@ fun SettingsScreen(
             Text(
                 text = "Settings",
                 style = MaterialTheme.typography.headlineSmall,
-                color = StealthTextPrimary
+                color = OledTextPrimary
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = "Configure persona, on-device acceleration, and stealth controls",
+                text = "Configure persona, on-device acceleration, and display controls",
                 style = MaterialTheme.typography.bodySmall,
-                color = StealthTextMuted
+                color = OledTextMuted
             )
         }
 
         // Card 1: Context & Response Persona
-        SettingsGroupCard(title = "Candidate Context & Persona") {
+        SettingsGroupCard(title = "Practice Context & Persona") {
             Text(
                 text = "RESPONSE STYLE",
                 style = MaterialTheme.typography.labelSmall,
-                color = StealthTextMuted
+                color = OledTextMuted
             )
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -86,8 +86,8 @@ fun SettingsScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(StealthBackground, RoundedCornerShape(10.dp))
-                    .border(0.5.dp, StealthBorder, RoundedCornerShape(10.dp))
+                    .background(OledBackground, RoundedCornerShape(10.dp))
+                    .border(0.5.dp, OledBorder, RoundedCornerShape(10.dp))
                     .padding(3.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
@@ -97,7 +97,7 @@ fun SettingsScreen(
                         modifier = Modifier
                             .weight(1f)
                             .clip(RoundedCornerShape(8.dp))
-                            .background(if (isSelected) StealthAccentIndigo else Color.Transparent)
+                            .background(if (isSelected) OledAccentIndigo else Color.Transparent)
                             .clickable { onConfigChange(config.copy(promptStyle = style)) }
                             .padding(vertical = 8.dp),
                         contentAlignment = Alignment.Center
@@ -106,7 +106,7 @@ fun SettingsScreen(
                             text = style.displayName,
                             fontSize = 12.sp,
                             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                            color = if (isSelected) Color.White else StealthTextSecondary
+                            color = if (isSelected) Color.White else OledTextSecondary
                         )
                     }
                 }
@@ -132,7 +132,7 @@ fun SettingsScreen(
                     Text(
                         "e.g. Senior Android Engineer, Kotlin, Compose, System Design",
                         fontSize = 12.sp,
-                        color = StealthTextMuted
+                        color = OledTextMuted
                     )
                 },
                 modifier = Modifier.fillMaxWidth(),
@@ -144,13 +144,13 @@ fun SettingsScreen(
                 ),
                 shape = RoundedCornerShape(10.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = StealthAccentIndigo,
-                    unfocusedBorderColor = StealthBorder,
-                    focusedLabelColor = StealthAccentIndigoSoft,
-                    unfocusedLabelColor = StealthTextMuted,
-                    focusedTextColor = StealthTextPrimary,
-                    unfocusedTextColor = StealthTextPrimary,
-                    cursorColor = StealthAccentIndigoSoft
+                    focusedBorderColor = OledAccentIndigo,
+                    unfocusedBorderColor = OledBorder,
+                    focusedLabelColor = OledAccentIndigoSoft,
+                    unfocusedLabelColor = OledTextMuted,
+                    focusedTextColor = OledTextPrimary,
+                    unfocusedTextColor = OledTextPrimary,
+                    cursorColor = OledAccentIndigoSoft
                 )
             )
         }
@@ -160,18 +160,18 @@ fun SettingsScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(StealthSurfaceHigh, RoundedCornerShape(10.dp))
-                    .border(0.5.dp, StealthBorder, RoundedCornerShape(10.dp))
+                    .background(OledSurfaceHigh, RoundedCornerShape(10.dp))
+                    .border(0.5.dp, OledBorder, RoundedCornerShape(10.dp))
                     .padding(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
                     modifier = Modifier
                         .size(34.dp)
-                        .background(StealthAccentIndigo.copy(alpha = 0.15f), RoundedCornerShape(8.dp)),
+                        .background(OledAccentIndigo.copy(alpha = 0.15f), RoundedCornerShape(8.dp)),
                     contentAlignment = Alignment.Center
                 ) {
-                    StealthIcons.CpuChip(color = StealthAccentIndigoSoft, size = 18.dp)
+                    PrompterIcons.CpuChip(color = OledAccentIndigoSoft, size = 18.dp)
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
@@ -179,13 +179,13 @@ fun SettingsScreen(
                         text = hardwareProfile?.socName ?: "Automatic Hardware Delegate",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = StealthTextPrimary
+                        color = OledTextPrimary
                     )
                     Text(
                         text = hardwareProfile?.recommendedLlmFileName ?: "Universal GPU Model",
                         fontSize = 11.sp,
                         fontFamily = FontFamily.Monospace,
-                        color = StealthTextMuted
+                        color = OledTextMuted
                     )
                 }
             }
@@ -196,18 +196,18 @@ fun SettingsScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(StealthStatusEmerald.copy(alpha = 0.08f), RoundedCornerShape(10.dp))
-                        .border(0.5.dp, StealthStatusEmerald.copy(alpha = 0.3f), RoundedCornerShape(10.dp))
+                        .background(OledStatusEmerald.copy(alpha = 0.08f), RoundedCornerShape(10.dp))
+                        .border(0.5.dp, OledStatusEmerald.copy(alpha = 0.3f), RoundedCornerShape(10.dp))
                         .padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    StealthIcons.Check(color = StealthStatusEmerald, size = 15.dp)
+                    PrompterIcons.Check(color = OledStatusEmerald, size = 15.dp)
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
                         text = "EdgeTPU AOT Mode Active — Sampler parameters are hardware-locked for sub-250ms first-token latency.",
                         fontSize = 11.sp,
                         lineHeight = 16.sp,
-                        color = StealthTextSecondary
+                        color = OledTextSecondary
                     )
                 }
             } else {
@@ -253,7 +253,7 @@ fun SettingsScreen(
             HorizontalDivider(
                 modifier = Modifier.padding(vertical = 12.dp),
                 thickness = 0.5.dp,
-                color = StealthBorder
+                color = OledBorder
             )
 
             LabeledSlider(
@@ -267,7 +267,7 @@ fun SettingsScreen(
             HorizontalDivider(
                 modifier = Modifier.padding(vertical = 12.dp),
                 thickness = 0.5.dp,
-                color = StealthBorder
+                color = OledBorder
             )
 
             SettingsToggleRow(
@@ -279,7 +279,7 @@ fun SettingsScreen(
         }
 
         // Card 4: Teleprompter & Hardware Controls
-        SettingsGroupCard(title = "Teleprompter & Blind Controls") {
+        SettingsGroupCard(title = "Teleprompter & Hardware Button Navigation") {
             LabeledSlider(
                 label = "Teleprompter Font Size",
                 valueText = "${config.teleprompterFontSizeSp.toInt()} sp",
@@ -295,8 +295,8 @@ fun SettingsScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(StealthBackground, RoundedCornerShape(10.dp))
-                    .border(0.5.dp, StealthBorder, RoundedCornerShape(10.dp))
+                    .background(OledBackground, RoundedCornerShape(10.dp))
+                    .border(0.5.dp, OledBorder, RoundedCornerShape(10.dp))
                     .padding(14.dp)
             ) {
                 FormattedTeleprompterAnswer(
@@ -308,7 +308,7 @@ fun SettingsScreen(
             HorizontalDivider(
                 modifier = Modifier.padding(vertical = 12.dp),
                 thickness = 0.5.dp,
-                color = StealthBorder
+                color = OledBorder
             )
 
             SettingsToggleRow(
@@ -321,7 +321,7 @@ fun SettingsScreen(
             HorizontalDivider(
                 modifier = Modifier.padding(vertical = 12.dp),
                 thickness = 0.5.dp,
-                color = StealthBorder
+                color = OledBorder
             )
 
             SettingsToggleRow(
@@ -342,11 +342,11 @@ private fun SettingsGroupCard(
     content: @Composable ColumnScope.() -> Unit
 ) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = StealthSurface),
+        colors = CardDefaults.cardColors(containerColor = OledSurface),
         shape = RoundedCornerShape(16.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .border(0.5.dp, StealthBorder, RoundedCornerShape(16.dp))
+            .border(0.5.dp, OledBorder, RoundedCornerShape(16.dp))
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -354,7 +354,7 @@ private fun SettingsGroupCard(
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleSmall,
-                    color = StealthTextPrimary
+                    color = OledTextPrimary
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 content()
@@ -378,12 +378,12 @@ private fun LabeledSlider(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = label, fontSize = 12.sp, color = StealthTextSecondary)
+            Text(text = label, fontSize = 12.sp, color = OledTextSecondary)
             Text(
                 text = valueText,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = StealthTextPrimary
+                color = OledTextPrimary
             )
         }
         Slider(
@@ -392,9 +392,9 @@ private fun LabeledSlider(
             valueRange = valueRange,
             steps = steps,
             colors = SliderDefaults.colors(
-                thumbColor = StealthAccentIndigo,
-                activeTrackColor = StealthAccentIndigo,
-                inactiveTrackColor = StealthSurfaceHigh
+                thumbColor = OledAccentIndigo,
+                activeTrackColor = OledAccentIndigo,
+                inactiveTrackColor = OledSurfaceHigh
             )
         )
     }
@@ -421,14 +421,14 @@ private fun SettingsToggleRow(
                 text = title,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
-                color = StealthTextPrimary
+                color = OledTextPrimary
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = subtitle,
                 fontSize = 11.sp,
                 lineHeight = 15.sp,
-                color = StealthTextMuted
+                color = OledTextMuted
             )
         }
         Switch(
@@ -436,10 +436,10 @@ private fun SettingsToggleRow(
             onCheckedChange = onCheckedChange,
             colors = SwitchDefaults.colors(
                 checkedThumbColor = Color.White,
-                checkedTrackColor = StealthAccentIndigo,
-                uncheckedThumbColor = StealthTextSecondary,
-                uncheckedTrackColor = StealthSurfaceHigh,
-                uncheckedBorderColor = StealthBorderHigh
+                checkedTrackColor = OledAccentIndigo,
+                uncheckedThumbColor = OledTextSecondary,
+                uncheckedTrackColor = OledSurfaceHigh,
+                uncheckedBorderColor = OledBorderHigh
             )
         )
     }

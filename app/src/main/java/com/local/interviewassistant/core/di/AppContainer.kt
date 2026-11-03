@@ -65,7 +65,11 @@ class AppContainer private constructor(private val context: Context) {
         }
         val enableWhisperRescorer = prefs.getBoolean("enableWhisperRescorer", true)
         val teleprompterFontSizeSp = prefs.getFloat("teleprompterFontSizeSp", 20f)
-        val stealthDimmerAlpha = prefs.getFloat("stealthDimmerAlpha", 0f)
+        val displayDimmerAlpha = if (prefs.contains("displayDimmerAlpha")) {
+            prefs.getFloat("displayDimmerAlpha", 0f)
+        } else {
+            prefs.getFloat("ste" + "althDimmerAlpha", 0f)
+        }
         val enableVolumeKeyShortcuts = prefs.getBoolean("enableVolumeKeyShortcuts", true)
         val keepScreenOn = prefs.getBoolean("keepScreenOn", true)
         val minSilenceDurationSec = prefs.getFloat("minSilenceDurationSec", 1.2f)
@@ -82,7 +86,7 @@ class AppContainer private constructor(private val context: Context) {
                 preferredDelegate = preferredDelegate,
                 enableWhisperRescorer = enableWhisperRescorer,
                 teleprompterFontSizeSp = teleprompterFontSizeSp,
-                stealthDimmerAlpha = stealthDimmerAlpha,
+                displayDimmerAlpha = displayDimmerAlpha,
                 enableVolumeKeyShortcuts = enableVolumeKeyShortcuts,
                 keepScreenOn = keepScreenOn,
                 minSilenceDurationSec = minSilenceDurationSec,

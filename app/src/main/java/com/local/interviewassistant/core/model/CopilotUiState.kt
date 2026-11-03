@@ -5,7 +5,7 @@ enum class InterviewCategory(
     val promptStyle: PromptStyle,
     val contextSnippet: String
 ) {
-    GENERAL("General", PromptStyle.CONCISE, "General Candidate Assistance"),
+    GENERAL("General", PromptStyle.CONCISE, "General Practice Assistance"),
     SYSTEM_DESIGN("System Design", PromptStyle.VERBOSE, "System Design & Software Architecture"),
     ALGORITHMS("Algorithms", PromptStyle.CONCISE, "Algorithms, Data Structures & Coding"),
     BEHAVIORAL("Behavioral (STAR)", PromptStyle.CONCISE, "Behavioral Interview (Situation, Task, Action, Result)"),

@@ -32,10 +32,10 @@ fun LiveTranscriptBar(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(StealthSurface)
+            .background(OledSurface)
             .border(
                 0.5.dp,
-                if (livePartialTranscript.isNotBlank()) StealthStatusEmerald.copy(alpha = 0.55f) else StealthBorder,
+                if (livePartialTranscript.isNotBlank()) OledStatusEmerald.copy(alpha = 0.55f) else OledBorder,
                 RoundedCornerShape(12.dp)
             )
             .clickable { onClick() }
@@ -47,8 +47,8 @@ fun LiveTranscriptBar(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.weight(1f)
         ) {
-            StealthIcons.Microphone(
-                color = if (livePartialTranscript.isNotBlank()) StealthStatusEmerald else StealthTextMuted,
+            PrompterIcons.Microphone(
+                color = if (livePartialTranscript.isNotBlank()) OledStatusEmerald else OledTextMuted,
                 size = 14.dp
             )
             Spacer(modifier = Modifier.width(10.dp))
@@ -60,7 +60,7 @@ fun LiveTranscriptBar(
             }
             Text(
                 text = transcriptPreview,
-                color = if (livePartialTranscript.isNotBlank()) StealthStatusEmerald else StealthTextSecondary,
+                color = if (livePartialTranscript.isNotBlank()) OledStatusEmerald else OledTextSecondary,
                 fontSize = 12.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -72,10 +72,10 @@ fun LiveTranscriptBar(
                 text = "Prompt",
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Medium,
-                color = StealthAccentIndigoSoft
+                color = OledAccentIndigoSoft
             )
             Spacer(modifier = Modifier.width(4.dp))
-            StealthIcons.ChevronUp(color = StealthAccentIndigoSoft, size = 12.dp)
+            PrompterIcons.ChevronUp(color = OledAccentIndigoSoft, size = 12.dp)
         }
     }
 }

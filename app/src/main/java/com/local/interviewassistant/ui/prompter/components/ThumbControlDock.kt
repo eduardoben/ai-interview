@@ -37,13 +37,13 @@ fun ThumbControlDock(
                     .fillMaxWidth()
                     .height(52.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = StealthAccentIndigo,
+                    containerColor = OledAccentIndigo,
                     contentColor = Color.White
                 ),
                 shape = RoundedCornerShape(14.dp)
             ) {
                 Text(
-                    "Start Live Copilot",
+                    "Start Practice Copilot",
                     fontSize = 15.sp,
                     letterSpacing = 0.2.sp,
                     fontWeight = FontWeight.SemiBold
@@ -62,7 +62,7 @@ fun ThumbControlDock(
                         .weight(1.4f)
                         .fillMaxHeight(),
                     contentPadding = PaddingValues(horizontal = 8.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = StealthAccentIndigo),
+                    colors = ButtonDefaults.buttonColors(containerColor = OledAccentIndigo),
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Text(
@@ -81,11 +81,11 @@ fun ThumbControlDock(
                         .fillMaxHeight(),
                     contentPadding = PaddingValues(horizontal = 6.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = StealthSurface,
-                        contentColor = StealthTextPrimary
+                        containerColor = OledSurface,
+                        contentColor = OledTextPrimary
                     ),
                     shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(0.5.dp, StealthBorderHigh)
+                    border = BorderStroke(0.5.dp, OledBorderHigh)
                 ) {
                     Text(
                         text = if (isPaused) "Resume" else "Pause",
@@ -101,11 +101,11 @@ fun ThumbControlDock(
                         .fillMaxHeight(),
                     contentPadding = PaddingValues(horizontal = 6.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = StealthSurface,
-                        contentColor = StealthTextSecondary
+                        containerColor = OledSurface,
+                        contentColor = OledTextSecondary
                     ),
                     shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(0.5.dp, StealthBorder)
+                    border = BorderStroke(0.5.dp, OledBorder)
                 ) {
                     Text("Clear", fontSize = 12.sp)
                 }
@@ -117,11 +117,11 @@ fun ThumbControlDock(
                         .fillMaxHeight(),
                     contentPadding = PaddingValues(horizontal = 6.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = StealthStatusCoral.copy(alpha = 0.1f),
-                        contentColor = StealthStatusCoral
+                        containerColor = OledStatusCoral.copy(alpha = 0.1f),
+                        contentColor = OledStatusCoral
                     ),
                     shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(0.5.dp, StealthStatusCoral.copy(alpha = 0.35f))
+                    border = BorderStroke(0.5.dp, OledStatusCoral.copy(alpha = 0.35f))
                 ) {
                     Text("Stop", fontSize = 12.sp, maxLines = 1, fontWeight = FontWeight.Medium)
                 }

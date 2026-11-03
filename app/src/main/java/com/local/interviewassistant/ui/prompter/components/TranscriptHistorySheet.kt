@@ -36,8 +36,8 @@ fun TranscriptHistorySheet(
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = StealthSurface,
-        contentColor = StealthTextPrimary,
+        containerColor = OledSurface,
+        contentColor = OledTextPrimary,
         shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
     ) {
         Column(
@@ -54,12 +54,12 @@ fun TranscriptHistorySheet(
                     "Live Transcript & Prompt",
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = StealthTextPrimary
+                    color = OledTextPrimary
                 )
                 Text(
                     "${transcriptHistory.size} segments",
                     fontSize = 11.sp,
-                    color = StealthTextMuted
+                    color = OledTextMuted
                 )
             }
 
@@ -71,22 +71,22 @@ fun TranscriptHistorySheet(
             ) {
                 OutlinedTextField(
                     value = customQuestionInput,
-                    onValueChange = onCustomQuestionInputChange,
+                    onCustomQuestionInputChange,
                     placeholder = {
                         Text(
                             "Type or refine a question...",
                             fontSize = 13.sp,
-                            color = StealthTextMuted
+                            color = OledTextMuted
                         )
                     },
                     modifier = Modifier.weight(1f),
                     singleLine = true,
                     shape = RoundedCornerShape(10.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = StealthAccentIndigo,
-                        unfocusedBorderColor = StealthBorder,
-                        focusedTextColor = StealthTextPrimary,
-                        unfocusedTextColor = StealthTextPrimary
+                        focusedBorderColor = OledAccentIndigo,
+                        unfocusedBorderColor = OledBorder,
+                        focusedTextColor = OledTextPrimary,
+                        unfocusedTextColor = OledTextPrimary
                     )
                 )
                 Spacer(modifier = Modifier.width(10.dp))
@@ -98,7 +98,7 @@ fun TranscriptHistorySheet(
                     },
                     modifier = Modifier.height(52.dp),
                     shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = StealthAccentIndigo),
+                    colors = ButtonDefaults.buttonColors(containerColor = OledAccentIndigo),
                     enabled = customQuestionInput.isNotBlank()
                 ) {
                     Text("Ask", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
@@ -118,7 +118,7 @@ fun TranscriptHistorySheet(
                     Text(
                         "No speech segments recorded yet.",
                         fontSize = 12.sp,
-                        color = StealthTextMuted
+                        color = OledTextMuted
                     )
                 }
             } else {
@@ -134,10 +134,10 @@ fun TranscriptHistorySheet(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(10.dp))
-                                .background(if (segment.isLikelyQuestion) StealthSurfaceHigh else Color.Transparent)
+                                .background(if (segment.isLikelyQuestion) OledSurfaceHigh else Color.Transparent)
                                 .border(
                                     0.5.dp,
-                                    if (segment.isLikelyQuestion) StealthAccentIndigo.copy(alpha = 0.4f) else StealthBorder,
+                                    if (segment.isLikelyQuestion) OledAccentIndigo.copy(alpha = 0.4f) else OledBorder,
                                     RoundedCornerShape(10.dp)
                                 )
                                 .clickable { onSelectTranscriptSegment(segment) }
@@ -147,12 +147,12 @@ fun TranscriptHistorySheet(
                             if (segment.isLikelyQuestion) {
                                 Box(
                                     modifier = Modifier
-                                        .background(StealthAccentIndigo.copy(alpha = 0.18f), RoundedCornerShape(4.dp))
+                                        .background(OledAccentIndigo.copy(alpha = 0.18f), RoundedCornerShape(4.dp))
                                         .padding(horizontal = 5.dp, vertical = 2.dp)
                                 ) {
                                     Text(
                                         "Q",
-                                        color = StealthAccentIndigoSoft,
+                                        color = OledAccentIndigoSoft,
                                         fontSize = 10.sp,
                                         fontWeight = FontWeight.Bold
                                     )
@@ -163,7 +163,7 @@ fun TranscriptHistorySheet(
                                 segment.text,
                                 fontSize = 13.sp,
                                 lineHeight = 18.sp,
-                                color = if (segment.isLikelyQuestion) StealthTextPrimary else StealthTextSecondary
+                                color = if (segment.isLikelyQuestion) OledTextPrimary else OledTextSecondary
                             )
                         }
                     }

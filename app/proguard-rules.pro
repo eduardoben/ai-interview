@@ -81,12 +81,8 @@
 }
 
 # ------------------------------------------------------------------------------
-# 5. AndroidX Architecture, WorkManager & Jetpack Compose
+# 5. AndroidX Architecture & Jetpack Compose
 # ------------------------------------------------------------------------------
--keep class androidx.work.** { *; }
--keep class * extends androidx.work.ListenableWorker {
-    public <init>(android.content.Context, androidx.work.WorkerParameters);
-}
 -keep class androidx.lifecycle.LifecycleService { *; }
 -keep class androidx.compose.runtime.** { *; }
 

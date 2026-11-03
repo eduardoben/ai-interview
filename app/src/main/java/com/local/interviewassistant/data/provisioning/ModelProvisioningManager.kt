@@ -147,89 +147,125 @@ data class ManifestEntry(
     val targetFile: File,
     val downloadUrl: String,
     val estimatedBytes: Long,
-    val minExpectedBytes: Long
+    val minExpectedBytes: Long,
+    val exactBytes: Long = -1L,
+    val expectedSha256: String? = null
 )
 
 class ModelProvisioningManager(
     val config: AppConfig,
     private val fetcher: StreamFetcher = HttpUrlStreamFetcher(),
-    private val storageChecker: StorageChecker = DefaultStorageChecker()
+    private val storageChecker: StorageChecker = DefaultStorageChecker(),
+    val verifyChecksums: Boolean = true
 ) {
     private val _state = MutableStateFlow<ProvisioningState>(ProvisioningState.Checking(null))
     val state: StateFlow<ProvisioningState> = _state.asStateFlow()
 
     @Volatile
     private var activeFileOutputStream: FileOutputStream? = null
+    private var activeInputStream: InputStream? = null
 
     companion object {
         const val SAFETY_STORAGE_BUFFER_BYTES = 500_000_000L // 500 MB
     }
 
+    internal fun computeSha256(file: File): String {
+        val digest = java.security.MessageDigest.getInstance("SHA-256")
+        file.inputStream().use { input ->
+            val buffer = ByteArray(128 * 1024)
+            var bytesRead: Int
+            while (input.read(buffer).also { bytesRead = it } != -1) {
+                digest.update(buffer, 0, bytesRead)
+            }
+        }
+        return digest.digest().joinToString("") { "%02x".format(it) }
+    }
+
     fun buildManifest(profile: HardwareProfile): List<ManifestEntry> {
         val llmFile = File(config.llmDir, profile.recommendedLlmFileName)
+        val llmSha256 = AppConfig.resolveLlmSha256(profile.recommendedLlmFileName)
+        val llmBytes = if (profile.expectedLlmBytes > 0L) profile.expectedLlmBytes else AppConfig.resolveLlmBytes(profile.recommendedLlmFileName)
         return listOf(
             ManifestEntry(
                 id = "silero_vad",
                 targetFile = File(config.vadDir, "silero_vad.onnx"),
                 downloadUrl = AppConfig.VAD_URL,
-                estimatedBytes = 2_200_000L,
-                minExpectedBytes = 2_000_000L
+                estimatedBytes = AppConfig.VAD_BYTES,
+                minExpectedBytes = 2_000_000L,
+                exactBytes = AppConfig.VAD_BYTES,
+                expectedSha256 = AppConfig.VAD_SHA256
             ),
             ManifestEntry(
                 id = "zipformer_encoder",
                 targetFile = File(config.asrDir, "encoder-epoch-99-avg-1.int8.onnx"),
                 downloadUrl = AppConfig.STT_ENCODER_URL,
-                estimatedBytes = 125_000_000L,
-                minExpectedBytes = 120_000_000L
+                estimatedBytes = AppConfig.STT_ENCODER_BYTES,
+                minExpectedBytes = 120_000_000L,
+                exactBytes = AppConfig.STT_ENCODER_BYTES,
+                expectedSha256 = AppConfig.STT_ENCODER_SHA256
             ),
             ManifestEntry(
                 id = "zipformer_decoder",
-                targetFile = File(config.asrDir, "decoder-epoch-99-avg-1.int8.onnx"),
+                targetFile = File(config.asrDir, "decoder-epoch-99-avg-1.onnx"),
                 downloadUrl = AppConfig.STT_DECODER_URL,
-                estimatedBytes = 2_500_000L,
-                minExpectedBytes = 2_000_000L
+                estimatedBytes = AppConfig.STT_DECODER_BYTES,
+                minExpectedBytes = 2_000_000L,
+                exactBytes = AppConfig.STT_DECODER_BYTES,
+                expectedSha256 = AppConfig.STT_DECODER_SHA256
             ),
             ManifestEntry(
                 id = "zipformer_joiner",
                 targetFile = File(config.asrDir, "joiner-epoch-99-avg-1.int8.onnx"),
                 downloadUrl = AppConfig.STT_JOINER_URL,
-                estimatedBytes = 260_000L,
-                minExpectedBytes = 200_000L
+                estimatedBytes = AppConfig.STT_JOINER_BYTES,
+                minExpectedBytes = 200_000L,
+                exactBytes = AppConfig.STT_JOINER_BYTES,
+                expectedSha256 = AppConfig.STT_JOINER_SHA256
             ),
             ManifestEntry(
                 id = "zipformer_tokens",
                 targetFile = File(config.asrDir, "tokens.txt"),
                 downloadUrl = AppConfig.STT_TOKENS_URL,
-                estimatedBytes = 5_000L,
-                minExpectedBytes = 4_000L
+                estimatedBytes = AppConfig.STT_TOKENS_BYTES,
+                minExpectedBytes = 4_000L,
+                exactBytes = AppConfig.STT_TOKENS_BYTES,
+                expectedSha256 = AppConfig.STT_TOKENS_SHA256
             ),
             ManifestEntry(
                 id = "whisper_encoder",
                 targetFile = File(config.whisperDir, "tiny.en-encoder.int8.onnx"),
                 downloadUrl = AppConfig.WHISPER_TINY_ENCODER_URL,
-                estimatedBytes = 12_000_000L,
-                minExpectedBytes = 10_000_000L
+                estimatedBytes = AppConfig.WHISPER_TINY_ENCODER_BYTES,
+                minExpectedBytes = 10_000_000L,
+                exactBytes = AppConfig.WHISPER_TINY_ENCODER_BYTES,
+                expectedSha256 = AppConfig.WHISPER_TINY_ENCODER_SHA256
             ),
             ManifestEntry(
                 id = "whisper_decoder",
                 targetFile = File(config.whisperDir, "tiny.en-decoder.int8.onnx"),
                 downloadUrl = AppConfig.WHISPER_TINY_DECODER_URL,
-                estimatedBytes = 90_000_000L,
-                minExpectedBytes = 85_000_000L
+                estimatedBytes = AppConfig.WHISPER_TINY_DECODER_BYTES,
+                minExpectedBytes = 85_000_000L,
+                exactBytes = AppConfig.WHISPER_TINY_DECODER_BYTES,
+                expectedSha256 = AppConfig.WHISPER_TINY_DECODER_SHA256
             ),
             ManifestEntry(
                 id = "whisper_tokens",
                 targetFile = File(config.whisperDir, "tiny.en-tokens.txt"),
                 downloadUrl = AppConfig.WHISPER_TINY_TOKENS_URL,
-                estimatedBytes = 800_000L,
-                minExpectedBytes = 500_000L
+                estimatedBytes = AppConfig.WHISPER_TINY_TOKENS_BYTES,
+                minExpectedBytes = 500_000L,
+                exactBytes = AppConfig.WHISPER_TINY_TOKENS_BYTES,
+                expectedSha256 = AppConfig.WHISPER_TINY_TOKENS_SHA256
             ),
             ManifestEntry(
                 id = "gemma_llm",
                 targetFile = llmFile,
                 downloadUrl = profile.recommendedLlmDownloadUrl,
-                estimatedBytes = profile.expectedLlmBytes,
-                minExpectedBytes = 2_500_000_000L
+                estimatedBytes = llmBytes,
+                minExpectedBytes = 2_500_000_000L,
+                exactBytes = llmBytes,
+                expectedSha256 = llmSha256
             )
         )
     }
@@ -249,6 +285,8 @@ class ModelProvisioningManager(
             val flatEncoder = File(config.modelsRootDir, "encoder.onnx")
             if (flatEncoder.exists() && flatEncoder.length() >= entry.minExpectedBytes) return true
         } else if (entry.id == "zipformer_decoder") {
+            val int8Decoder = File(config.asrDir, "decoder-epoch-99-avg-1.int8.onnx")
+            if (int8Decoder.exists() && int8Decoder.length() >= 500_000L) return true
             val flatDecoder = File(config.modelsRootDir, "decoder.onnx")
             if (flatDecoder.exists() && flatDecoder.length() >= entry.minExpectedBytes) return true
         } else if (entry.id == "zipformer_joiner") {
@@ -313,7 +351,7 @@ class ModelProvisioningManager(
     }
 
     fun cancelOngoingDownload(profile: HardwareProfile, reason: ErrorReason = ErrorReason.CANCELLED, message: String = "Download paused by user") {
-        closeActiveOutputStream()
+        closeActiveStreams()
         _state.value = ProvisioningState.Error(
             profile = profile,
             reason = reason,
@@ -322,12 +360,16 @@ class ModelProvisioningManager(
         )
     }
 
-    private fun closeActiveOutputStream() {
+    private fun closeActiveStreams() {
         try {
             activeFileOutputStream?.flush()
             activeFileOutputStream?.close()
         } catch (_: Exception) {}
         activeFileOutputStream = null
+        try {
+            activeInputStream?.close()
+        } catch (_: Exception) {}
+        activeInputStream = null
     }
 
     internal fun cleanOrphanLlmFiles(recommendedFileName: String) {
@@ -424,15 +466,17 @@ class ModelProvisioningManager(
                     authToken = hfBearerToken
                 )
             } catch (e: Exception) {
-                closeActiveOutputStream()
+                closeActiveStreams()
                 if (e is CancellationException) {
-                    val cancelState = ProvisioningState.Error(
-                        profile = profile,
-                        reason = ErrorReason.CANCELLED,
-                        message = "Download cancelled by user",
-                        canResume = true
-                    )
-                    _state.value = cancelState
+                    if (_state.value !is ProvisioningState.Error) {
+                        val cancelState = ProvisioningState.Error(
+                            profile = profile,
+                            reason = ErrorReason.CANCELLED,
+                            message = "Download cancelled by user",
+                            canResume = true
+                        )
+                        _state.value = cancelState
+                    }
                     throw e
                 }
                 val reason = if (e is IOException) ErrorReason.NETWORK_ERROR else ErrorReason.UNKNOWN
@@ -492,6 +536,7 @@ class ModelProvisioningManager(
 
         val statusCode = response.statusCode
         val inputStream = response.inputStream
+        activeInputStream = inputStream
 
         val isAppend = (statusCode == 206)
         val initialDownloadedBytes = if (isAppend) existingTmpBytes else 0L
@@ -545,7 +590,7 @@ class ModelProvisioningManager(
                 }
             }
         } finally {
-            closeActiveOutputStream()
+            closeActiveStreams()
         }
 
         // Validate byte length
@@ -553,6 +598,21 @@ class ModelProvisioningManager(
         if (finalTmpLength < entry.minExpectedBytes) {
             tmpFile.delete()
             throw IOException("Downloaded file ${targetFile.name} was truncated ($finalTmpLength bytes < expected ${entry.minExpectedBytes} bytes)")
+        }
+
+        // Exact byte length verification (Requirement R4, P0-08)
+        if (verifyChecksums && entry.exactBytes > 0L && finalTmpLength != entry.exactBytes) {
+            tmpFile.delete()
+            throw IOException("Downloaded file ${targetFile.name} size mismatch: got $finalTmpLength bytes, expected ${entry.exactBytes} bytes")
+        }
+
+        // Cryptographic SHA-256 verification (Requirement R4, P0-08)
+        if (verifyChecksums && !entry.expectedSha256.isNullOrBlank()) {
+            val actualSha256 = computeSha256(tmpFile)
+            if (!actualSha256.equals(entry.expectedSha256, ignoreCase = true)) {
+                tmpFile.delete()
+                throw IOException("Integrity verification failed for ${targetFile.name}: expected SHA-256 ${entry.expectedSha256}, got $actualSha256")
+            }
         }
 
         // Atomically rename .tmp to target

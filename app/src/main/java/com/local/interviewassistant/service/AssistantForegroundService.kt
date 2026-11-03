@@ -22,7 +22,7 @@ import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
 import com.local.interviewassistant.core.di.AppContainer
 import com.local.interviewassistant.ui.overlay.FloatingHudOverlay
-import com.local.interviewassistant.ui.theme.StealthOledTheme
+import com.local.interviewassistant.ui.theme.OledTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
@@ -156,12 +156,12 @@ class AssistantForegroundService : LifecycleService() {
                 val uiState = coordinator.copilotUiState.collectAsState().value
                 val isPrompterVisible = appContainer.isPrompterScreenVisible.collectAsState().value
 
-                // Stealth ergonomics: Auto-hide floating overlay when user is on full-screen Prompter inside the app
+                // Overlay ergonomics: Auto-hide floating overlay when user is on full-screen Prompter inside the app
                 LaunchedEffect(isPrompterVisible) {
                     visibility = if (isPrompterVisible) View.GONE else View.VISIBLE
                 }
 
-                StealthOledTheme {
+                OledTheme {
                     FloatingHudOverlay(
                         uiState = uiState,
                         onPauseToggle = { coordinator.togglePause() },

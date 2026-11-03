@@ -50,13 +50,23 @@ class ModelDownloadServiceTest {
         // Slow infinite stream simulator to mimic a hanging download that hits Android 17 FGS timeout
         val slowStream = object : InputStream() {
             private var bytesEmitted = 0
+            @Volatile private var isClosed = false
             override fun read(): Int {
+                if (isClosed) return -1
                 if (bytesEmitted++ < 50_000) {
                     return 0x42
                 }
                 // Simulate blocking wait
-                Thread.sleep(10)
-                return 0x42
+                if (isClosed) return -1
+                try {
+                    Thread.sleep(10)
+                } catch (_: InterruptedException) {
+                    return -1
+                }
+                return if (isClosed) -1 else 0x42
+            }
+            override fun close() {
+                isClosed = true
             }
         }
 
@@ -84,6 +94,7 @@ class ModelDownloadServiceTest {
             reason = ErrorReason.SERVICE_TIMEOUT,
             message = "Download timed out by Android 17 FGS quota."
         )
+        job.join()
 
         // Verify state is Error with SERVICE_TIMEOUT and canResume = true
         val state = manager.state.value

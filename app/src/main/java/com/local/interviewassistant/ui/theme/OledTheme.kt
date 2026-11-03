@@ -10,34 +10,34 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
-// Low-Glare OLED Stealth Palette — Refined for Minimal Elegance & Tonal Depth
-val StealthBackground = Color(0xFF06070A)
-val StealthSurface = Color(0xFF0E1017)
-val StealthSurfaceHigh = Color(0xFF161922)
+// Low-Glare OLED Palette — Refined for Minimal Elegance & Tonal Depth
+val OledBackground = Color(0xFF06070A)
+val OledSurface = Color(0xFF0E1017)
+val OledSurfaceHigh = Color(0xFF161922)
 @Suppress("unused")
-val StealthSurfaceElevated = Color(0xFF1E222E)
+val OledSurfaceElevated = Color(0xFF1E222E)
 
-val StealthBorder = Color(0xFF1C202B)
+val OledBorder = Color(0xFF1C202B)
 @Suppress("unused")
-val StealthBorderSubtle = Color(0xFF151821)
-val StealthBorderHigh = Color(0xFF282E3E)
+val OledBorderSubtle = Color(0xFF151821)
+val OledBorderHigh = Color(0xFF282E3E)
 
-val StealthTextPrimary = Color(0xFFF3F4F6)
-val StealthTextSecondary = Color(0xFF9CA3AF)
-val StealthTextMuted = Color(0xFF646B78)
+val OledTextPrimary = Color(0xFFF3F4F6)
+val OledTextSecondary = Color(0xFF9CA3AF)
+val OledTextMuted = Color(0xFF646B78)
 
-val StealthAccentIndigo = Color(0xFF6366F1)
-val StealthAccentIndigoSoft = Color(0xFF818CF8)
-val StealthStatusEmerald = Color(0xFF10B981)
-val StealthStatusAmber = Color(0xFFF59E0B)
-val StealthStatusCoral = Color(0xFFEF4444)
+val OledAccentIndigo = Color(0xFF6366F1)
+val OledAccentIndigoSoft = Color(0xFF818CF8)
+val OledStatusEmerald = Color(0xFF10B981)
+val OledStatusAmber = Color(0xFFF59E0B)
+val OledStatusCoral = Color(0xFFEF4444)
 
 /**
  * Strict 4-Size, 2-Weight Typography System:
  * - Sizes: 20.sp (Headline/Prompter), 15.sp (Title), 13.sp (Body), 11.sp (Label/Micro)
  * - Weights: FontWeight.Normal (400) for body/descriptions, FontWeight.SemiBold (600) for titles/CTAs/badges
  */
-val StealthTypography = Typography(
+val OledTypography = Typography(
     headlineSmall = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.SemiBold,
@@ -96,30 +96,30 @@ val StealthTypography = Typography(
     )
 )
 
-private val StealthColorScheme = darkColorScheme(
-    primary = StealthAccentIndigo,
+private val OledColorScheme = darkColorScheme(
+    primary = OledAccentIndigo,
     onPrimary = Color.White,
-    primaryContainer = StealthSurfaceHigh,
-    onPrimaryContainer = StealthTextPrimary,
-    secondary = StealthStatusEmerald,
+    primaryContainer = OledSurfaceHigh,
+    onPrimaryContainer = OledTextPrimary,
+    secondary = OledStatusEmerald,
     onSecondary = Color.Black,
-    background = StealthBackground,
-    onBackground = StealthTextPrimary,
-    surface = StealthSurface,
-    onSurface = StealthTextPrimary,
-    surfaceVariant = StealthSurfaceHigh,
-    onSurfaceVariant = StealthTextSecondary,
-    outline = StealthBorder,
-    outlineVariant = StealthBorderHigh,
-    error = StealthStatusCoral,
+    background = OledBackground,
+    onBackground = OledTextPrimary,
+    surface = OledSurface,
+    onSurface = OledTextPrimary,
+    surfaceVariant = OledSurfaceHigh,
+    onSurfaceVariant = OledTextSecondary,
+    outline = OledBorder,
+    outlineVariant = OledBorderHigh,
+    error = OledStatusCoral,
     onError = Color.White
 )
 
 @Composable
-fun StealthOledTheme(content: @Composable () -> Unit) {
+fun OledTheme(content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = StealthColorScheme,
-        typography = StealthTypography,
+        colorScheme = OledColorScheme,
+        typography = OledTypography,
         content = content
     )
 }

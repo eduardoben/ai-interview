@@ -75,10 +75,10 @@ fun AppShell(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(StealthBackground)
+            .background(OledBackground)
     ) {
         Scaffold(
-            containerColor = StealthBackground,
+            containerColor = OledBackground,
             contentWindowInsets = WindowInsets.safeDrawing,
             bottomBar = {
                 AnimatedVisibility(
@@ -89,11 +89,11 @@ fun AppShell(
                     Column(modifier = Modifier.fillMaxWidth()) {
                         HorizontalDivider(
                             thickness = 0.5.dp,
-                            color = StealthBorder
+                            color = OledBorder
                         )
                         NavigationBar(
-                            containerColor = StealthSurface.copy(alpha = 0.96f),
-                            contentColor = StealthTextPrimary,
+                            containerColor = OledSurface.copy(alpha = 0.96f),
+                            contentColor = OledTextPrimary,
                             tonalElevation = 0.dp
                         ) {
                             AppDestination.entries.forEach { destination ->
@@ -105,8 +105,8 @@ fun AppShell(
                                         Box(contentAlignment = Alignment.Center) {
                                             when (destination) {
                                                 AppDestination.PROMPTER -> {
-                                                    StealthIcons.Prompter(
-                                                        color = if (selected) StealthAccentIndigoSoft else StealthTextSecondary,
+                                                    PrompterIcons.Prompter(
+                                                        color = if (selected) OledAccentIndigoSoft else OledTextSecondary,
                                                         size = 20.dp
                                                     )
                                                     if (isListening) {
@@ -114,20 +114,20 @@ fun AppShell(
                                                             modifier = Modifier
                                                                 .size(6.dp)
                                                                 .offset(x = 10.dp, y = (-8).dp)
-                                                                .background(StealthStatusEmerald, CircleShape)
+                                                                .background(OledStatusEmerald, CircleShape)
                                                         )
                                                     }
                                                 }
-                                                AppDestination.SETTINGS -> StealthIcons.Sliders(
-                                                    color = if (selected) StealthAccentIndigoSoft else StealthTextSecondary,
+                                                AppDestination.SETTINGS -> PrompterIcons.Sliders(
+                                                    color = if (selected) OledAccentIndigoSoft else OledTextSecondary,
                                                     size = 20.dp
                                                 )
-                                                AppDestination.USAGE -> StealthIcons.ActivityBar(
-                                                    color = if (selected) StealthAccentIndigoSoft else StealthTextSecondary,
+                                                AppDestination.USAGE -> PrompterIcons.ActivityBar(
+                                                    color = if (selected) OledAccentIndigoSoft else OledTextSecondary,
                                                     size = 20.dp
                                                 )
-                                                AppDestination.INFO -> StealthIcons.InfoCircle(
-                                                    color = if (selected) StealthAccentIndigoSoft else StealthTextSecondary,
+                                                AppDestination.INFO -> PrompterIcons.InfoCircle(
+                                                    color = if (selected) OledAccentIndigoSoft else OledTextSecondary,
                                                     size = 20.dp
                                                 )
                                             }
@@ -138,15 +138,15 @@ fun AppShell(
                                             text = destination.label,
                                             fontSize = 11.sp,
                                             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                                            color = if (selected) StealthTextPrimary else StealthTextMuted
+                                            color = if (selected) OledTextPrimary else OledTextMuted
                                         )
                                     },
                                     colors = NavigationBarItemDefaults.colors(
-                                        selectedIconColor = StealthAccentIndigoSoft,
-                                        selectedTextColor = StealthTextPrimary,
-                                        indicatorColor = StealthAccentIndigo.copy(alpha = 0.16f),
-                                        unselectedIconColor = StealthTextSecondary,
-                                        unselectedTextColor = StealthTextMuted
+                                        selectedIconColor = OledAccentIndigoSoft,
+                                        selectedTextColor = OledTextPrimary,
+                                        indicatorColor = OledAccentIndigo.copy(alpha = 0.16f),
+                                        unselectedIconColor = OledTextSecondary,
+                                        unselectedTextColor = OledTextMuted
                                     )
                                 )
                             }
@@ -202,12 +202,12 @@ fun AppShell(
             }
         }
 
-        // Stealth OLED Dimmer Scrim (Touch-transparent overlay)
-        if (prompterState.stealthDimmerAlpha > 0f) {
+        // OLED Display Dimmer Scrim (Touch-transparent overlay)
+        if (prompterState.displayDimmerAlpha > 0f) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = prompterState.stealthDimmerAlpha))
+                    .background(Color.Black.copy(alpha = prompterState.displayDimmerAlpha))
             )
         }
     }
@@ -255,10 +255,10 @@ fun AppShell(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(StealthBackground)
+            .background(OledBackground)
     ) {
         Scaffold(
-            containerColor = StealthBackground,
+            containerColor = OledBackground,
             contentWindowInsets = WindowInsets.safeDrawing,
             bottomBar = {
                 AnimatedVisibility(
@@ -269,11 +269,11 @@ fun AppShell(
                     Column(modifier = Modifier.fillMaxWidth()) {
                         HorizontalDivider(
                             thickness = 0.5.dp,
-                            color = StealthBorder
+                            color = OledBorder
                         )
                         NavigationBar(
-                            containerColor = StealthSurface.copy(alpha = 0.96f),
-                            contentColor = StealthTextPrimary,
+                            containerColor = OledSurface.copy(alpha = 0.96f),
+                            contentColor = OledTextPrimary,
                             tonalElevation = 0.dp
                         ) {
                             AppDestination.entries.forEach { destination ->
@@ -285,8 +285,8 @@ fun AppShell(
                                         Box(contentAlignment = Alignment.Center) {
                                             when (destination) {
                                                 AppDestination.PROMPTER -> {
-                                                    StealthIcons.Prompter(
-                                                        color = if (selected) StealthAccentIndigoSoft else StealthTextSecondary,
+                                                    PrompterIcons.Prompter(
+                                                        color = if (selected) OledAccentIndigoSoft else OledTextSecondary,
                                                         size = 20.dp
                                                     )
                                                     if (isListening) {
@@ -294,20 +294,20 @@ fun AppShell(
                                                             modifier = Modifier
                                                                 .size(6.dp)
                                                                 .offset(x = 10.dp, y = (-8).dp)
-                                                                .background(StealthStatusEmerald, CircleShape)
+                                                                .background(OledStatusEmerald, CircleShape)
                                                         )
                                                     }
                                                 }
-                                                AppDestination.SETTINGS -> StealthIcons.Sliders(
-                                                    color = if (selected) StealthAccentIndigoSoft else StealthTextSecondary,
+                                                AppDestination.SETTINGS -> PrompterIcons.Sliders(
+                                                    color = if (selected) OledAccentIndigoSoft else OledTextSecondary,
                                                     size = 20.dp
                                                 )
-                                                AppDestination.USAGE -> StealthIcons.ActivityBar(
-                                                    color = if (selected) StealthAccentIndigoSoft else StealthTextSecondary,
+                                                AppDestination.USAGE -> PrompterIcons.ActivityBar(
+                                                    color = if (selected) OledAccentIndigoSoft else OledTextSecondary,
                                                     size = 20.dp
                                                 )
-                                                AppDestination.INFO -> StealthIcons.InfoCircle(
-                                                    color = if (selected) StealthAccentIndigoSoft else StealthTextSecondary,
+                                                AppDestination.INFO -> PrompterIcons.InfoCircle(
+                                                    color = if (selected) OledAccentIndigoSoft else OledTextSecondary,
                                                     size = 20.dp
                                                 )
                                             }
@@ -318,15 +318,15 @@ fun AppShell(
                                             text = destination.label,
                                             fontSize = 11.sp,
                                             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                                            color = if (selected) StealthTextPrimary else StealthTextMuted
+                                            color = if (selected) OledTextPrimary else OledTextMuted
                                         )
                                     },
                                     colors = NavigationBarItemDefaults.colors(
-                                        selectedIconColor = StealthAccentIndigoSoft,
-                                        selectedTextColor = StealthTextPrimary,
-                                        indicatorColor = StealthAccentIndigo.copy(alpha = 0.16f),
-                                        unselectedIconColor = StealthTextSecondary,
-                                        unselectedTextColor = StealthTextMuted
+                                        selectedIconColor = OledAccentIndigoSoft,
+                                        selectedTextColor = OledTextPrimary,
+                                        indicatorColor = OledAccentIndigo.copy(alpha = 0.16f),
+                                        unselectedIconColor = OledTextSecondary,
+                                        unselectedTextColor = OledTextMuted
                                     )
                                 )
                             }
@@ -347,8 +347,8 @@ fun AppShell(
                             isServiceRunning = isServiceRunning,
                             hardwareSocName = hardwareProfile?.socName,
                             fontSizeSp = llmConfig.teleprompterFontSizeSp,
-                            stealthDimmerAlpha = llmConfig.stealthDimmerAlpha,
-                            onDimmerChange = { onUpdateLlmConfig(llmConfig.copy(stealthDimmerAlpha = it)) },
+                            displayDimmerAlpha = llmConfig.displayDimmerAlpha,
+                            onDimmerChange = { onUpdateLlmConfig(llmConfig.copy(displayDimmerAlpha = it)) },
                             onStartService = onStartAssistant,
                             onStopService = onStopAssistant,
                             onPauseToggle = onPauseToggle,
@@ -400,12 +400,12 @@ fun AppShell(
             }
         }
 
-        // Stealth OLED Dimmer Scrim (Touch-transparent overlay)
-        if (llmConfig.stealthDimmerAlpha > 0f) {
+        // OLED Display Dimmer Scrim (Touch-transparent overlay)
+        if (llmConfig.displayDimmerAlpha > 0f) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = llmConfig.stealthDimmerAlpha))
+                    .background(Color.Black.copy(alpha = llmConfig.displayDimmerAlpha))
             )
         }
     }

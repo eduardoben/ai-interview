@@ -249,7 +249,7 @@ class ModelProvisioningManagerTest {
         }
 
         val storageChecker = StorageChecker { 10_000_000_000L }
-        val manager = ModelProvisioningManager(appConfig, mockFetcher, storageChecker)
+        val manager = ModelProvisioningManager(appConfig, mockFetcher, storageChecker, verifyChecksums = false)
         val manifest = manager.buildManifest(testProfile)
         val vadEntry = manifest.first { it.id == "silero_vad" }
 
@@ -292,7 +292,7 @@ class ModelProvisioningManagerTest {
         }
 
         val storageChecker = StorageChecker { 10_000_000_000L }
-        val manager = ModelProvisioningManager(appConfig, mockFetcher, storageChecker)
+        val manager = ModelProvisioningManager(appConfig, mockFetcher, storageChecker, verifyChecksums = false)
         val manifest = manager.buildManifest(testProfile)
         val vadEntry = manifest.first { it.id == "silero_vad" }
 

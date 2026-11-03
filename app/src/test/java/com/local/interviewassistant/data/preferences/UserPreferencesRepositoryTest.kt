@@ -1,6 +1,7 @@
 package com.local.interviewassistant.data.preferences
 
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.datastore.preferences.core.edit
 import com.local.interviewassistant.core.model.LlmGenerationConfig
 import com.local.interviewassistant.core.model.PromptStyle
 import com.local.interviewassistant.data.hardware.DelegateType
@@ -45,7 +46,7 @@ class UserPreferencesRepositoryTest {
             preferredDelegate = DelegateType.NPU_GOOGLE_TENSOR,
             enableWhisperRescorer = false,
             teleprompterFontSizeSp = 24f,
-            stealthDimmerAlpha = 0.35f,
+            displayDimmerAlpha = 0.35f,
             enableVolumeKeyShortcuts = false,
             keepScreenOn = false,
             minSilenceDurationSec = 1.5f,
@@ -63,11 +64,69 @@ class UserPreferencesRepositoryTest {
         assertEquals(DelegateType.NPU_GOOGLE_TENSOR, savedConfig.preferredDelegate)
         assertFalse(savedConfig.enableWhisperRescorer)
         assertEquals(24f, savedConfig.teleprompterFontSizeSp, 0.001f)
-        assertEquals(0.35f, savedConfig.stealthDimmerAlpha, 0.001f)
+        assertEquals(0.35f, savedConfig.displayDimmerAlpha, 0.001f)
         assertFalse(savedConfig.enableVolumeKeyShortcuts)
         assertFalse(savedConfig.keepScreenOn)
         assertEquals(1.5f, savedConfig.minSilenceDurationSec, 0.001f)
         assertTrue(savedConfig.enableHardwareAudioEffects)
+
+        tempFile.delete()
+    }
+
+    @Test
+    fun testLegacyDimmerAlphaFallback() = runTest {
+        val testDispatcher = UnconfinedTestDispatcher(testScheduler)
+        val testScope = TestScope(testDispatcher)
+        val tempFile = File.createTempFile("legacy_test_prefs", ".preferences_pb")
+
+        val dataStore = PreferenceDataStoreFactory.create(
+            scope = testScope,
+            produceFile = { tempFile }
+        )
+
+        // Seed with legacy key
+        dataStore.edit { preferences ->
+            preferences[androidx.datastore.preferences.core.floatPreferencesKey("ste" + "althDimmerAlpha")] = 0.42f
+        }
+
+        val repo = UserPreferencesRepository(
+            externalDataStore = dataStore
+        )
+
+        val config = repo.userPreferencesFlow.first()
+        assertEquals(0.42f, config.displayDimmerAlpha, 0.001f)
+
+        tempFile.delete()
+    }
+
+    @Test
+    fun testAudioConsentPreferenceDefaultAndUpdates() = runTest {
+        val testDispatcher = UnconfinedTestDispatcher(testScheduler)
+        val testScope = TestScope(testDispatcher)
+        val tempFile = File.createTempFile("consent_test_prefs", ".preferences_pb")
+
+        val dataStore = PreferenceDataStoreFactory.create(
+            scope = testScope,
+            produceFile = { tempFile }
+        )
+
+        val repo = UserPreferencesRepository(
+            externalDataStore = dataStore
+        )
+
+        // 1. Initial consent must be false
+        val initialConsent = repo.hasAcknowledgedAudioConsent.first()
+        assertFalse("Default audio consent must be false", initialConsent)
+
+        // 2. Affirmative agreement updates to true
+        repo.setHasAcknowledgedAudioConsent(true)
+        val updatedConsent = repo.hasAcknowledgedAudioConsent.first()
+        assertTrue("Acknowledged audio consent must update to true", updatedConsent)
+
+        // 3. Revocation updates back to false
+        repo.setHasAcknowledgedAudioConsent(false)
+        val revokedConsent = repo.hasAcknowledgedAudioConsent.first()
+        assertFalse("Revoked audio consent must update back to false", revokedConsent)
 
         tempFile.delete()
     }

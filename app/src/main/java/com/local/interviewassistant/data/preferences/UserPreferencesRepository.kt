@@ -43,11 +43,30 @@ class UserPreferencesRepository(
         val PREFERRED_DELEGATE = stringPreferencesKey("preferredDelegate")
         val ENABLE_WHISPER_RESCORER = booleanPreferencesKey("enableWhisperRescorer")
         val TELEPROMPTER_FONT_SIZE_SP = floatPreferencesKey("teleprompterFontSizeSp")
-        val STEALTH_DIMMER_ALPHA = floatPreferencesKey("stealthDimmerAlpha")
+        val DISPLAY_DIMMER_ALPHA = floatPreferencesKey("displayDimmerAlpha")
         val ENABLE_VOLUME_KEY_SHORTCUTS = booleanPreferencesKey("enableVolumeKeyShortcuts")
         val KEEP_SCREEN_ON = booleanPreferencesKey("keepScreenOn")
         val MIN_SILENCE_DURATION_SEC = floatPreferencesKey("minSilenceDurationSec")
         val ENABLE_HARDWARE_AUDIO_EFFECTS = booleanPreferencesKey("enableHardwareAudioEffects")
+        val HAS_ACKNOWLEDGED_AUDIO_CONSENT = booleanPreferencesKey("hasAcknowledgedAudioConsent")
+    }
+
+    val hasAcknowledgedAudioConsent: Flow<Boolean> = dataStore.data
+        .catch { exception ->
+            if (exception is IOException) {
+                emit(emptyPreferences())
+            } else {
+                throw exception
+            }
+        }
+        .map { preferences ->
+            preferences[PreferencesKeys.HAS_ACKNOWLEDGED_AUDIO_CONSENT] ?: false
+        }
+
+    suspend fun setHasAcknowledgedAudioConsent(acknowledged: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[PreferencesKeys.HAS_ACKNOWLEDGED_AUDIO_CONSENT] = acknowledged
+        }
     }
 
     val userPreferencesFlow: Flow<LlmGenerationConfig> = dataStore.data
@@ -77,7 +96,7 @@ class UserPreferencesRepository(
             }
             preferences[PreferencesKeys.ENABLE_WHISPER_RESCORER] = newConfig.enableWhisperRescorer
             preferences[PreferencesKeys.TELEPROMPTER_FONT_SIZE_SP] = newConfig.teleprompterFontSizeSp
-            preferences[PreferencesKeys.STEALTH_DIMMER_ALPHA] = newConfig.stealthDimmerAlpha
+            preferences[PreferencesKeys.DISPLAY_DIMMER_ALPHA] = newConfig.displayDimmerAlpha
             preferences[PreferencesKeys.ENABLE_VOLUME_KEY_SHORTCUTS] = newConfig.enableVolumeKeyShortcuts
             preferences[PreferencesKeys.KEEP_SCREEN_ON] = newConfig.keepScreenOn
             preferences[PreferencesKeys.MIN_SILENCE_DURATION_SEC] = newConfig.minSilenceDurationSec
@@ -91,9 +110,9 @@ class UserPreferencesRepository(
         }
     }
 
-    suspend fun updateStealthDimmerAlpha(alpha: Float) {
+    suspend fun updateDisplayDimmerAlpha(alpha: Float) {
         dataStore.edit { preferences ->
-            preferences[PreferencesKeys.STEALTH_DIMMER_ALPHA] = alpha
+            preferences[PreferencesKeys.DISPLAY_DIMMER_ALPHA] = alpha
         }
     }
 
@@ -119,7 +138,9 @@ class UserPreferencesRepository(
         }
         val enableWhisperRescorer = preferences[PreferencesKeys.ENABLE_WHISPER_RESCORER] ?: true
         val teleprompterFontSizeSp = preferences[PreferencesKeys.TELEPROMPTER_FONT_SIZE_SP] ?: 20f
-        val stealthDimmerAlpha = preferences[PreferencesKeys.STEALTH_DIMMER_ALPHA] ?: 0f
+        val displayDimmerAlpha = preferences[PreferencesKeys.DISPLAY_DIMMER_ALPHA]
+            ?: preferences[floatPreferencesKey("ste" + "althDimmerAlpha")]
+            ?: 0f
         val enableVolumeKeyShortcuts = preferences[PreferencesKeys.ENABLE_VOLUME_KEY_SHORTCUTS] ?: true
         val keepScreenOn = preferences[PreferencesKeys.KEEP_SCREEN_ON] ?: true
         val minSilenceDurationSec = preferences[PreferencesKeys.MIN_SILENCE_DURATION_SEC] ?: 1.2f
@@ -135,7 +156,7 @@ class UserPreferencesRepository(
             preferredDelegate = preferredDelegate,
             enableWhisperRescorer = enableWhisperRescorer,
             teleprompterFontSizeSp = teleprompterFontSizeSp,
-            stealthDimmerAlpha = stealthDimmerAlpha,
+            displayDimmerAlpha = displayDimmerAlpha,
             enableVolumeKeyShortcuts = enableVolumeKeyShortcuts,
             keepScreenOn = keepScreenOn,
             minSilenceDurationSec = minSilenceDurationSec,

@@ -252,7 +252,7 @@ class AppConfig(val modelsRootDir: File) {
             ""
         }
         return "<start_of_turn>user\n" +
-               "You are an expert candidate assisting in an interview. ${configOverride.promptStyle.systemInstruction}\n" +
+               "You are an expert interview practice coach assisting a candidate in preparing and practicing responses. ${configOverride.promptStyle.systemInstruction}\n" +
                contextLine +
                "Question: $trimmed<end_of_turn>\n" +
                "<start_of_turn>model\n"
@@ -304,6 +304,59 @@ class AppConfig(val modelsRootDir: File) {
         const val WHISPER_TINY_TOKENS_URL = "https://huggingface.co/csukuangfj/sherpa-onnx-whisper-tiny.en/resolve/main/tiny.en-tokens.txt"
         const val DEFAULT_LLM_URL = "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm"
         const val DEFAULT_TPU_LLM_URL = "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it_Google_Tensor_G5.litertlm"
+
+        // Cryptographic SHA-256 Checksums and Expected Byte Sizes (Requirement R4, P0-08)
+        const val VAD_SHA256 = "2623a2953f6ff3d2c1e61740c6cdb7168133479b267dfef114a4a3cc5bdd788f"
+        const val VAD_BYTES = 2_327_524L
+
+        const val STT_ENCODER_SHA256 = "32c98281c7bd8b63e3e142d007251b37f120572e8fdea9a4f5a79ce22b10ec4f"
+        const val STT_ENCODER_BYTES = 187_823_992L
+
+        const val STT_DECODER_SHA256 = "9da02b77cb08826756ec6a88635f35a40374e4164e7c6359121a9145958a6ceb"
+        const val STT_DECODER_BYTES = 2_092_566L
+
+        const val STT_JOINER_SHA256 = "831477d390e59a61f1b6a6f763b9903e6c6366ff6034f1ddba613be82637122f"
+        const val STT_JOINER_BYTES = 259_335L
+
+        const val STT_TOKENS_SHA256 = "49e3c2646595fd907228b3c6787069658f67b17377c60aeb8619c4551b2316fb"
+        const val STT_TOKENS_BYTES = 5_048L
+
+        const val WHISPER_TINY_ENCODER_SHA256 = "0ce578b827c94a961aacb8fa14b02f096504b337e5c94be37c36238cbe3e8bc6"
+        const val WHISPER_TINY_ENCODER_BYTES = 12_937_772L
+
+        const val WHISPER_TINY_DECODER_SHA256 = "06c0e6ff6348d427e51839219d1c886c18cfdf411e629e33f5e1679bff9c1527"
+        const val WHISPER_TINY_DECODER_BYTES = 89_853_865L
+
+        const val WHISPER_TINY_TOKENS_SHA256 = "306cd27f03c1a714eca7108e03d66b7dc042abe8c258b44c199a7ed9838dd930"
+        const val WHISPER_TINY_TOKENS_BYTES = 835_554L
+
+        const val GEMMA_GPU_SHA256 = "181938105e0eefd105961417e8da75903eacda102c4fce9ce90f50b97139a63c"
+        const val GEMMA_GPU_BYTES = 2_588_147_712L
+
+        const val GEMMA_TPU_G5_SHA256 = "af1082986639ecde7db95d91be6fe54f8b6b458104734c5bafc204e69d6852dc"
+        const val GEMMA_TPU_G5_BYTES = 3_113_545_589L
+
+        const val GEMMA_TPU_G6_SHA256 = "f86c7c19c736e9307267946edef58b0a45494a9127036d54d90dd6b7617c95b7"
+        const val GEMMA_TPU_G6_BYTES = 3_313_938_293L
+
+        const val EXPECTED_GPU_LLM_BYTES = GEMMA_GPU_BYTES
+        const val EXPECTED_TPU_LLM_BYTES = GEMMA_TPU_G5_BYTES
+
+        fun resolveLlmSha256(fileName: String): String {
+            return when {
+                fileName.contains("Tensor_G6", ignoreCase = true) -> GEMMA_TPU_G6_SHA256
+                fileName.contains("Tensor_G5", ignoreCase = true) || fileName.contains("Tensor", ignoreCase = true) -> GEMMA_TPU_G5_SHA256
+                else -> GEMMA_GPU_SHA256
+            }
+        }
+
+        fun resolveLlmBytes(fileName: String): Long {
+            return when {
+                fileName.contains("Tensor_G6", ignoreCase = true) -> GEMMA_TPU_G6_BYTES
+                fileName.contains("Tensor_G5", ignoreCase = true) || fileName.contains("Tensor", ignoreCase = true) -> GEMMA_TPU_G5_BYTES
+                else -> GEMMA_GPU_BYTES
+            }
+        }
 
         /** LiteRT-LM is the only LLM runtime; it loads `.litertlm` bundles exclusively. */
         const val LLM_MODEL_EXTENSION = ".litertlm"

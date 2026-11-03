@@ -79,7 +79,7 @@ class Phase2DomainTest {
         val formatted = config.formatGemmaPrompt(question)
 
         val expected = "<start_of_turn>user\n" +
-                "You are an expert candidate assisting in an interview. Answer the following question directly, accurately, and concisely. Use at most 3 key bullet points. No introductions or greetings.\n" +
+                "You are an expert interview practice coach assisting a candidate in preparing and practicing responses. Answer the following question directly, accurately, and concisely. Use at most 3 key bullet points. No introductions or greetings.\n" +
                 "Question: What is dependency injection?<end_of_turn>\n" +
                 "<start_of_turn>model\n"
 

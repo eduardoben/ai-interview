@@ -16,10 +16,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /**
- * Minimal, geometric line-art icons crafted specifically for the Stealth OLED design system.
+ * Minimal, geometric line-art icons crafted specifically for the OLED teleprompter design system.
  * Eliminates inconsistent OEM color emojis while maintaining zero external icon-font overhead.
  */
-object StealthIcons {
+object PrompterIcons {
 
     @Composable
     fun Prompter(color: Color, modifier: Modifier = Modifier, size: Dp = 20.dp) {
@@ -297,5 +297,31 @@ object StealthIcons {
             drawPath(path, color = color, style = stroke)
         }
     }
-}
 
+    @Composable
+    fun Flag(color: Color, modifier: Modifier = Modifier, size: Dp = 16.dp) {
+        Canvas(modifier = modifier.size(size)) {
+            val stroke = Stroke(width = 1.6.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+            val w = this.size.width
+            val h = this.size.height
+
+            // Flag pole
+            drawLine(
+                color = color,
+                start = Offset(w * 0.22f, h * 0.12f),
+                end = Offset(w * 0.22f, h * 0.88f),
+                strokeWidth = stroke.width,
+                cap = StrokeCap.Round
+            )
+
+            // Pennant / flag banner
+            val path = Path().apply {
+                moveTo(w * 0.22f, h * 0.16f)
+                lineTo(w * 0.78f, h * 0.34f)
+                lineTo(w * 0.22f, h * 0.52f)
+                close()
+            }
+            drawPath(path, color = color, style = stroke)
+        }
+    }
+}

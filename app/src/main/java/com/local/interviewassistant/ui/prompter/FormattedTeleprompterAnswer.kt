@@ -28,10 +28,10 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.local.interviewassistant.ui.theme.StealthAccentIndigo
-import com.local.interviewassistant.ui.theme.StealthBorder
-import com.local.interviewassistant.ui.theme.StealthTextPrimary
-import com.local.interviewassistant.ui.theme.StealthTextSecondary
+import com.local.interviewassistant.ui.theme.OledAccentIndigo
+import com.local.interviewassistant.ui.theme.OledBorder
+import com.local.interviewassistant.ui.theme.OledTextPrimary
+import com.local.interviewassistant.ui.theme.OledTextSecondary
 
 @Composable
 fun FormattedTeleprompterAnswer(
@@ -89,7 +89,7 @@ fun FormattedTeleprompterAnswer(
                         modifier = Modifier
                             .padding(top = 8.dp)
                             .size(4.dp)
-                            .background(StealthAccentIndigo, CircleShape)
+                            .background(OledAccentIndigo, CircleShape)
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
@@ -98,7 +98,7 @@ fun FormattedTeleprompterAnswer(
                             fontSize = fontSize,
                             lineHeight = (fontSize.value * 1.48f).sp
                         ),
-                        color = StealthTextPrimary,
+                        color = OledTextPrimary,
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -109,7 +109,7 @@ fun FormattedTeleprompterAnswer(
                         fontSize = fontSize,
                         lineHeight = (fontSize.value * 1.48f).sp
                     ),
-                    color = StealthTextPrimary,
+                    color = OledTextPrimary,
                     modifier = Modifier.padding(vertical = 4.dp)
                 )
             }
@@ -149,7 +149,7 @@ private fun CodeBlockCard(code: String) {
             .fillMaxWidth()
             .padding(vertical = 8.dp)
             .background(Color(0xFF040508), RoundedCornerShape(8.dp))
-            .border(0.5.dp, StealthBorder, RoundedCornerShape(8.dp))
+            .border(0.5.dp, OledBorder, RoundedCornerShape(8.dp))
             .padding(12.dp)
             .horizontalScroll(rememberScrollState())
     ) {
@@ -158,7 +158,7 @@ private fun CodeBlockCard(code: String) {
             style = MaterialTheme.typography.bodyMedium.copy(
                 fontFamily = FontFamily.Monospace
             ),
-            color = StealthTextSecondary
+            color = OledTextSecondary
         )
     }
 }

@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <full-backup-content>
-    <exclude domain="file" path="interview_session_history.json" />
+    <exclude domain="database" path="." />
+    <exclude domain="sharedpref" path="." />
+    <exclude domain="file" path="datastore" />
     <exclude domain="file" path="models" />
+    <exclude domain="file" path="interview_session_history.json" />
     <exclude domain="external" path="." />
 </full-backup-content>

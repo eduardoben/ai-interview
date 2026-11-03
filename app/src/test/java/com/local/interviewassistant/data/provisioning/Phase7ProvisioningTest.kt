@@ -72,7 +72,7 @@ class Phase7ProvisioningTest {
         )
 
         val fetcher = FakeStreamFetcher(payloadSizeMap = sizeMap)
-        val provisioningManager = ModelProvisioningManager(appConfig, fetcher)
+        val provisioningManager = ModelProvisioningManager(appConfig, fetcher, verifyChecksums = false)
 
         val profile = com.local.interviewassistant.data.hardware.DeviceHardwareDetector.classify(
             com.local.interviewassistant.data.hardware.SystemDeviceInfo(
@@ -113,7 +113,7 @@ class Phase7ProvisioningTest {
         val appConfig = AppConfig(modelsDir)
 
         val fetcher = FakeStreamFetcher(failingUrl = AppConfig.VAD_URL)
-        val provisioningManager = ModelProvisioningManager(appConfig, fetcher)
+        val provisioningManager = ModelProvisioningManager(appConfig, fetcher, verifyChecksums = false)
 
         val profile = com.local.interviewassistant.data.hardware.DeviceHardwareDetector.classify(
             com.local.interviewassistant.data.hardware.SystemDeviceInfo(
@@ -163,7 +163,7 @@ class Phase7ProvisioningTest {
         val fetcher = StreamFetcher { url, _, _ ->
             throw IOException("HTTP 400 (Bad Request): Network failure or broken link for URL: $url")
         }
-        val provisioningManager = ModelProvisioningManager(appConfig, fetcher)
+        val provisioningManager = ModelProvisioningManager(appConfig, fetcher, verifyChecksums = false)
         val profile = com.local.interviewassistant.data.hardware.DeviceHardwareDetector.classify(
             com.local.interviewassistant.data.hardware.SystemDeviceInfo(
                 "", "", "", "", 8_000_000_000L, 4_000_000_000L, false, false

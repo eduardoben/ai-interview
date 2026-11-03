@@ -18,7 +18,7 @@ data class PrompterUiState(
     val isServiceRunning: Boolean = false,
     val isFocusMode: Boolean = false,
     val fontSizeSp: Float = 20f,
-    val stealthDimmerAlpha: Float = 0f,
+    val displayDimmerAlpha: Float = 0f,
     val hardwareSocName: String? = null,
     val showTranscriptSheet: Boolean = false,
     val customQuestionInput: String = "",
@@ -77,7 +77,7 @@ class PrompterViewModel(
                     _uiState.update { current ->
                         current.copy(
                             fontSizeSp = prefs.teleprompterFontSizeSp,
-                            stealthDimmerAlpha = prefs.stealthDimmerAlpha
+                            displayDimmerAlpha = prefs.displayDimmerAlpha
                         )
                     }
                 }
@@ -143,10 +143,10 @@ class PrompterViewModel(
     }
 
     fun onDimmerAlphaChange(alpha: Float) {
-        _uiState.update { it.copy(stealthDimmerAlpha = alpha) }
+        _uiState.update { it.copy(displayDimmerAlpha = alpha) }
         preferencesRepository?.let { repo ->
             scope.launch {
-                repo.updateStealthDimmerAlpha(alpha)
+                repo.updateDisplayDimmerAlpha(alpha)
             }
         }
     }

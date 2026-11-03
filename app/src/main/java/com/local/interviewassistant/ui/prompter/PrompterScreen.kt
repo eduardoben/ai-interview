@@ -11,7 +11,7 @@ import com.local.interviewassistant.core.model.CopilotUiState
 import com.local.interviewassistant.core.model.InterviewCategory
 import com.local.interviewassistant.core.model.TranscriptSegment
 import com.local.interviewassistant.ui.prompter.components.*
-import com.local.interviewassistant.ui.theme.StealthBackground
+import com.local.interviewassistant.ui.theme.OledBackground
 
 /**
  * State-aware entrypoint composable for the Teleprompter screen, powered by [PrompterViewModel].
@@ -29,7 +29,7 @@ fun PrompterScreen(
         isServiceRunning = state.isServiceRunning,
         isFocusMode = state.isFocusMode,
         fontSizeSp = state.fontSizeSp,
-        stealthDimmerAlpha = state.stealthDimmerAlpha,
+        displayDimmerAlpha = state.displayDimmerAlpha,
         hardwareSocName = state.hardwareSocName,
         showTranscriptSheet = state.showTranscriptSheet,
         customQuestionInput = state.customQuestionInput,
@@ -62,7 +62,7 @@ fun PrompterScreen(
     uiState: CopilotUiState,
     isServiceRunning: Boolean,
     fontSizeSp: Float,
-    stealthDimmerAlpha: Float,
+    displayDimmerAlpha: Float,
     onDimmerChange: (Float) -> Unit,
     onStartService: () -> Unit,
     onStopService: () -> Unit,
@@ -89,7 +89,7 @@ fun PrompterScreen(
         isServiceRunning = isServiceRunning,
         isFocusMode = isFocusMode,
         fontSizeSp = fontSizeSp,
-        stealthDimmerAlpha = stealthDimmerAlpha,
+        displayDimmerAlpha = displayDimmerAlpha,
         hardwareSocName = hardwareSocName,
         showTranscriptSheet = showTranscriptSheet,
         customQuestionInput = customQuestionInput,
@@ -123,7 +123,7 @@ fun PrompterScreenContent(
     isServiceRunning: Boolean,
     isFocusMode: Boolean,
     fontSizeSp: Float,
-    stealthDimmerAlpha: Float,
+    displayDimmerAlpha: Float,
     hardwareSocName: String?,
     showTranscriptSheet: Boolean,
     customQuestionInput: String,
@@ -147,8 +147,8 @@ fun PrompterScreenContent(
     modifier: Modifier = Modifier
 ) {
     if (showDimmerDialog) {
-        StealthDimmerDialog(
-            stealthDimmerAlpha = stealthDimmerAlpha,
+        LuminanceDimmerDialog(
+            displayDimmerAlpha = displayDimmerAlpha,
             onDimmerChange = onDimmerChange,
             onDismiss = { onToggleDimmerDialog(false) }
         )
@@ -174,7 +174,7 @@ fun PrompterScreenContent(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(StealthBackground)
+            .background(OledBackground)
     ) {
         Column(
             modifier = Modifier
@@ -187,7 +187,7 @@ fun PrompterScreenContent(
                 isServiceRunning = isServiceRunning,
                 lastTtftMs = uiState.lastTtftMs,
                 hardwareSocName = hardwareSocName,
-                stealthDimmerAlpha = stealthDimmerAlpha,
+                displayDimmerAlpha = displayDimmerAlpha,
                 isFocusMode = isFocusMode,
                 onNavigateToSettings = onNavigateToSettings,
                 onToggleDimmer = { onToggleDimmerDialog(true) },

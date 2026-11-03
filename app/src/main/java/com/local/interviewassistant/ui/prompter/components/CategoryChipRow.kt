@@ -44,11 +44,11 @@ fun CategoryChipRow(
                     modifier = Modifier
                         .clip(RoundedCornerShape(50))
                         .background(
-                            if (isSelected) StealthAccentIndigo.copy(alpha = 0.18f) else StealthSurface
+                            if (isSelected) OledAccentIndigo.copy(alpha = 0.18f) else OledSurface
                         )
                         .border(
                             width = if (isSelected) 1.dp else 0.5.dp,
-                            color = if (isSelected) StealthAccentIndigo else StealthBorder,
+                            color = if (isSelected) OledAccentIndigo else OledBorder,
                             shape = RoundedCornerShape(50)
                         )
                         .clickable { onSelectCategory(category) }
@@ -59,7 +59,7 @@ fun CategoryChipRow(
                         fontSize = 11.sp,
                         letterSpacing = 0.2.sp,
                         fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                        color = if (isSelected) StealthTextPrimary else StealthTextSecondary
+                        color = if (isSelected) OledTextPrimary else OledTextSecondary
                     )
                 }
             }

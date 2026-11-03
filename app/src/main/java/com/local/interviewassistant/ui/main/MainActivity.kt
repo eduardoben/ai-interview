@@ -32,10 +32,12 @@ import com.local.interviewassistant.data.hardware.HardwareProfile
 import com.local.interviewassistant.data.provisioning.ProvisioningState
 import com.local.interviewassistant.service.AssistantForegroundService
 import com.local.interviewassistant.service.ModelDownloadService
+import com.local.interviewassistant.ui.dialog.MicrophoneDisclosureDialog
 import com.local.interviewassistant.ui.prompter.PrompterViewModel
 import com.local.interviewassistant.ui.settings.SettingsViewModel
-import com.local.interviewassistant.ui.theme.StealthOledTheme
+import com.local.interviewassistant.ui.theme.OledTheme
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 @SuppressLint("InvalidFragmentVersionForActivityResult")
@@ -44,6 +46,7 @@ class MainActivity : ComponentActivity() {
     private var readinessStatus by mutableStateOf<AppContainer.ReadinessStatus?>(null)
     private var hardwareProfile by mutableStateOf<HardwareProfile?>(null)
     private var isMeteredNetwork by mutableStateOf(false)
+    private var showMicrophoneDisclosureDialog by mutableStateOf(false)
     private var downloadJob: Job? = null
 
     private val requestPermissionsLauncher = registerForActivityResult(
@@ -145,7 +148,7 @@ class MainActivity : ComponentActivity() {
                 window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             }
 
-            StealthOledTheme {
+            OledTheme {
                 AppShell(
                     prompterViewModel = prompterViewModel,
                     settingsViewModel = settingsViewModel,
@@ -179,6 +182,19 @@ class MainActivity : ComponentActivity() {
                     onImportLlmFileClick = { openDocumentLauncher.launch(arrayOf("*/*")) },
                     onRefreshDiskCheckClick = { refreshStatus() }
                 )
+
+                if (showMicrophoneDisclosureDialog) {
+                    MicrophoneDisclosureDialog(
+                        onDismiss = { showMicrophoneDisclosureDialog = false },
+                        onConfirm = {
+                            showMicrophoneDisclosureDialog = false
+                            lifecycleScope.launch {
+                                appContainer.userPreferencesRepository.setHasAcknowledgedAudioConsent(true)
+                                launchSystemPermissions()
+                            }
+                        }
+                    )
+                }
             }
         }
     }
@@ -228,6 +244,18 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun requestBasePermissions() {
+        val appContainer = AppContainer.getInstance(this)
+        lifecycleScope.launch {
+            val hasConsent = appContainer.userPreferencesRepository.hasAcknowledgedAudioConsent.first()
+            if (!hasConsent) {
+                showMicrophoneDisclosureDialog = true
+            } else {
+                launchSystemPermissions()
+            }
+        }
+    }
+
+    private fun launchSystemPermissions() {
         val permissions = mutableListOf(Manifest.permission.RECORD_AUDIO)
         permissions.add(Manifest.permission.POST_NOTIFICATIONS)
         requestPermissionsLauncher.launch(permissions.toTypedArray())
@@ -253,14 +281,22 @@ class MainActivity : ComponentActivity() {
 
     private fun startAssistantService() {
         val hasAudio = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
-        if (!hasAudio) {
-            requestBasePermissions()
-            return
+        val appContainer = AppContainer.getInstance(this)
+        lifecycleScope.launch {
+            val hasConsent = appContainer.userPreferencesRepository.hasAcknowledgedAudioConsent.first()
+            if (!hasConsent) {
+                showMicrophoneDisclosureDialog = true
+                return@launch
+            }
+            if (!hasAudio) {
+                launchSystemPermissions()
+                return@launch
+            }
+            val intent = Intent(this@MainActivity, AssistantForegroundService::class.java).apply {
+                action = AssistantForegroundService.ACTION_START
+            }
+            ContextCompat.startForegroundService(this@MainActivity, intent)
         }
-        val intent = Intent(this, AssistantForegroundService::class.java).apply {
-            action = AssistantForegroundService.ACTION_START
-        }
-        ContextCompat.startForegroundService(this, intent)
     }
 
     private fun stopAssistantService() {

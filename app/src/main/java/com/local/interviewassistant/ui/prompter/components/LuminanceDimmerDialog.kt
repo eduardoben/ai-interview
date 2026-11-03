@@ -11,11 +11,11 @@ import androidx.compose.ui.unit.sp
 import com.local.interviewassistant.ui.theme.*
 
 /**
- * Dialog for adjusting screen luminance reduction on OLED panels.
+ * Dialog for adjusting screen luminance reduction for eye comfort and power efficiency.
  */
 @Composable
-fun StealthDimmerDialog(
-    stealthDimmerAlpha: Float,
+fun LuminanceDimmerDialog(
+    displayDimmerAlpha: Float,
     onDimmerChange: (Float) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -23,8 +23,8 @@ fun StealthDimmerDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                "Stealth OLED Dimmer",
-                color = StealthTextPrimary,
+                "OLED Display Dimmer",
+                color = OledTextPrimary,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold
             )
@@ -32,8 +32,8 @@ fun StealthDimmerDialog(
         text = {
             Column {
                 Text(
-                    "Reduces screen luminance to eliminate glare on eyeglasses or webcams during low-light video calls.",
-                    color = StealthTextSecondary,
+                    "Reduces screen luminance for eye comfort and power efficiency during extended practice sessions in low-light environments.",
+                    color = OledTextSecondary,
                     fontSize = 12.sp,
                     lineHeight = 17.sp
                 )
@@ -42,34 +42,33 @@ fun StealthDimmerDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text("Luminance Reduction", color = StealthTextSecondary, fontSize = 12.sp)
+                    Text("Luminance Reduction", color = OledTextSecondary, fontSize = 12.sp)
                     Text(
-                        "${(stealthDimmerAlpha * 100).toInt()}%",
-                        color = StealthTextPrimary,
+                        "${(displayDimmerAlpha * 100).toInt()}%",
+                        color = OledTextPrimary,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold
                     )
                 }
                 Slider(
-                    value = stealthDimmerAlpha,
+                    value = displayDimmerAlpha,
                     onValueChange = onDimmerChange,
                     valueRange = 0f..0.70f,
                     steps = 6,
                     colors = SliderDefaults.colors(
-                        thumbColor = StealthAccentIndigo,
-                        activeTrackColor = StealthAccentIndigo,
-                        inactiveTrackColor = StealthSurfaceHigh
+                        thumbColor = OledAccentIndigo,
+                        activeTrackColor = OledAccentIndigo,
+                        inactiveTrackColor = OledSurfaceHigh
                     )
                 )
             }
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Done", color = StealthAccentIndigoSoft, fontWeight = FontWeight.SemiBold)
+                Text("Done", color = OledAccentIndigoSoft, fontWeight = FontWeight.SemiBold)
             }
         },
-        containerColor = StealthSurface,
+        containerColor = OledSurface,
         shape = RoundedCornerShape(16.dp)
     )
 }
-

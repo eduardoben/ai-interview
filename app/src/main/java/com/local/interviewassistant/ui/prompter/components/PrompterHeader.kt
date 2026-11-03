@@ -26,7 +26,7 @@ import com.local.interviewassistant.ui.theme.*
 
 /**
  * Top prompter bar featuring active listening indicator, TTFT telemetry badge,
- * hardware chip context, stealth dimmer toggle, and focus mode expander.
+ * hardware chip context, display dimmer toggle, and focus mode expander.
  */
 @Composable
 fun PrompterHeader(
@@ -34,7 +34,7 @@ fun PrompterHeader(
     isServiceRunning: Boolean,
     lastTtftMs: Long,
     hardwareSocName: String?,
-    stealthDimmerAlpha: Float,
+    displayDimmerAlpha: Float,
     isFocusMode: Boolean,
     onNavigateToSettings: () -> Unit,
     onToggleDimmer: () -> Unit,
@@ -42,14 +42,14 @@ fun PrompterHeader(
     modifier: Modifier = Modifier
 ) {
     val (rawStatusColor, statusText) = when (pipelineState) {
-        is AssistantState.Listening -> StealthStatusEmerald to "Listening"
-        is AssistantState.DetectingSpeech -> StealthStatusEmerald to "Speech Active"
-        is AssistantState.GeneratingAnswer -> StealthStatusAmber to "Synthesizing"
-        is AssistantState.AnswerReady -> StealthAccentIndigoSoft to "Answer Ready"
-        is AssistantState.Paused -> StealthStatusAmber to "Paused"
-        is AssistantState.Error -> StealthStatusCoral to "Error"
-        is AssistantState.Initializing -> StealthStatusAmber to "Loading Models"
-        is AssistantState.Idle -> StealthTextMuted to (if (isServiceRunning) "Starting" else "Standby")
+        is AssistantState.Listening -> OledStatusEmerald to "Listening"
+        is AssistantState.DetectingSpeech -> OledStatusEmerald to "Speech Active"
+        is AssistantState.GeneratingAnswer -> OledStatusAmber to "Synthesizing"
+        is AssistantState.AnswerReady -> OledAccentIndigoSoft to "Answer Ready"
+        is AssistantState.Paused -> OledStatusAmber to "Paused"
+        is AssistantState.Error -> OledStatusCoral to "Error"
+        is AssistantState.Initializing -> OledStatusAmber to "Loading Models"
+        is AssistantState.Idle -> OledTextMuted to (if (isServiceRunning) "Starting" else "Standby")
     }
 
     val statusDotColor by animateColorAsState(
@@ -83,8 +83,8 @@ fun PrompterHeader(
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
-                .background(StealthSurface, RoundedCornerShape(50))
-                .border(0.5.dp, StealthBorder, RoundedCornerShape(50))
+                .background(OledSurface, RoundedCornerShape(50))
+                .border(0.5.dp, OledBorder, RoundedCornerShape(50))
                 .padding(horizontal = 10.dp, vertical = 6.dp)
         ) {
             Box(contentAlignment = Alignment.Center, modifier = Modifier.size(10.dp)) {
@@ -108,7 +108,7 @@ fun PrompterHeader(
                 letterSpacing = 0.8.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = if (pipelineState is AssistantState.Idle && !isServiceRunning) {
-                    StealthTextSecondary
+                    OledTextSecondary
                 } else {
                     statusDotColor
                 }
@@ -118,7 +118,7 @@ fun PrompterHeader(
                 Text(
                     text = "• ${lastTtftMs}ms",
                     fontSize = 10.sp,
-                    color = StealthTextMuted
+                    color = OledTextMuted
                 )
             }
         }
@@ -133,34 +133,34 @@ fun PrompterHeader(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .clip(RoundedCornerShape(50))
-                    .background(StealthSurface)
-                    .border(0.5.dp, StealthBorder, RoundedCornerShape(50))
+                    .background(OledSurface)
+                    .border(0.5.dp, OledBorder, RoundedCornerShape(50))
                     .clickable { onNavigateToSettings() }
                     .padding(horizontal = 10.dp, vertical = 6.dp)
             ) {
-                StealthIcons.CpuChip(color = StealthAccentIndigoSoft, size = 13.dp)
+                PrompterIcons.CpuChip(color = OledAccentIndigoSoft, size = 13.dp)
                 Spacer(modifier = Modifier.width(5.dp))
                 Text(
                     text = socBadge,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Medium,
-                    color = StealthTextSecondary
+                    color = OledTextSecondary
                 )
             }
 
-            // Stealth Dimmer Action Button
+            // Display Dimmer Action Button
             Box(
                 modifier = Modifier
                     .size(34.dp)
                     .clip(CircleShape)
-                    .background(if (stealthDimmerAlpha > 0f) StealthAccentIndigo.copy(alpha = 0.16f) else StealthSurface)
-                    .border(0.5.dp, if (stealthDimmerAlpha > 0f) StealthAccentIndigo.copy(alpha = 0.5f) else StealthBorder, CircleShape)
+                    .background(if (displayDimmerAlpha > 0f) OledAccentIndigo.copy(alpha = 0.16f) else OledSurface)
+                    .border(0.5.dp, if (displayDimmerAlpha > 0f) OledAccentIndigo.copy(alpha = 0.5f) else OledBorder, CircleShape)
                     .clickable { onToggleDimmer() },
                 contentAlignment = Alignment.Center
             ) {
-                StealthIcons.DimmerMoon(
-                    color = if (stealthDimmerAlpha > 0f) StealthAccentIndigoSoft else StealthTextSecondary,
-                    isDimmed = stealthDimmerAlpha > 0f,
+                PrompterIcons.DimmerMoon(
+                    color = if (displayDimmerAlpha > 0f) OledAccentIndigoSoft else OledTextSecondary,
+                    isDimmed = displayDimmerAlpha > 0f,
                     size = 15.dp
                 )
             }
@@ -170,13 +170,13 @@ fun PrompterHeader(
                 modifier = Modifier
                     .size(34.dp)
                     .clip(CircleShape)
-                    .background(if (isFocusMode) StealthAccentIndigo.copy(alpha = 0.16f) else StealthSurface)
-                    .border(0.5.dp, if (isFocusMode) StealthAccentIndigo.copy(alpha = 0.5f) else StealthBorder, CircleShape)
+                    .background(if (isFocusMode) OledAccentIndigo.copy(alpha = 0.16f) else OledSurface)
+                    .border(0.5.dp, if (isFocusMode) OledAccentIndigo.copy(alpha = 0.5f) else OledBorder, CircleShape)
                     .clickable { onToggleFocusMode() },
                 contentAlignment = Alignment.Center
             ) {
-                StealthIcons.FocusExpand(
-                    color = if (isFocusMode) StealthAccentIndigoSoft else StealthTextSecondary,
+                PrompterIcons.FocusExpand(
+                    color = if (isFocusMode) OledAccentIndigoSoft else OledTextSecondary,
                     isExpanded = isFocusMode,
                     size = 15.dp
                 )

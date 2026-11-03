@@ -9,19 +9,25 @@ import androidx.room.RoomDatabase
  * Android Jetpack Room Database for AI Interview Assistant.
  */
 @Database(
-    entities = [InterviewSessionEntity::class],
-    version = 1,
+    entities = [
+        InterviewSessionEntity::class,
+        AiContentReportEntity::class
+    ],
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun interviewSessionDao(): InterviewSessionDao
+    abstract fun aiContentReportDao(): AiContentReportDao
 
     companion object {
         private const val DATABASE_NAME = "interview_assistant.db"
 
         @Volatile
         private var INSTANCE: AppDatabase? = null
+
+        fun getInstance(): AppDatabase? = INSTANCE
 
         fun getInstance(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
