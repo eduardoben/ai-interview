@@ -278,10 +278,11 @@ class LiteRtGemmaEngine(
             )
         }
 
-        val effectiveSystemPrompt = systemPrompt ?: run {
-            val base = llmConfig.promptStyle.systemInstruction
+        val effectiveSystemPrompt = systemPrompt?.takeIf { it.isNotBlank() } ?: run {
+            val base = "${AppConfig.SYSTEM_SAFETY_GUARDRAIL}\n${llmConfig.promptStyle.systemInstruction}"
             if (llmConfig.interviewContext.isNotBlank()) {
-                "$base\nContext: ${llmConfig.interviewContext}"
+                val contextTrimmed = llmConfig.interviewContext.trim().take(500)
+                "$base\n<interview_context>\nInterview Context (Role, Program & Domain): $contextTrimmed\n</interview_context>"
             } else {
                 base
             }
@@ -381,5 +382,43 @@ class LiteRtGemmaEngine(
 
             _isInitialized.value = false
         }
+    }
+
+    internal fun resolveEffectiveSystemPrompt(): String {
+        val llmConfig = config.llmConfig.value
+        return systemPrompt?.takeIf { it.isNotBlank() } ?: run {
+            val base = "${AppConfig.SYSTEM_SAFETY_GUARDRAIL}\n${llmConfig.promptStyle.systemInstruction}"
+            if (llmConfig.interviewContext.isNotBlank()) {
+                val contextTrimmed = llmConfig.interviewContext.trim().take(500)
+                "$base\n<interview_context>\nInterview Context (Role, Program & Domain): $contextTrimmed\n</interview_context>"
+            } else {
+                base
+            }
+        }
+    }
+
+    internal fun createConversationConfig(): ConversationConfig {
+        val llmConfig = config.llmConfig.value
+        val isTensorTpuModel = config.activeLlmModelFile.name.let {
+            it.contains("Tensor", ignoreCase = true) || it.contains("tpu", ignoreCase = true) || it.contains("npu", ignoreCase = true)
+        }
+
+        val samplerConfig = if (isTensorTpuModel) {
+            null
+        } else {
+            SamplerConfig(
+                topK = llmConfig.topK,
+                topP = 0.9,
+                temperature = llmConfig.temperature.toDouble()
+            )
+        }
+
+        val effectiveSystemPrompt = resolveEffectiveSystemPrompt()
+        val sysPromptContents = effectiveSystemPrompt.ifBlank { null }?.let { SystemPromptHelper.createSystemPromptContents(it) }
+
+        return ConversationConfig(
+            samplerConfig = samplerConfig,
+            systemInstruction = sysPromptContents
+        )
     }
 }

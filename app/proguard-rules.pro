@@ -86,3 +86,14 @@
 -keep class androidx.lifecycle.LifecycleService { *; }
 -keep class androidx.compose.runtime.** { *; }
 
+# ------------------------------------------------------------------------------
+# 6. Release Log Stripping (P1-05)
+# Strip verbose, debug, and info logs in release builds while preserving warning and error logs.
+# ------------------------------------------------------------------------------
+-assumenosideeffects class android.util.Log {
+    public static boolean isLoggable(java.lang.String, int);
+    public static int v(...);
+    public static int d(...);
+    public static int i(...);
+}
+

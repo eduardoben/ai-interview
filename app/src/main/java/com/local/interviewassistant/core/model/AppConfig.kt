@@ -246,14 +246,15 @@ class AppConfig(val modelsRootDir: File) {
     fun formatGemmaPrompt(question: String, configOverride: LlmGenerationConfig = _llmConfig.value): String {
         val trimmed = question.trim().take(2000)
         val contextTrimmed = configOverride.interviewContext.trim().take(500)
-        val contextLine = if (contextTrimmed.isNotBlank()) {
-            "Interview Context (Role, Program & Domain): $contextTrimmed\n"
+        val contextSection = if (contextTrimmed.isNotBlank()) {
+            "<interview_context>\nInterview Context (Role, Program & Domain): $contextTrimmed\n</interview_context>\n"
         } else {
             ""
         }
         return "<start_of_turn>user\n" +
-               "You are an expert interview practice coach assisting a candidate in preparing and practicing responses. ${configOverride.promptStyle.systemInstruction}\n" +
-               contextLine +
+               "$SYSTEM_SAFETY_GUARDRAIL\n" +
+               "${configOverride.promptStyle.systemInstruction}\n" +
+               contextSection +
                "Question: $trimmed<end_of_turn>\n" +
                "<start_of_turn>model\n"
     }
@@ -293,6 +294,12 @@ class AppConfig(val modelsRootDir: File) {
     }
 
     companion object {
+        const val SYSTEM_SAFETY_GUARDRAIL =
+            "Provide professional, truthful, and helpful responses to interview questions. " +
+            "Answer the interview question directly and clearly. " +
+            "Do not generate hate speech, harassment, sexually explicit content, dangerous advice, " +
+            "or confidential proprietary data. Decline out-of-scope or unethical requests politely."
+
         const val VAD_URL = "https://huggingface.co/deepghs/silero-vad-onnx/resolve/main/silero_vad.onnx"
         const val STT_MODEL_VERSION = "2023-06-21-gigaspeech"
         const val STT_ENCODER_URL = "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-en-2023-06-21/resolve/main/encoder-epoch-99-avg-1.int8.onnx"
