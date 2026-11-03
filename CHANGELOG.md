@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.12.0] - 2026-11-02
+
+### Added
+- Added an in-app open-source license and third-party attribution screen in System and Settings.
+- Added persistent AI accuracy notices and made answer reporting available from both the Prompter and floating HUD.
+- Added a network security configuration that disallows cleartext traffic and trusts system certificates for model downloads.
+- Added safety guardrails and bounded interview context to default Gemma prompts; blank system prompts now use the safe default.
+- Added adversarial security/performance checks and expanded prompt, license, and service regression coverage.
+
+### Changed
+- Moved hardware detection and model validation off the main thread during readiness refresh.
+- Removed the assistant service's long-held microphone wake lock and changed model-download wake-lock renewal to a 30-minute timeout renewed during active transfers.
+- Updated release logging rules to remove verbose and debug logs while retaining warnings and errors.
+- Bumped application `versionCode` to 16 and `versionName` to `1.12.0`.
+
+---
+
 ## [1.11.0] - 2026-11-02
 
 ### ??? Phase 1 Google Play Compliance Remediation (P0 Blockers) & 12x14 Closed Testing Readiness
