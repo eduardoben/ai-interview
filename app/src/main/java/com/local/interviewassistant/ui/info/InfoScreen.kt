@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.sp
 import com.local.interviewassistant.core.di.AppContainer
 import com.local.interviewassistant.data.hardware.HardwareProfile
 import com.local.interviewassistant.data.provisioning.ProvisioningState
+import com.local.interviewassistant.ui.dialog.OpenSourceLicensesDialog
 import com.local.interviewassistant.ui.prompter.FormattedTeleprompterAnswer
 import com.local.interviewassistant.ui.theme.*
 import java.util.Locale
@@ -39,6 +40,7 @@ fun InfoScreen(
     modifier: Modifier = Modifier
 ) {
     var showFilesTable by remember { mutableStateOf(false) }
+    var showLicensesDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier
@@ -469,7 +471,53 @@ fun InfoScreen(
             }
         }
 
+        // 5. Legal & Third-Party Attributions Card (R2 / P1-02)
+        Card(
+            colors = CardDefaults.cardColors(containerColor = OledSurface),
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(0.5.dp, OledBorder, RoundedCornerShape(16.dp))
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "Legal & Third-Party Attributions",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = OledTextPrimary
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Open source software notices, model licenses, and terms of use.",
+                    fontSize = 11.sp,
+                    color = OledTextMuted
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedButton(
+                    onClick = { showLicensesDialog = true },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 48.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(containerColor = OledSurfaceHigh),
+                    border = BorderStroke(0.5.dp, OledBorderHigh)
+                ) {
+                    Text(
+                        text = "View Open Source Licenses & Attributions",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = OledTextPrimary
+                    )
+                }
+            }
+        }
+
         Spacer(modifier = Modifier.height(8.dp))
+    }
+
+    if (showLicensesDialog) {
+        OpenSourceLicensesDialog(
+            onDismiss = { showLicensesDialog = false }
+        )
     }
 }
 

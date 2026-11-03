@@ -44,9 +44,6 @@ class AssistantForegroundService : LifecycleService() {
     private var overlayView: ComposeView? = null
     private var overlayLifecycleOwner: OverlayLifecycleOwner? = null
 
-    // Milestone 2.4: Partial WakeLock to guarantee uninterrupted audio ingestion
-    private var wakeLock: PowerManager.WakeLock? = null
-
     // Milestone 2.3: Thermal listener to throttle LLM and STT under thermal load
     private var thermalListener: PowerManager.OnThermalStatusChangedListener? = null
 
@@ -80,28 +77,10 @@ class AssistantForegroundService : LifecycleService() {
         val coordinator = appContainer.pipelineCoordinator
         appContainer.isServiceRunning.value = true
 
-        acquireWakeLock()
         registerThermalListener(coordinator)
 
         lifecycleScope.launch {
             coordinator.start()
-        }
-
-        // REC-3: Adaptive WakeLock release on pause to conserve battery
-        lifecycleScope.launch {
-            coordinator.state.collect { state ->
-                if (state is com.local.interviewassistant.core.model.AssistantState.Paused) {
-                    if (wakeLock?.isHeld == true) {
-                        try { wakeLock?.release() } catch (_: Exception) {}
-                    }
-                } else if (state is com.local.interviewassistant.core.model.AssistantState.Listening ||
-                    state is com.local.interviewassistant.core.model.AssistantState.DetectingSpeech
-                ) {
-                    if (wakeLock == null || wakeLock?.isHeld != true) {
-                        acquireWakeLock()
-                    }
-                }
-            }
         }
 
         if (Settings.canDrawOverlays(this) && overlayView == null) {
@@ -207,35 +186,6 @@ class AssistantForegroundService : LifecycleService() {
         overlayLifecycleOwner = null
     }
 
-    private fun acquireWakeLock() {
-        try {
-            val powerManager = getSystemService(POWER_SERVICE) as? PowerManager
-            wakeLock = powerManager?.newWakeLock(
-                PowerManager.PARTIAL_WAKE_LOCK,
-                "AIInterviewAssistant:AudioCaptureLock"
-            )?.apply {
-                setReferenceCounted(false)
-                acquire(2 * 60 * 60 * 1000L) // 2 hour max safety timeout
-            }
-            Log.d(TAG, "Audio WakeLock acquired.")
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to acquire audio WakeLock", e)
-        }
-    }
-
-    private fun releaseWakeLock() {
-        try {
-            if (wakeLock?.isHeld == true) {
-                wakeLock?.release()
-                Log.d(TAG, "Audio WakeLock released.")
-            }
-        } catch (e: Exception) {
-            Log.w(TAG, "Error releasing audio WakeLock", e)
-        } finally {
-            wakeLock = null
-        }
-    }
-
     private fun registerThermalListener(coordinator: AssistantPipelineCoordinator) {
         try {
             val powerManager = getSystemService(POWER_SERVICE) as? PowerManager ?: return
@@ -279,7 +229,6 @@ class AssistantForegroundService : LifecycleService() {
         }
 
         unregisterThermalListener()
-        releaseWakeLock()
 
         val appContainer = AppContainer.getInstance(this)
         appContainer.isServiceRunning.value = false
@@ -307,7 +256,6 @@ class AssistantForegroundService : LifecycleService() {
 
     override fun onDestroy() {
         unregisterThermalListener()
-        releaseWakeLock()
 
         // Fallback guard if onDestroy was triggered directly by OS
         if (isTornDown.compareAndSet(false, true)) {

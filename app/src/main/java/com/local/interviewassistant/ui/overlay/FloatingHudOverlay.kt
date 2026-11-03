@@ -386,28 +386,6 @@ fun FloatingHudOverlay(
                         text = uiState.activeAnswer,
                         fontSize = 15.sp
                     )
-
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Verify facts independently",
-                            fontSize = 10.sp,
-                            color = OledTextMuted
-                        )
-                        Text(
-                            text = "Report",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = OledAccentIndigoSoft,
-                            modifier = Modifier
-                                .clickable { showReportModal = true }
-                                .padding(horizontal = 4.dp, vertical = 2.dp)
-                        )
-                    }
                 } else if (uiState.pipelineState is AssistantState.GeneratingAnswer) {
                     Row(
                         modifier = Modifier.padding(vertical = 8.dp),
@@ -465,7 +443,45 @@ fun FloatingHudOverlay(
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Persistent micro-disclaimer beneath reading area (100% visible across all states)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp, vertical = 2.dp)
+                    .semantics { contentDescription = "AI hallucination notice: AI output may contain inaccuracies. Verify independently." },
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    PrompterIcons.AlertCircle(color = OledTextMuted, size = 10.dp)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "AI output may contain inaccuracies. Verify independently.",
+                        fontSize = 10.sp,
+                        color = OledTextMuted
+                    )
+                }
+                if (!uiState.activeAnswer.isNullOrBlank()) {
+                    Text(
+                        text = "Report",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = OledAccentIndigoSoft,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .clickable { showReportModal = true }
+                            .padding(horizontal = 4.dp, vertical = 2.dp)
+                            .semantics { contentDescription = "Report AI-generated answer" }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
 
             // Zone 2: Compact Bottom STT Ticker with pulsing Microphone micro-animation
             Row(

@@ -31,7 +31,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * Foreground Service dedicated to performing uninterrupted model downloads
  * in the background, compliant with Android 13–17 (API 33–37) guidelines.
  *
- * Utilizes FOREGROUND_SERVICE_TYPE_DATA_SYNC, a partial WakeLock (4h timeout),
+ * Utilizes FOREGROUND_SERVICE_TYPE_DATA_SYNC, a partial WakeLock (30m renewal window),
  * a high-perf WifiLock, and mandatory onTimeout() handling across Android 14+ (API 34/35).
  */
 class ModelDownloadService : LifecycleService() {
@@ -41,12 +41,16 @@ class ModelDownloadService : LifecycleService() {
     private var wifiLock: WifiManager.WifiLock? = null
     private var downloadJob: Job? = null
     private var lastNotificationUpdateTime = 0L
+    private var lastWakeLockRenewTime = 0L
 
     private val notificationManager by lazy {
         getSystemService(NOTIFICATION_SERVICE) as NotificationManager
     }
 
     companion object {
+        internal const val WAKE_LOCK_TIMEOUT_MS = 30 * 60 * 1000L // 30-minute safety window
+        internal const val WAKE_LOCK_RENEW_INTERVAL_MS = 10 * 60 * 1000L // Renew every 10 min during active transfer
+
         const val CHANNEL_ID = "model_downloads_channel"
         const val CHANNEL_NAME = "Model Downloads"
         const val NOTIFICATION_ID = 2002
@@ -189,6 +193,7 @@ class ModelDownloadService : LifecycleService() {
                 when (state) {
                     is ProvisioningState.Downloading -> {
                         val now = System.currentTimeMillis()
+                        renewWakeLock()
                         // Throttle notification updates to at most once per 600ms
                         if (now - lastNotificationUpdateTime >= 600L || state.bytesDownloaded >= state.totalBytesRequired) {
                             lastNotificationUpdateTime = now
@@ -337,9 +342,10 @@ class ModelDownloadService : LifecycleService() {
                 PowerManager.PARTIAL_WAKE_LOCK,
                 "AIInterviewAssistant:ModelDownloadWakeLock"
             ).apply {
-                // 4-hour safety timeout to comply with Android 17 FGS boundaries
-                acquire(4 * 60 * 60 * 1000L)
+                setReferenceCounted(false)
+                acquire(WAKE_LOCK_TIMEOUT_MS)
             }
+            lastWakeLockRenewTime = System.currentTimeMillis()
 
             val wifiManager = applicationContext.getSystemService(WIFI_SERVICE) as? WifiManager
             wifiLock = wifiManager?.createWifiLock(
@@ -350,6 +356,18 @@ class ModelDownloadService : LifecycleService() {
             }
         } catch (e: Exception) {
             e.printStackTrace()
+        }
+    }
+
+    internal fun renewWakeLock() {
+        val now = System.currentTimeMillis()
+        if (now - lastWakeLockRenewTime >= WAKE_LOCK_RENEW_INTERVAL_MS) {
+            try {
+                wakeLock?.acquire(WAKE_LOCK_TIMEOUT_MS)
+                lastWakeLockRenewTime = now
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 

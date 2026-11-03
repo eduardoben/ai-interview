@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -93,13 +94,15 @@ fun TeleprompterDisplay(
             .fillMaxWidth()
             .background(OledSurface, RoundedCornerShape(16.dp))
             .border(0.5.dp, OledBorder, RoundedCornerShape(16.dp))
-            .padding(horizontal = 18.dp, vertical = 16.dp)
+            .padding(horizontal = 18.dp, vertical = 14.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(scrollState)
-        ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .verticalScroll(scrollState)
+            ) {
             if (activeQuestion != null) {
                 // Elegant left-accented Question Callout
                 Row(
@@ -158,33 +161,6 @@ fun TeleprompterDisplay(
                     text = activeAnswer,
                     fontSize = fontSizeSp.sp
                 )
-
-                Spacer(modifier = Modifier.height(10.dp))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "AI responses may contain inaccuracies. Verify facts independently.",
-                        fontSize = 11.sp,
-                        color = OledTextMuted,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Report",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = OledAccentIndigoSoft,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(4.dp))
-                            .clickable { showReportDialog = true }
-                            .padding(horizontal = 6.dp, vertical = 4.dp)
-                    )
-                }
             } else if (pipelineState is AssistantState.GeneratingAnswer) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -364,6 +340,50 @@ fun TeleprompterDisplay(
                 }
             }
         }
+
+        Spacer(modifier = Modifier.height(8.dp))
+        HorizontalDivider(thickness = 0.5.dp, color = OledBorder.copy(alpha = 0.5f))
+        Spacer(modifier = Modifier.height(6.dp))
+
+        // Persistent AI Hallucination Disclaimer & Reporting Bar
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .semantics {
+                    contentDescription = "AI hallucination notice: AI responses may contain inaccuracies. Verify technical concepts independently."
+                },
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                PrompterIcons.AlertCircle(color = OledTextMuted, size = 12.dp)
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "AI responses may contain inaccuracies. Verify technical concepts independently.",
+                    fontSize = 11.sp,
+                    color = OledTextMuted,
+                    lineHeight = 15.sp
+                )
+            }
+            if (!activeAnswer.isNullOrBlank()) {
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Report",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = OledAccentIndigoSoft,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .clickable { showReportDialog = true }
+                        .padding(horizontal = 6.dp, vertical = 4.dp)
+                        .semantics { contentDescription = "Report AI-generated answer" }
+                )
+            }
+        }
+    }
 
         if (showReportDialog && !activeAnswer.isNullOrBlank()) {
             ReportAiContentDialog(

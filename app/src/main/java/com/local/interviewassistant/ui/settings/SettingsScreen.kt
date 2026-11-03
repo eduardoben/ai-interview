@@ -1,5 +1,6 @@
 package com.local.interviewassistant.ui.settings
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -20,9 +21,11 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.local.interviewassistant.core.model.LlmGenerationConfig
+import com.local.interviewassistant.BuildConfig
 import com.local.interviewassistant.core.model.PromptStyle
 import com.local.interviewassistant.data.hardware.DelegateType
 import com.local.interviewassistant.data.hardware.HardwareProfile
+import com.local.interviewassistant.ui.dialog.OpenSourceLicensesDialog
 import com.local.interviewassistant.ui.prompter.FormattedTeleprompterAnswer
 import com.local.interviewassistant.ui.theme.*
 import java.util.Locale
@@ -50,6 +53,7 @@ fun SettingsScreen(
     modifier: Modifier = Modifier
 ) {
     val isTensorTpu = hardwareProfile?.preferredDelegate == DelegateType.NPU_GOOGLE_TENSOR
+    var showLicensesDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier
@@ -332,7 +336,58 @@ fun SettingsScreen(
             )
         }
 
+        // Card 5: About & Legal (R2 / P1-02)
+        SettingsGroupCard(title = "About & Legal") {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = "AI Interview Assistant",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = OledTextPrimary
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "Version ${BuildConfig.VERSION_NAME} (Build ${BuildConfig.VERSION_CODE})",
+                        fontSize = 11.sp,
+                        color = OledTextMuted
+                    )
+                }
+            }
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 12.dp),
+                thickness = 0.5.dp,
+                color = OledBorder
+            )
+            OutlinedButton(
+                onClick = { showLicensesDialog = true },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp),
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.outlinedButtonColors(containerColor = OledSurfaceHigh),
+                border = BorderStroke(0.5.dp, OledBorderHigh)
+            ) {
+                Text(
+                    text = "Open Source Licenses & Attributions",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = OledTextPrimary
+                )
+            }
+        }
+
         Spacer(modifier = Modifier.height(8.dp))
+    }
+
+    if (showLicensesDialog) {
+        OpenSourceLicensesDialog(
+            onDismiss = { showLicensesDialog = false }
+        )
     }
 }
 

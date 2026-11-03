@@ -1,6 +1,8 @@
 package com.local.interviewassistant.data.llm
 
 import com.google.ai.edge.litertlm.Backend
+import com.google.ai.edge.litertlm.Content
+import com.google.ai.edge.litertlm.ConversationConfig
 import com.local.interviewassistant.core.model.AppConfig
 import com.local.interviewassistant.data.hardware.DelegateType
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -12,6 +14,7 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -190,5 +193,130 @@ class Phase4LlmEngineTest {
         assertEquals(2, gpuFallbackChain.size)
         assertTrue(gpuFallbackChain[0].first is Backend.GPU)
         assertTrue(gpuFallbackChain[1].first is Backend.CPU)
+    }
+
+    @Test
+    fun testBlankSystemPromptPreservesSystemSafetyGuardrail() {
+        val config = AppConfig(File("."))
+
+        // Case 1: systemPrompt = null (standard default fallback)
+        val engineNull = LiteRtGemmaEngine(
+            context = null,
+            config = config,
+            systemPrompt = null
+        )
+        val promptNull = engineNull.resolveEffectiveSystemPrompt()
+        assertTrue(promptNull.contains(AppConfig.SYSTEM_SAFETY_GUARDRAIL))
+        assertTrue(promptNull.contains(config.llmConfig.value.promptStyle.systemInstruction))
+
+        val conversationConfigNull = engineNull.createConversationConfig()
+        val sysInstructionNull = conversationConfigNull.systemInstruction
+        assertNotNull(sysInstructionNull)
+        val textNull = (sysInstructionNull?.contents?.firstOrNull() as? Content.Text)?.text
+        assertTrue(textNull?.contains(AppConfig.SYSTEM_SAFETY_GUARDRAIL) == true)
+
+        // Case 2: systemPrompt = "" (empty string must execute fallback, NOT set null)
+        val engineEmpty = LiteRtGemmaEngine(
+            context = null,
+            config = config,
+            systemPrompt = ""
+        )
+        val promptEmpty = engineEmpty.resolveEffectiveSystemPrompt()
+        assertTrue(promptEmpty.contains(AppConfig.SYSTEM_SAFETY_GUARDRAIL))
+        assertTrue(promptEmpty.contains(config.llmConfig.value.promptStyle.systemInstruction))
+
+        val conversationConfigEmpty = engineEmpty.createConversationConfig()
+        val sysInstructionEmpty = conversationConfigEmpty.systemInstruction
+        assertNotNull("sysInstruction must not be null when systemPrompt is empty", sysInstructionEmpty)
+        val textEmpty = (sysInstructionEmpty?.contents?.firstOrNull() as? Content.Text)?.text
+        assertTrue(textEmpty?.contains(AppConfig.SYSTEM_SAFETY_GUARDRAIL) == true)
+
+        // Case 3: systemPrompt = "   " (whitespace-only string must execute fallback, NOT set null)
+        val engineWhitespace = LiteRtGemmaEngine(
+            context = null,
+            config = config,
+            systemPrompt = "   \n\t  "
+        )
+        val promptWhitespace = engineWhitespace.resolveEffectiveSystemPrompt()
+        assertTrue(promptWhitespace.contains(AppConfig.SYSTEM_SAFETY_GUARDRAIL))
+        assertTrue(promptWhitespace.contains(config.llmConfig.value.promptStyle.systemInstruction))
+
+        val conversationConfigWhitespace = engineWhitespace.createConversationConfig()
+        val sysInstructionWhitespace = conversationConfigWhitespace.systemInstruction
+        assertNotNull("sysInstruction must not be null when systemPrompt is blank whitespace", sysInstructionWhitespace)
+        val textWhitespace = (sysInstructionWhitespace?.contents?.firstOrNull() as? Content.Text)?.text
+        assertTrue(textWhitespace?.contains(AppConfig.SYSTEM_SAFETY_GUARDRAIL) == true)
+
+        // Case 4: Non-blank custom system prompt is preserved without fallback injection
+        val customPrompt = "You are a professional mock interviewer."
+        val engineCustom = LiteRtGemmaEngine(
+            context = null,
+            config = config,
+            systemPrompt = customPrompt
+        )
+        assertEquals(customPrompt, engineCustom.resolveEffectiveSystemPrompt())
+
+        val conversationConfigCustom = engineCustom.createConversationConfig()
+        val textCustom = (conversationConfigCustom.systemInstruction?.contents?.firstOrNull() as? Content.Text)?.text
+        assertEquals(customPrompt, textCustom)
+    }
+
+    @Test
+    fun testBlankSystemPromptWithInterviewContextPreservesGuardrailAndContext() {
+        val config = AppConfig(File("."))
+        config.updateLlmConfig(
+            config.llmConfig.value.copy(
+                interviewContext = "Android Staff Engineer Interview"
+            )
+        )
+
+        // Blank string with interviewContext configured
+        val engineBlank = LiteRtGemmaEngine(
+            context = null,
+            config = config,
+            systemPrompt = "  "
+        )
+        val prompt = engineBlank.resolveEffectiveSystemPrompt()
+        assertTrue(prompt.contains(AppConfig.SYSTEM_SAFETY_GUARDRAIL))
+        assertTrue(prompt.contains("<interview_context>"))
+        assertTrue(prompt.contains("Android Staff Engineer Interview"))
+
+        val conversationConfig = engineBlank.createConversationConfig()
+        val sysInstruction = conversationConfig.systemInstruction
+        assertNotNull(sysInstruction)
+        val text = (sysInstruction?.contents?.firstOrNull() as? Content.Text)?.text
+        assertTrue(text?.contains(AppConfig.SYSTEM_SAFETY_GUARDRAIL) == true)
+        assertTrue(text?.contains("<interview_context>") == true)
+        assertTrue(text?.contains("Android Staff Engineer Interview") == true)
+    }
+
+    @Test
+    fun testInitializeWithBlankSystemPromptSucceeds() = runTest {
+        val config = AppConfig(File("."))
+        val backendEmpty = FakeLlmBackend()
+        val engineEmpty = LiteRtGemmaEngine(
+            context = null,
+            config = config,
+            systemPrompt = "",
+            customBackend = backendEmpty
+        )
+        val initResult = engineEmpty.initialize()
+        assertTrue(initResult.isSuccess)
+        assertTrue(engineEmpty.isInitialized.value)
+        assertTrue(backendEmpty.isInitialized)
+        assertTrue(engineEmpty.resolveEffectiveSystemPrompt().contains(AppConfig.SYSTEM_SAFETY_GUARDRAIL))
+
+        val backendWhitespace = FakeLlmBackend()
+        val engineWhitespace = LiteRtGemmaEngine(
+            context = null,
+            config = config,
+            systemPrompt = "   ",
+            customBackend = backendWhitespace
+        )
+        val initWhitespaceResult = engineWhitespace.initialize()
+        assertTrue(initWhitespaceResult.isSuccess)
+        assertTrue(engineWhitespace.isInitialized.value)
+        assertTrue(backendWhitespace.isInitialized)
+        assertTrue(engineWhitespace.resolveEffectiveSystemPrompt().contains(AppConfig.SYSTEM_SAFETY_GUARDRAIL))
     }
 }

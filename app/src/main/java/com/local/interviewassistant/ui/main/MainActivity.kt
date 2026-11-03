@@ -36,9 +36,11 @@ import com.local.interviewassistant.ui.dialog.MicrophoneDisclosureDialog
 import com.local.interviewassistant.ui.prompter.PrompterViewModel
 import com.local.interviewassistant.ui.settings.SettingsViewModel
 import com.local.interviewassistant.ui.theme.OledTheme
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @SuppressLint("InvalidFragmentVersionForActivityResult")
 class MainActivity : ComponentActivity() {
@@ -48,6 +50,7 @@ class MainActivity : ComponentActivity() {
     private var isMeteredNetwork by mutableStateOf(false)
     private var showMicrophoneDisclosureDialog by mutableStateOf(false)
     private var downloadJob: Job? = null
+    private var refreshStatusJob: Job? = null
 
     private val requestPermissionsLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
@@ -220,27 +223,35 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun refreshStatus() {
-        val hasAudio = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
-        val hasNotification = ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
-        val hasOverlay = Settings.canDrawOverlays(this)
+        refreshStatusJob?.cancel()
+        refreshStatusJob = lifecycleScope.launch {
+            val hasAudio = ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+            val hasNotification = ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+            val hasOverlay = Settings.canDrawOverlays(this@MainActivity)
 
-        val profile = DeviceHardwareDetector.detectHardware(this)
-        hardwareProfile = profile
+            val cm = getSystemService(CONNECTIVITY_SERVICE) as? ConnectivityManager
+            val isMetered = cm?.isActiveNetworkMetered ?: false
 
-        val cm = getSystemService(CONNECTIVITY_SERVICE) as? ConnectivityManager
-        isMeteredNetwork = cm?.isActiveNetworkMetered ?: false
+            val appContainer = AppContainer.getInstance(this@MainActivity)
 
-        val appContainer = AppContainer.getInstance(this)
-        appContainer.provisioningManager.checkProvisioningStatus(profile)
+            // Heavy hardware detection, directory creation, file stat & model validation run off-main-thread on Dispatchers.IO
+            val (profile, modelReport) = withContext(Dispatchers.IO) {
+                val detectedProfile = DeviceHardwareDetector.detectHardware(this@MainActivity)
+                appContainer.provisioningManager.checkProvisioningStatus(detectedProfile)
+                val report = appContainer.appConfig.validateModelsOnDisk()
+                Pair(detectedProfile, report)
+            }
 
-        val modelReport = appContainer.appConfig.validateModelsOnDisk()
-
-        readinessStatus = AppContainer.ReadinessStatus(
-            hasAudioPermission = hasAudio,
-            hasNotificationPermission = hasNotification,
-            hasOverlayPermission = hasOverlay,
-            modelReport = modelReport
-        )
+            // Re-apply reactive UI state on Dispatchers.Main
+            hardwareProfile = profile
+            isMeteredNetwork = isMetered
+            readinessStatus = AppContainer.ReadinessStatus(
+                hasAudioPermission = hasAudio,
+                hasNotificationPermission = hasNotification,
+                hasOverlayPermission = hasOverlay,
+                modelReport = modelReport
+            )
+        }
     }
 
     private fun requestBasePermissions() {
