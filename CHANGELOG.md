@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.11.0] - 2026-11-02
+
+### ??? Phase 1 Google Play Compliance Remediation (P0 Blockers) & 12x14 Closed Testing Readiness
+- **Nomenclature & Ergonomic Positioning Refactoring:**
+  - 100% elimination of covert cheating and anti-detection terminology across the production application (0 matches for `stealth`, `eyeglass`, `webcam`, `blind`, `cheat`, or `evasion` in `app/src/main/`).
+  - Refactored `StealthTheme.kt` to `OledTheme.kt` (`OledPalette`), `StealthIcons.kt` to `PrompterIcons.kt`, and `StealthDimmerDialog.kt` to `LuminanceDimmerDialog.kt`.
+  - Migrated `stealthDimmerAlpha` to `displayDimmerAlpha` across `LlmGenerationConfig` and `UserPreferencesRepository` with backward-compatible DataStore migration fallback.
+  - Replaced webcam glare avoidance copy in `InfoScreen.kt` with an "Ergonomic Placement Guide" emphasizing natural neck posture, low-glare display dimming, and eye-comfort rationale.
+  - Replaced candidate persona prompt in `AppConfig.kt` to frame the AI assistant explicitly as an assistive interview practice coach.
+- **Wiretapping Legal Consent & Pre-Permission Disclosure:**
+  - Implemented `MicrophoneDisclosureDialog.kt` presented before requesting Android's runtime `RECORD_AUDIO` permission in `MainActivity` and `InfoScreen`.
+  - Requires affirmative checkbox agreement regarding two-party wiretapping consent under applicable laws and highlights 100% on-device ephemeral RAM audio processing with zero cloud transmission.
+- **In-App Generative AI Content Reporting:**
+  - Implemented `ReportAiContentDialog.kt` in the Prompter and an in-tree overlay report card in `FloatingHudOverlay` (safely avoiding `WindowManager$BadTokenException`), satisfying Google Play's AI-generated content reporting policy (Help Article 14290099).
+  - Migrated Room database to v2, adding `AiContentReportEntity.kt` and `AiContentReportDao.kt` for local persistence of user reports.
+- **Cloud Backup Hardening & Data Leakage Prevention:**
+  - Updated `backup_rules.xml` and `data_extraction_rules.xml` to strictly exclude SQLite databases (`domain="database"`), SharedPreferences (`domain="sharedpref"`), and DataStore (`path="datastore"`) from unencrypted Google Drive backups.
+- **Manifest Hygiene & Dependency Pruning:**
+  - Removed unused WorkManager dependency (`libs.androidx.work.runtime.ktx`) from `app/build.gradle.kts`.
+  - Deleted obsolete dead worker classes `DownloadWorker.kt` and `DownloadRepository.kt`.
+  - Eliminated duplicate `dataSync` service declaration and transitive `RECEIVE_BOOT_COMPLETED` permission from the merged release manifest.
+- **Model Download Integrity Verification:**
+  - Added authoritative SHA-256 hashes and exact byte counts in `AppConfig.kt` for all 9 model weights.
+  - Enforced streaming SHA-256 hash validation and byte-size checks in `ModelProvisioningManager.kt` and `LiteRtLmModelDownloader.kt`, automatically purging mismatched or truncated downloads.
+- **Google Play Compliance Audit Report & Closed Testing Runbook:**
+  - Published comprehensive compliance audit report (`docs/play_compliance_audit_v1.10.md`, 946 lines) and operational closed testing playbook (`docs/closed_testing_runbook.md`, 808 lines).
+- Bumped application `versionCode = 15` and `versionName = "1.11.0"`.
+
+---
+
 ## [1.10.0] - 2026-10-31
 
 ### 🎧 Automated Multi-Audio E2E Interview Test Suite & Decoupled `:test-suite` Standalone Architecture
