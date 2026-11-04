@@ -15,6 +15,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
+import com.local.interviewassistant.R
 import com.local.interviewassistant.core.di.AppContainer
 import com.local.interviewassistant.data.hardware.DeviceHardwareDetector
 import com.local.interviewassistant.data.provisioning.ErrorReason

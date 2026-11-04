@@ -405,9 +405,9 @@ class AppConfig(val modelsRootDir: File) {
         /** LiteRT-LM is the only LLM runtime; it loads `.litertlm` bundles exclusively. */
         const val LLM_MODEL_EXTENSION = ".litertlm"
 
-        /** Official Public Privacy Policy URL (hosted on verified public HTTPS domain) */
-        const val PRIVACY_POLICY_URL = "https://aiinterviewassistant.app/privacy"
-        const val PRIVACY_POLICY_MIRROR_URL = "https://himmler.github.io/AIInterviewAssistant/privacy.html"
+        /** Official Public Privacy Policy URL (hosted on verified public HTTPS domain via GitHub Pages) */
+        const val PRIVACY_POLICY_URL = "https://eduardoben.github.io/ai-interview/privacy.html"
+        const val PRIVACY_POLICY_MIRROR_URL = "https://aiinterviewassistant.app/privacy"
 
         fun isSupportedLlmModel(file: File): Boolean = isSupportedLlmModelName(file.name)
 

@@ -4,7 +4,7 @@
 **Last Updated:** November 3, 2026  
 **Developer / Publisher:** AI Interview Assistant Developer Team  
 **Contact Email:** privacy@aiinterviewassistant.app  
-**Hosting URL:** https://aiinterviewassistant.app/privacy (Mirror: https://himmler.github.io/AIInterviewAssistant/privacy.html)
+**Hosting URL:** https://eduardoben.github.io/ai-interview/privacy.html (Custom Domain: https://aiinterviewassistant.app/privacy)
 
 ---
 

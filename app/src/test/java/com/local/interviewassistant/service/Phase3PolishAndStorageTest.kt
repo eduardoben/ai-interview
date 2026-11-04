@@ -117,8 +117,8 @@ class Phase3PolishAndStorageTest {
 
     @Test
     fun testPrivacyPolicyConstantsAndFilesExist() {
-        assertEquals("https://aiinterviewassistant.app/privacy", AppConfig.PRIVACY_POLICY_URL)
-        assertEquals("https://himmler.github.io/AIInterviewAssistant/privacy.html", AppConfig.PRIVACY_POLICY_MIRROR_URL)
+        assertEquals("https://eduardoben.github.io/ai-interview/privacy.html", AppConfig.PRIVACY_POLICY_URL)
+        assertEquals("https://aiinterviewassistant.app/privacy", AppConfig.PRIVACY_POLICY_MIRROR_URL)
 
         val rootDir = File(".").canonicalFile
         val policyMd = if (File(rootDir, "docs/privacy_policy.md").exists()) {

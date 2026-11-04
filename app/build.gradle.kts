@@ -145,7 +145,7 @@ android {
             val resolvedStorePath = keystoreProperties.getProperty("STORE_FILE")
                 ?: System.getenv("KEYSTORE_PATH")
                 ?: "keystore/upload-key.jks"
-            storeFile = file(resolvedStorePath)
+            storeFile = rootProject.file(resolvedStorePath)
             storePassword = keystoreProperties.getProperty("STORE_PASSWORD")
                 ?: System.getenv("KEYSTORE_PASSWORD")
                 ?: ""

@@ -461,6 +461,6 @@ When submitting the release bundle for Google Play review, provide the following
 ---
 
 ## 9. Privacy Policy URL & Public Data Transparency
-* **Official Public Privacy Policy URL:** `https://aiinterviewassistant.app/privacy`
-* **Public GitHub Mirror:** `https://himmler.github.io/AIInterviewAssistant/privacy.html`
+* **Official Public Privacy Policy URL:** `https://eduardoben.github.io/ai-interview/privacy.html`
+* **Custom Domain Mirror:** `https://aiinterviewassistant.app/privacy`
 * **Data Transparency Summary:** Zero cloud transmission, zero server-side telemetry, ephemeral volatile RAM-only microphone buffering, on-device SQLite storage, and in-app model purging controls (~3.1 GB).
