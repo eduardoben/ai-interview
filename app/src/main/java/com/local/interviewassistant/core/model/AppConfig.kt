@@ -408,6 +408,7 @@ class AppConfig(val modelsRootDir: File) {
         /** Official Public Privacy Policy URL (hosted on verified public HTTPS domain via GitHub Pages) */
         const val PRIVACY_POLICY_URL = "https://eduardoben.github.io/ai-interview/privacy.html"
         const val PRIVACY_POLICY_MIRROR_URL = "https://aiinterviewassistant.app/privacy"
+        const val FEEDBACK_EMAIL = "feedback@aiinterviewassistant.app"
 
         fun isSupportedLlmModel(file: File): Boolean = isSupportedLlmModelName(file.name)
 

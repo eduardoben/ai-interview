@@ -26,6 +26,7 @@ import com.local.interviewassistant.core.model.PromptStyle
 import com.local.interviewassistant.data.hardware.DelegateType
 import com.local.interviewassistant.data.hardware.HardwareProfile
 import com.local.interviewassistant.ui.dialog.OpenSourceLicensesDialog
+import com.local.interviewassistant.ui.dialog.SendFeedbackDialog
 import com.local.interviewassistant.ui.prompter.FormattedTeleprompterAnswer
 import com.local.interviewassistant.ui.theme.*
 import android.content.Intent
@@ -58,6 +59,7 @@ fun SettingsScreen(
 ) {
     val isTensorTpu = hardwareProfile?.preferredDelegate == DelegateType.NPU_GOOGLE_TENSOR
     var showLicensesDialog by remember { mutableStateOf(false) }
+    var showFeedbackDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier
@@ -368,6 +370,25 @@ fun SettingsScreen(
                 color = OledBorder
             )
             OutlinedButton(
+                onClick = { showFeedbackDialog = true },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp),
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.outlinedButtonColors(containerColor = OledSurfaceHigh),
+                border = BorderStroke(0.5.dp, OledBorderHigh)
+            ) {
+                Text(
+                    text = "Send Feedback (Logs & Transcripts Optional)",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = OledTextPrimary
+                )
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            OutlinedButton(
                 onClick = { showLicensesDialog = true },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -409,6 +430,13 @@ fun SettingsScreen(
         }
 
         Spacer(modifier = Modifier.height(8.dp))
+    }
+
+    if (showFeedbackDialog) {
+        SendFeedbackDialog(
+            hardwareProfile = hardwareProfile,
+            onDismiss = { showFeedbackDialog = false }
+        )
     }
 
     if (showLicensesDialog) {

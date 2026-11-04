@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.14.0] - 2026-11-03
+
+### Added
+- Implemented user-initiated feedback feature (`SendFeedbackDialog.kt`, `FeedbackPayloadBuilder.kt`) allowing users to compose bug reports, feature requests, or quality feedback with explicit opt-in attachments for diagnostic logs and/or session transcripts.
+- Added comprehensive unit tests in `FeedbackPayloadBuilderTest.kt` verifying privacy guarantees, optional payload inclusion, and bounded log/transcript sizes (179 passing unit tests).
+- Documented voluntary user-initiated feedback and email support in `docs/privacy_policy.md` and `docs/privacy.html` in compliance with Google Play Data Safety and User Data policies.
+- Added UI entry points for feedback in both `SettingsScreen` (About & Legal) and `InfoScreen` (Legal & Third-Party Attributions).
+
+---
+
 ## [1.13.0] - 2026-11-03
 
 ### Added

@@ -33,7 +33,15 @@ Our architectural commitment is absolute:
 ### C. Downloaded AI Pipeline Model Weights
 - **Purpose:** To perform on-device speech transcription and generative AI inference without third-party cloud APIs.
 - **Download Source:** Model weights (`.onnx`, `.litertlm`, and tokenizer vocabularies) are downloaded directly over encrypted HTTPS from Hugging Face (`huggingface.co` / `hf.co`). All downloads are cryptographically verified via streaming SHA-256 checksums and exact byte size validation.
+### C. Downloaded AI Pipeline Model Weights
+- **Purpose:** To perform on-device speech transcription and generative AI inference without third-party cloud APIs.
+- **Download Source:** Model weights (`.onnx`, `.litertlm`, and tokenizer vocabularies) are downloaded directly over encrypted HTTPS from Hugging Face (`huggingface.co` / `hf.co`). All downloads are cryptographically verified via streaming SHA-256 checksums and exact byte size validation.
 - **Network Metadata:** When downloading models, your device connects directly to Hugging Face CDN servers. We operate no intermediate proxy servers and capture no connection metadata.
+
+### D. User-Initiated Support & Feedback (Optional)
+- **Mechanism:** The Application includes a voluntary "Send Feedback" option. Feedback is never transmitted automatically or in the background.
+- **User Review & Control:** When initiated, the Application composes a plain-text/Markdown message and opens your device's native email or sharing client (`Intent.ACTION_SEND`) addressed to `feedback@aiinterviewassistant.app`. You can review, edit, or delete any content before deciding to send.
+- **Optional Diagnostic Logs & Transcripts:** Users may explicitly opt in by checking boxes to attach device diagnostics (app version, hardware SoC tier, model verification status, recent process logs) and/or saved session transcripts. These checkboxes are disabled (unchecked) by default. If included, this data is used strictly to diagnose technical issues and reply to your inquiry; it is never sold, shared with third parties, or used for advertising.
 
 ---
 
