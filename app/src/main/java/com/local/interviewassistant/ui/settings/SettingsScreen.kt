@@ -28,6 +28,10 @@ import com.local.interviewassistant.data.hardware.HardwareProfile
 import com.local.interviewassistant.ui.dialog.OpenSourceLicensesDialog
 import com.local.interviewassistant.ui.prompter.FormattedTeleprompterAnswer
 import com.local.interviewassistant.ui.theme.*
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.ui.platform.LocalContext
+import com.local.interviewassistant.core.model.AppConfig
 import java.util.Locale
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
@@ -374,6 +378,29 @@ fun SettingsScreen(
             ) {
                 Text(
                     text = "Open Source Licenses & Attributions",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = OledTextPrimary
+                )
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            val context = LocalContext.current
+            OutlinedButton(
+                onClick = {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(AppConfig.PRIVACY_POLICY_URL))
+                    context.startActivity(intent)
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp),
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.outlinedButtonColors(containerColor = OledSurfaceHigh),
+                border = BorderStroke(0.5.dp, OledBorderHigh)
+            ) {
+                Text(
+                    text = "Public Privacy Policy",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
                     color = OledTextPrimary

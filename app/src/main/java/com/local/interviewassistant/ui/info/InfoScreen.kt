@@ -23,6 +23,10 @@ import com.local.interviewassistant.data.provisioning.ProvisioningState
 import com.local.interviewassistant.ui.dialog.OpenSourceLicensesDialog
 import com.local.interviewassistant.ui.prompter.FormattedTeleprompterAnswer
 import com.local.interviewassistant.ui.theme.*
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.ui.platform.LocalContext
+import com.local.interviewassistant.core.model.AppConfig
 import java.util.Locale
 
 @Composable
@@ -37,10 +41,13 @@ fun InfoScreen(
     onCancelDownloadClick: () -> Unit,
     onImportLlmFileClick: () -> Unit,
     onRefreshDiskCheckClick: () -> Unit,
+    onPurgeModelsClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     var showFilesTable by remember { mutableStateOf(false) }
     var showLicensesDialog by remember { mutableStateOf(false) }
+    var showPurgeConfirmDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier
@@ -508,6 +515,50 @@ fun InfoScreen(
                         color = OledTextPrimary
                     )
                 }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                OutlinedButton(
+                    onClick = {
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(AppConfig.PRIVACY_POLICY_URL))
+                        context.startActivity(intent)
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 48.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(containerColor = OledSurfaceHigh),
+                    border = BorderStroke(0.5.dp, OledBorderHigh)
+                ) {
+                    Text(
+                        text = "Public Privacy Policy",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = OledTextPrimary
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                OutlinedButton(
+                    onClick = { showPurgeConfirmDialog = true },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 48.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = OledStatusCoral.copy(alpha = 0.08f),
+                        contentColor = OledStatusCoral
+                    ),
+                    border = BorderStroke(0.5.dp, OledStatusCoral.copy(alpha = 0.35f))
+                ) {
+                    Text(
+                        text = "Purge Downloaded AI Models (~3.1 GB)",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = OledStatusCoral
+                    )
+                }
             }
         }
 
@@ -517,6 +568,45 @@ fun InfoScreen(
     if (showLicensesDialog) {
         OpenSourceLicensesDialog(
             onDismiss = { showLicensesDialog = false }
+        )
+    }
+
+    if (showPurgeConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showPurgeConfirmDialog = false },
+            title = {
+                Text(
+                    text = "Purge Downloaded Models?",
+                    color = OledTextPrimary,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            },
+            text = {
+                Text(
+                    text = "This will delete all on-device neural model weights (Silero VAD, Zipformer ASR, Whisper Rescorer, and Gemma 4) to reclaim ~3.1 GB of device storage.\n\nYou can re-download them anytime from this screen.",
+                    color = OledTextSecondary,
+                    fontSize = 12.sp,
+                    lineHeight = 17.sp
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showPurgeConfirmDialog = false
+                        onPurgeModelsClick()
+                    }
+                ) {
+                    Text("Purge Models", color = OledStatusCoral, fontWeight = FontWeight.SemiBold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPurgeConfirmDialog = false }) {
+                    Text("Cancel", color = OledTextSecondary)
+                }
+            },
+            containerColor = OledSurface,
+            shape = RoundedCornerShape(16.dp)
         )
     }
 }

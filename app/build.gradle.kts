@@ -130,8 +130,8 @@ android {
         applicationId = "com.local.interviewassistant"
         minSdk = 33
         targetSdk = 37
-        versionCode = 16
-        versionName = "1.12.0"
+        versionCode = 17
+        versionName = "1.13.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -189,6 +189,10 @@ android {
     }
     packaging {
         jniLibs {
+            // CRITICAL (P2-05): useLegacyPackaging = true forces extraction of uncompressed native libraries
+            // into context.applicationInfo.nativeLibraryDir at install time. This is mandatory for LiteRT-LM's
+            // C++ EdgeTPU runtime, which dynamically locates and dlopen()s libLiteRtDispatch_GoogleTensor.so
+            // directly from the filesystem path on Google Tensor G3/G4/G5 SoCs.
             useLegacyPackaging = true
             pickFirsts += listOf("**/libc++_shared.so", "**/libOpenCL.so")
         }

@@ -102,11 +102,11 @@ class AssistantForegroundService : LifecycleService() {
         return NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
             .setContentTitle("AI Interview Assistant Active")
             .setContentText("Transcribing spoken audio and generating prompt suggestions.")
-            .setSmallIcon(android.R.drawable.ic_btn_speak_now)
+            .setSmallIcon(R.drawable.ic_notification_mic)
             .setOngoing(true)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .addAction(android.R.drawable.ic_media_pause, "Stop Assistant", stopPendingIntent)
+            .addAction(R.drawable.ic_notification_stop, "Stop Assistant", stopPendingIntent)
             .build()
     }
 

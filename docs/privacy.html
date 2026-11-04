@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy - AI Interview Assistant</title>
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: #131b2e;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --accent: #6366f1;
+            --border: #1e293b;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            margin: 0;
+            padding: 24px 16px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: var(--card-bg);
+            padding: 36px 32px;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+        }
+        h1 {
+            color: #ffffff;
+            font-size: 1.85rem;
+            margin-top: 0;
+            border-bottom: 2px solid var(--accent);
+            padding-bottom: 12px;
+        }
+        h2 {
+            color: #e2e8f0;
+            font-size: 1.3rem;
+            margin-top: 28px;
+            margin-bottom: 12px;
+        }
+        h3 {
+            color: #cbd5e1;
+            font-size: 1.05rem;
+            margin-top: 18px;
+        }
+        p, li {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+        strong {
+            color: var(--text-primary);
+        }
+        ul {
+            padding-left: 20px;
+        }
+        li {
+            margin-bottom: 8px;
+        }
+        .badge {
+            display: inline-block;
+            background: rgba(99, 102, 241, 0.15);
+            color: #818cf8;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+        .footer {
+            margin-top: 36px;
+            padding-top: 18px;
+            border-top: 1px solid var(--border);
+            font-size: 0.85rem;
+            color: #64748b;
+        }
+        a {
+            color: #818cf8;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <span class="badge">Privacy-First • 100% Local On-Device AI</span>
+        <h1>Privacy Policy for AI Interview Assistant</h1>
+        <p><strong>Effective Date:</strong> November 3, 2026<br>
+        <strong>Last Updated:</strong> November 3, 2026<br>
+        <strong>Publisher:</strong> AI Interview Assistant Developer Team<br>
+        <strong>Contact:</strong> <a href="mailto:privacy@aiinterviewassistant.app">privacy@aiinterviewassistant.app</a></p>
+
+        <h2>1. Overview & Core Privacy Guarantee</h2>
+        <p>AI Interview Assistant is designed as a <strong>privacy-first, fully local on-device AI rehearsal tool</strong> for interview preparation and practice.</p>
+        <ul>
+            <li><strong>Zero Cloud Transmission:</strong> Speech-to-text transcription, question detection, and generative language model inference execute <strong>100% locally on your device hardware</strong> (NPU, GPU, or CPU).</li>
+            <li><strong>Zero Voice/Biometric Retention:</strong> Audio captured via your microphone is buffered ephemerally in volatile system RAM only while speech is active and is discarded immediately after acoustic processing. We never store, serialize, or transmit audio files or acoustic waveforms.</li>
+            <li><strong>Zero Developer Telemetry:</strong> We do not track, collect, monetize, sell, or transmit personal data, interview questions, answers, usage statistics, or telemetry.</li>
+        </ul>
+
+        <h2>2. Information We Process & How It Is Handled</h2>
+        <h3>A. Microphone Audio (android.permission.RECORD_AUDIO)</h3>
+        <p>Used strictly for real-time speech-to-text recognition during active rehearsal sessions to detect questions and display assistive talking points. Audio is processed ephemerally in volatile RAM and immediately overwritten.</p>
+        <p>Before audio capture begins, the Application presents a prominent disclosure requiring explicit acknowledgment of applicable local recording consent and two-party wiretapping laws.</p>
+
+        <h3>B. Local Session History & Transcripts</h3>
+        <p>Stored exclusively in a sandboxed local Android SQLite database (<code>interview_assistant.db</code>) within your device's private application storage. Explicit Android Auto Backup rules exclude all database files, preferences, and downloaded model weights from Google Cloud and device-to-device transfers.</p>
+
+        <h3>C. Downloaded AI Pipeline Model Weights</h3>
+        <p>Model weights are downloaded directly over encrypted HTTPS from Hugging Face (<code>huggingface.co</code> / <code>hf.co</code>). All downloads are cryptographically verified via streaming SHA-256 checksums and exact byte size validation.</p>
+
+        <h2>3. In-App Data Deletion & Storage Management Rights</h2>
+        <ul>
+            <li><strong>Purge Interview History:</strong> Navigate to <strong>Activity</strong> and select <strong>"Clear All History"</strong> to permanently delete all stored interview questions and answers.</li>
+            <li><strong>Purge Downloaded AI Models:</strong> Navigate to <strong>System & Diagnostics</strong> and select <strong>"Purge Downloaded AI Models"</strong> to permanently delete all on-device neural network weights (~3.1 GB) and reclaim storage.</li>
+            <li><strong>Application Uninstallation:</strong> Uninstalling the Application through Android OS settings immediately and irreversibly destroys all databases and local model files.</li>
+        </ul>
+
+        <h2>4. Children's Privacy</h2>
+        <p>The Application is targeted exclusively at adults aged 18 and older preparing for professional, collegiate, or technical job interviews. We do not knowingly target, collect, or solicit information from children under the age of 13.</p>
+
+        <h2>5. Security & Network Protections</h2>
+        <ul>
+            <li><strong>Strict HTTPS Enforcement:</strong> The Application declares a system-level Network Security Configuration prohibiting cleartext HTTP traffic globally.</li>
+            <li><strong>No Dynamic Code Loading:</strong> The Application never downloads executable code or uses dynamic class loading.</li>
+            <li><strong>Release Log Stripping:</strong> Debug and informational logging is permanently stripped from production release builds.</li>
+        </ul>
+
+        <div class="footer">
+            <p>© 2026 AI Interview Assistant Developer Team. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>
+

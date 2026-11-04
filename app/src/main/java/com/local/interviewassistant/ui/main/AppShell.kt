@@ -62,6 +62,7 @@ fun AppShell(
     onCancelDownloadClick: () -> Unit,
     onImportLlmFileClick: () -> Unit,
     onRefreshDiskCheckClick: () -> Unit,
+    onPurgeModelsClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val prompterState by prompterViewModel.uiState.collectAsStateWithLifecycle()
@@ -195,7 +196,8 @@ fun AppShell(
                             onStartDownloadClick = onStartDownloadClick,
                             onCancelDownloadClick = onCancelDownloadClick,
                             onImportLlmFileClick = onImportLlmFileClick,
-                            onRefreshDiskCheckClick = onRefreshDiskCheckClick
+                            onRefreshDiskCheckClick = onRefreshDiskCheckClick,
+                            onPurgeModelsClick = onPurgeModelsClick
                         )
                     }
                 }
@@ -244,6 +246,7 @@ fun AppShell(
     onCancelDownloadClick: () -> Unit,
     onImportLlmFileClick: () -> Unit,
     onRefreshDiskCheckClick: () -> Unit,
+    onPurgeModelsClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var currentDestination by remember { mutableStateOf(AppDestination.PROMPTER) }
@@ -393,7 +396,8 @@ fun AppShell(
                             onStartDownloadClick = onStartDownloadClick,
                             onCancelDownloadClick = onCancelDownloadClick,
                             onImportLlmFileClick = onImportLlmFileClick,
-                            onRefreshDiskCheckClick = onRefreshDiskCheckClick
+                            onRefreshDiskCheckClick = onRefreshDiskCheckClick,
+                            onPurgeModelsClick = onPurgeModelsClick
                         )
                     }
                 }

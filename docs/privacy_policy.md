@@ -1,0 +1,70 @@
+# Privacy Policy for AI Interview Assistant
+
+**Effective Date:** November 3, 2026  
+**Last Updated:** November 3, 2026  
+**Developer / Publisher:** AI Interview Assistant Developer Team  
+**Contact Email:** privacy@aiinterviewassistant.app  
+**Hosting URL:** https://aiinterviewassistant.app/privacy (Mirror: https://himmler.github.io/AIInterviewAssistant/privacy.html)
+
+---
+
+## 1. Overview & Core Privacy Guarantee
+
+AI Interview Assistant ("the Application", "we", "us", or "our") is designed from the ground up as a **privacy-first, fully local on-device AI rehearsal tool** for interview preparation and practice.
+
+Our architectural commitment is absolute:
+- **Zero Cloud Transmission:** All audio recording, voice activity detection, speech-to-text transcription, question detection, and generative language model inference execute **100% locally on your device hardware** (Neural Processing Unit, GPU, or CPU).
+- **Zero Voice/Biometric Retention:** Audio captured via your microphone is buffered ephemerally in volatile system RAM only while speech is active and is discarded immediately after acoustic processing. We never store, serialize, or transmit audio files or acoustic waveforms.
+- **Zero Developer Telemetry:** We do not track, collect, monetize, sell, or transmit personal data, interview questions, answers, usage statistics, or telemetry.
+
+---
+
+## 2. Information We Process & How It Is Handled
+
+### A. Microphone Audio (`android.permission.RECORD_AUDIO`)
+- **Purpose:** Used strictly for real-time speech-to-text recognition during active rehearsal sessions to detect questions and display assistive talking points.
+- **Lifecycle & Storage:** Ephemeral only. Audio is digitized into 16 kHz float PCM buffers in volatile RAM, processed through the local Silero VAD and Sherpa-ONNX Zipformer neural network, and immediately overwritten in memory.
+- **Recording Laws & Consent Notice:** Before audio capture begins, the Application presents a prominent disclosure requiring explicit acknowledgment of applicable local recording consent and two-party wiretapping laws.
+
+### B. Local Session History & Transcripts
+- **Storage Location:** Stored exclusively in an encrypted-at-rest or sandboxed local Android SQLite database (`interview_assistant.db`) within your device's private application storage directory (`/data/data/com.local.interviewassistant/databases/`).
+- **Cloud Backup Exclusion:** Explicit Android Auto Backup rules (`res/xml/backup_rules.xml` and `res/xml/data_extraction_rules.xml`) exclude all database files, preferences, and downloaded model weights from Google Cloud and device-to-device transfers. Your interview content never uploads to Google Drive backups.
+
+### C. Downloaded AI Pipeline Model Weights
+- **Purpose:** To perform on-device speech transcription and generative AI inference without third-party cloud APIs.
+- **Download Source:** Model weights (`.onnx`, `.litertlm`, and tokenizer vocabularies) are downloaded directly over encrypted HTTPS from Hugging Face (`huggingface.co` / `hf.co`). All downloads are cryptographically verified via streaming SHA-256 checksums and exact byte size validation.
+- **Network Metadata:** When downloading models, your device connects directly to Hugging Face CDN servers. We operate no intermediate proxy servers and capture no connection metadata.
+
+---
+
+## 3. In-App Data Deletion & Storage Management Rights
+
+You maintain complete sovereignty over your data at all times:
+1. **Purge Interview History:** Navigate to **Activity** (or **Settings**) and select **"Clear All History"** to permanently delete all stored interview questions, answers, and local latency metrics from the SQLite database.
+2. **Purge Downloaded AI Models:** Navigate to **System & Diagnostics** in the Application and select **"Purge Downloaded AI Models"** to permanently delete all on-device neural network weights (~3.1 GB) and reclaim storage without uninstalling the app.
+3. **Application Uninstallation:** Uninstalling the Application through Android OS settings immediately and irreversibly destroys all application databases, preferences, and local model files.
+
+---
+
+## 4. Children's Privacy (COPPA & Google Play Families Policy)
+
+AI Interview Assistant is targeted exclusively at adults aged 18 and older preparing for professional, collegiate, or technical job interviews. We do not knowingly target, collect, or solicit information from children under the age of 13 (or under the age of 16 in applicable jurisdictions).
+
+---
+
+## 5. Security & Network Protections
+
+- **Strict HTTPS Enforcement:** The Application declares a system-level Network Security Configuration (`res/xml/network_security_config.xml`) that prohibits all cleartext HTTP traffic globally.
+- **No Dynamic Code Loading:** The Application loads only passive numerical weights (`.onnx` and `.litertlm`) into native C++ runtimes (Sherpa-ONNX, LiteRT-LM). It never uses `DexClassLoader` or downloads executable code.
+- **R8 / ProGuard Log Stripping:** All verbose, debug, and informational logging is permanently stripped from production release builds to prevent accidental transcript leakage to Android system logs (`logcat`).
+
+---
+
+## 6. Policy Updates & Inquiries
+
+We may update this Privacy Policy from time to time to reflect operational or regulatory improvements. Any revisions will be published at this public URL and noted in application release notes.
+
+If you have questions or concerns regarding this Privacy Policy or on-device data processing, please contact:
+- **Email:** privacy@aiinterviewassistant.app
+- **Repository:** https://github.com/himmler/AIInterviewAssistant
+

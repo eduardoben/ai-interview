@@ -293,6 +293,43 @@ class AppConfig(val modelsRootDir: File) {
         return ModelValidationReport(statuses)
     }
 
+    /**
+     * Purges all locally downloaded AI model weights, tokenizers, and caches from disk.
+     * Reclaims ~3.1 GB of internal/external device storage.
+     * Returns true if all files were purged or did not exist.
+     */
+    fun purgeDownloadedModels(): Boolean {
+        var allDeleted = true
+        val targetDirs = listOf(vadDir, asrDir, whisperDir, llmDir)
+        for (dir in targetDirs) {
+            if (dir.exists()) {
+                val success = dir.deleteRecursively()
+                if (!success) allDeleted = false
+            }
+        }
+        val legacyFiles = listOf(
+            File(modelsRootDir, "silero_vad.onnx"),
+            File(modelsRootDir, "encoder.onnx"),
+            File(modelsRootDir, "decoder.onnx"),
+            File(modelsRootDir, "joiner.onnx"),
+            File(modelsRootDir, "tokens.txt"),
+            File(modelsRootDir, "tiny.en-encoder.int8.onnx"),
+            File(modelsRootDir, "tiny.en-decoder.int8.onnx"),
+            File(modelsRootDir, "tiny.en-tokens.txt"),
+            File(modelsRootDir, "gemma-4-E2B-it.litertlm"),
+            File(modelsRootDir, ".stt_version"),
+            File(modelsRootDir, "hotwords.txt")
+        )
+        for (file in legacyFiles) {
+            if (file.exists()) {
+                val success = file.delete()
+                if (!success) allDeleted = false
+            }
+        }
+        ensureDirectoriesExist()
+        return allDeleted
+    }
+
     companion object {
         const val SYSTEM_SAFETY_GUARDRAIL =
             "Provide professional, truthful, and helpful responses to interview questions. " +
@@ -367,6 +404,10 @@ class AppConfig(val modelsRootDir: File) {
 
         /** LiteRT-LM is the only LLM runtime; it loads `.litertlm` bundles exclusively. */
         const val LLM_MODEL_EXTENSION = ".litertlm"
+
+        /** Official Public Privacy Policy URL (hosted on verified public HTTPS domain) */
+        const val PRIVACY_POLICY_URL = "https://aiinterviewassistant.app/privacy"
+        const val PRIVACY_POLICY_MIRROR_URL = "https://himmler.github.io/AIInterviewAssistant/privacy.html"
 
         fun isSupportedLlmModel(file: File): Boolean = isSupportedLlmModelName(file.name)
 

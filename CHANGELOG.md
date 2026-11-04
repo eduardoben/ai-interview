@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.13.0] - 2026-11-03
+
+### Added
+- Implemented in-app AI model purging controls in `AppConfig` and `InfoScreen` with user confirmation dialog, allowing users to reclaim ~3.1 GB of storage without uninstalling.
+- Added public Privacy Policy documents (`docs/privacy_policy.md`, `docs/privacy.html`) and direct in-app links from `InfoScreen` and `SettingsScreen` to `https://aiinterviewassistant.app/privacy`.
+- Created custom vector drawables for foreground service notifications (`ic_notification_mic`, `ic_notification_stop`, `ic_notification_download`, `ic_notification_done`, `ic_notification_cancel`, `ic_notification_error`), replacing Android framework drawables.
+- Added unit and integration tests in `Phase3PolishAndStorageTest.kt` verifying predictive back flags, vector drawables, model purge and directory recreation, and privacy policy declarations.
+
+### Changed
+- Enabled Android 14–17 predictive back navigation (`android:enableOnBackInvokedCallback="true"`) in `AndroidManifest.xml`.
+- Documented technical rationale for `useLegacyPackaging = true` in `app/build.gradle.kts` for LiteRT-LM's C++ EdgeTPU runtime.
+- Updated Play Store Dossier (`docs/play_store_dossier.md`) with v1.13.0 metadata, privacy policy URLs, and 18+ Target Audience declaration.
+- Bumped application `versionCode` to 17 and `versionName` to `1.13.0`.
+
+---
+
 ## [1.12.0] - 2026-11-02
 
 ### Added

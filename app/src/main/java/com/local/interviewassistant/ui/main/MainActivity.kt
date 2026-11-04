@@ -183,7 +183,13 @@ class MainActivity : ComponentActivity() {
                     onStartDownloadClick = { downloadAllModels() },
                     onCancelDownloadClick = { cancelOngoingProvisioning() },
                     onImportLlmFileClick = { openDocumentLauncher.launch(arrayOf("*/*")) },
-                    onRefreshDiskCheckClick = { refreshStatus() }
+                    onRefreshDiskCheckClick = { refreshStatus() },
+                    onPurgeModelsClick = {
+                        lifecycleScope.launch(Dispatchers.IO) {
+                            appContainer.appConfig.purgeDownloadedModels()
+                            refreshStatus()
+                        }
+                    }
                 )
 
                 if (showMicrophoneDisclosureDialog) {
