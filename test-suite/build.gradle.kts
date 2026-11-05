@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace = "com.local.interviewassistant.testsuite"
+    namespace = "com.edgecue.app.testsuite"
     compileSdk = 37
 
     targetProjectPath = ":app"

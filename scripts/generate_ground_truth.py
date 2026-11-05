@@ -48,7 +48,7 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 TEST_SUITE_AUDIO_DIR = ROOT_DIR / "test-suite" / "src" / "main" / "assets" / "audio"
 LEGACY_APP_AUDIO_DIR = ROOT_DIR / "app" / "src" / "androidTest" / "assets" / "audio"
 DEFAULT_AUDIO_DIR = TEST_SUITE_AUDIO_DIR if TEST_SUITE_AUDIO_DIR.exists() else LEGACY_APP_AUDIO_DIR
-DEFAULT_APP_CONFIG = ROOT_DIR / "app" / "src" / "main" / "java" / "com" / "local" / "interviewassistant" / "core" / "model" / "AppConfig.kt"
+DEFAULT_APP_CONFIG = ROOT_DIR / "app" / "src" / "main" / "java" / "com" / "edgecue" / "app" / "core" / "model" / "AppConfig.kt"
 DEFAULT_GROUND_TRUTH_JSON = DEFAULT_AUDIO_DIR / "interview_ground_truth.json"
 
 # Turn definitions

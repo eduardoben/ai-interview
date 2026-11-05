@@ -8,7 +8,7 @@ This document serves as the authoritative technical context guide for AI Coding 
 
 ### A. JNI Thread Serialization Rule (CRITICAL)
 - **Constraint:** LiteRT-LM (`com.google.ai.edge.litertlm`) JNI C++ functions (`Engine.initialize()`, `Engine.createConversation()`, `Conversation.sendMessageAsync()`, `Conversation.cancelProcess()`, and `Conversation.close()`) are NOT thread-safe for concurrent calls.
-- **Rule:** ALL LiteRT operations in [`LiteRtGemmaEngine.kt`](file:///app/src/main/java/com/local/interviewassistant/data/llm/LiteRtGemmaEngine.kt) and [`GalleryLiteRtBackend.kt`](file:///app/src/main/java/com/local/interviewassistant/data/llm/GalleryLiteRtBackend.kt) MUST be serialized on a dedicated single-threaded dispatcher (`LiteRT-GPU-Thread` created via `Executors.newSingleThreadExecutor().asCoroutineDispatcher()`).
+- **Rule:** ALL LiteRT operations in [`LiteRtGemmaEngine.kt`](file:///app/src/main/java/com/edgecue/app/data/llm/LiteRtGemmaEngine.kt) and [`GalleryLiteRtBackend.kt`](file:///app/src/main/java/com/edgecue/app/data/llm/GalleryLiteRtBackend.kt) MUST be serialized on a dedicated single-threaded dispatcher (`LiteRT-GPU-Thread` created via `Executors.newSingleThreadExecutor().asCoroutineDispatcher()`).
   - **Generation:** Use `.flowOn(liteRtDispatcher)` to confine downstream native emissions.
   - **Synchronous / Suspending Actions:** Use `initializeSuspend()` and `closeSuspend()` (`withContext(liteRtDispatcher)`) from coroutine callers; synchronous methods like `close()` or `initialize()` route to the accelerator thread using `kotlinx.coroutines.runBlocking(liteRtDispatcher) { ... }`. Never invoke JNI methods directly on `Dispatchers.Main` or concurrent IO pools.
 
@@ -41,7 +41,7 @@ This document serves as the authoritative technical context guide for AI Coding 
 
 ### 2. Audio Capture & STT Pipeline (v1.3 - v1.8.0)
 - **`MicrophoneAudioCaptureSource`**: Captures 16 kHz MONO PCM-16 float chunks. Bypasses aggressive hardware `NoiseSuppressor` and `AutomaticGainControl` by default to preserve unvoiced high frequencies (3 kHz – 8 kHz) essential for English consonant recognition.
-- **`CircularFloatRingBuffer`**: Zero-allocation circular float ring buffer in `com.local.interviewassistant.data.audio` eliminating per-frame array allocation and `copyOfRange` GC churn during sustained 16 kHz audio streaming.
+- **`CircularFloatRingBuffer`**: Zero-allocation circular float ring buffer in `com.edgecue.app.data.audio` eliminating per-frame array allocation and `copyOfRange` GC churn during sustained 16 kHz audio streaming.
 - **`VadSttBackend` / `SherpaOnnxRuntimeBackend`**: Wraps native `com.k2fsa.sherpa.onnx.Vad` (Silero VAD) and `com.k2fsa.sherpa.onnx.OnlineRecognizer` (Zipformer transducer).
   - Uses multi-corpus conversational model trained on **GigaSpeech + LibriSpeech** (`csukuangfj/sherpa-onnx-streaming-zipformer-en-2023-06-21`, 10,000h+ conversational audio, ~187.8 MB encoder).
   - Uses `decodingMethod = "modified_beam_search"` with `maxActivePaths = 4`, `blankPenalty = 1.0f`, and contextual hotwords (`hotwordsScore = 2.0f`).
@@ -73,7 +73,7 @@ This document serves as the authoritative technical context guide for AI Coding 
 
 ### 5. MVVM Presentation & Jetpack Storage Subsystems (v1.8.0)
 - **`PrompterViewModel` & `SettingsViewModel`**: Decouple the UI layer from service lifecycles and background singletons. Expose reactive, immutable `StateFlow` (`PrompterUiState`, `SettingsUiState`) consumed by Compose screens. Eliminated 25-parameter prop drilling across `MainActivity` and `AppShell`.
-- **`PrompterScreen` Decomposition**: Split 874-line monolithic screen into focused, isolated composables in `com.local.interviewassistant.ui.prompter.components`: `PrompterHeader`, `CategoryChipRow`, `TeleprompterDisplay`, `LiveTranscriptBar`, `TranscriptHistorySheet`, `ThumbControlDock`, and `StealthDimmerDialog`.
+- **`PrompterScreen` Decomposition**: Split 874-line monolithic screen into focused, isolated composables in `com.edgecue.app.ui.prompter.components`: `PrompterHeader`, `CategoryChipRow`, `TeleprompterDisplay`, `LiveTranscriptBar`, `TranscriptHistorySheet`, `ThumbControlDock`, and `StealthDimmerDialog`.
 - **`AppDatabase` & `InterviewSessionDao` (Room Database)**: Replaces flat-file JSON persistence (`interview_session_history.json`). Backed by Android Room 2.8.5 with automatic schema validation, indexed timestamps, and reactive `Flow<List<InterviewSessionEntity>>` streams. `SessionHistoryRepository` performs atomic one-time migration and cleanup of legacy JSON records.
 - **`UserPreferencesRepository` (Jetpack DataStore)**: Replaces synchronous, blocking `SharedPreferences` with asynchronous, non-blocking `DataStore<Preferences>`, configured with `SharedPreferencesMigration(context, "llm_prefs")`.
 
@@ -103,7 +103,7 @@ This document serves as the authoritative technical context guide for AI Coding 
 - **Ground Truth & Neural Audio Generator (`scripts/generate_ground_truth.py`)**: Synthesizes 16 kHz mono signed 16-bit PCM WAV fixtures using Edge-TTS neural voices (`turn_01_hr.wav`, `turn_02_ml.wav`) and auto-generates ground truth transcripts with faster-whisper.
 - **Concurrent 2-Device Fleet Runner (`scripts/run_e2e_fleet.py`)**: Concurrently executes tests across the virtual test fleet (Round 1: Pixel 10 Pro XL + Galaxy Tab S7+; Round 2: Galaxy S25 Ultra + Galaxy A54 5G) with differential model synchronization, logcat forensic scanning, and markdown summary matrix export to `build/e2e-reports/`.
 - **E2E Architecture & Operator Guide**: See [`docs/e2e_test_suite_guide.md`](file:///docs/e2e_test_suite_guide.md) for full operational runbooks.
-- **Headless Test Mock Suite (`FakeLlmBackend` in `com.local.interviewassistant.test`)**: Emulates LiteRT C++ generation streams for continuous integration runners without downloading multi-gigabyte model weights.
+- **Headless Test Mock Suite (`FakeLlmBackend` in `com.edgecue.app.test`)**: Emulates LiteRT C++ generation streams for continuous integration runners without downloading multi-gigabyte model weights.
 - **`Phase2StabilityAndThermalTest`**: Asserts thermal status transitions (SEVERE/CRITICAL -> LIGHT), token truncation at 256 tokens, and memory trim cache reclamation.
 - **`RealDevicePipelineIntegrationTest`**: Grounded test suite verifying physical device specs (Pixel 10 Pro XL, Tensor G5, API 37), on-disk model layouts, sub-millisecond punctuation latency (<0.25ms), Sherpa-ONNX streaming Zipformer frame processing (<8ms), LiteRT EdgeTPU NPU execution via `libLiteRtDispatch_GoogleTensor.so`, and background service contracts.
 - **Production Readiness Blueprint (`docs/production_readiness_plan.md`)**: Authoritative roadmap and specification for Phase 1–4 production hardening, Google Play Store compliance, ASO strategy, and Stealth OLED brand assets.
@@ -113,9 +113,9 @@ This document serves as the authoritative technical context guide for AI Coding 
 ## 3. Adding New Features or Refactoring Guide
 
 1. **Adding New Category Chips:**
-   - Update `InterviewCategory` in [`CopilotUiState.kt`](file:///app/src/main/java/com/local/interviewassistant/core/model/CopilotUiState.kt).
-   - Add prompt directives in [`LlmGenerationConfig.kt`](file:///app/src/main/java/com/local/interviewassistant/core/model/LlmGenerationConfig.kt).
-   - The chip will automatically appear in [`FloatingHudOverlay.kt`](file:///app/src/main/java/com/local/interviewassistant/ui/overlay/FloatingHudOverlay.kt).
+   - Update `InterviewCategory` in [`CopilotUiState.kt`](file:///app/src/main/java/com/edgecue/app/core/model/CopilotUiState.kt).
+   - Add prompt directives in [`LlmGenerationConfig.kt`](file:///app/src/main/java/com/edgecue/app/core/model/LlmGenerationConfig.kt).
+   - The chip will automatically appear in [`FloatingHudOverlay.kt`](file:///app/src/main/java/com/edgecue/app/ui/overlay/FloatingHudOverlay.kt).
 
 2. **Testing:**
    - Always run `./gradlew testDebugUnitTest` to verify unit test assertions after modifying domain models or pipeline state logic.

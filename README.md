@@ -1,4 +1,4 @@
-# AI Interview Assistant 🎙️⚡
+# EdgeCue 🎙️⚡
 
 An on-device, real-time **AI Interview Copilot** for Android powered by **Sherpa-ONNX Zipformer STT**, **Silero VAD**, and **Google LiteRT-LM Gemma 4 E2B IT** with hardware acceleration for **Google Pixel Tensor TPU/NPU** and **OpenCL/Vulkan GPU**.
 
@@ -55,14 +55,14 @@ graph TD
 ## 📁 Repository Structure
 
 ```
-AIInterviewAssistant/
+EdgeCue/
 ├── docs/
 │   └── production_readiness_plan.md           # Production Readiness Audit, Play Store Compliance & Roadmap
 ├── app/
 │   ├── proguard-rules.pro                     # Production R8 / ProGuard JNI & Enum Keep Rules
 │   ├── src/main/
 │   │   ├── jniLibs/arm64-v8a/                 # Native binaries (libLiteRtDispatch_GoogleTensor.so)
-│   │   ├── java/com/local/interviewassistant/
+│   │   ├── java/com/edgecue/app/
 │   │   │   ├── core/
 │   │   │   │   ├── di/AppContainer.kt             # Dependency Injection Container
 │   │   │   │   └── model/                         # Domain Models, Configs & States
@@ -185,7 +185,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 ## ⚙️ Hardware & Model Provisioning Guide
 
-1. **Launch the App:** Open **AI Interview Assistant** and navigate to the **System** tab to grant Microphone, Notification, and System Overlay permissions.
+1. **Launch the App:** Open **EdgeCue** and navigate to the **System** tab to grant Microphone, Notification, and System Overlay permissions.
 2. **Download All Neural Models:** Tap **Download Missing Assets** to automatically provision Silero VAD, Zipformer STT, Whisper Offline Rescorer, and the hardware-matched Gemma 4 LLM in a single background-resilient workflow.
 3. **Start Assistant:** Navigate to **Prompter** and tap **Start** — use the full-screen stealth teleprompter or switch to any app with the draggable floating HUD.
 

@@ -1,7 +1,7 @@
 # Google Play Closed Testing: Action Items & Operator TODO 📋
 
-**Application:** AI Interview Assistant  
-**Package Name:** `com.local.interviewassistant`  
+**Application:** EdgeCue  
+**Package Name:** `com.edgecue.app`  
 **Current Version:** `v1.13.0` (Version Code: `17`)  
 **Release AAB Artifact:** [`app/build/outputs/bundle/release/app-release.aab`](file:///app/build/outputs/bundle/release/app-release.aab) (41.4 MB, R8 minified, cryptographically signed)  
 **Keystore Location:** `keystore/upload-key.jks` (`keystore.properties` configured, git-ignored)  
@@ -20,13 +20,13 @@ All engineering, architecture, and regulatory requirements inside the codebase a
    - Successfully signed [`app-release.aab`](file:///app/build/outputs/bundle/release/app-release.aab) and verified with `jarsigner`.
 2. **Public Privacy Policy Integration:**
    - Authored legal policies in [`docs/privacy_policy.md`](file:///docs/privacy_policy.md) and [`docs/privacy.html`](file:///docs/privacy.html).
-   - Updated [`AppConfig.PRIVACY_POLICY_URL`](file:///app/src/main/java/com/local/interviewassistant/core/model/AppConfig.kt) to `https://eduardoben.github.io/ai-interview/privacy.html`.
-   - Added direct launch buttons in [`InfoScreen.kt`](file:///app/src/main/java/com/local/interviewassistant/ui/info/InfoScreen.kt) and [`SettingsScreen.kt`](file:///app/src/main/java/com/local/interviewassistant/ui/settings/SettingsScreen.kt).
+   - Updated [`AppConfig.PRIVACY_POLICY_URL`](file:///app/src/main/java/com/edgecue/app/core/model/AppConfig.kt) to `https://eduardoben.github.io/ai-interview/privacy.html`.
+   - Added direct launch buttons in [`InfoScreen.kt`](file:///app/src/main/java/com/edgecue/app/ui/info/InfoScreen.kt) and [`SettingsScreen.kt`](file:///app/src/main/java/com/edgecue/app/ui/settings/SettingsScreen.kt).
 3. **Storage Purge Controls (~3.1 GB Reclamation):**
-   - Implemented `purgeDownloadedModels()` in [`AppConfig.kt`](file:///app/src/main/java/com/local/interviewassistant/core/model/AppConfig.kt).
-   - Added user confirmation dialog in [`InfoScreen.kt`](file:///app/src/main/java/com/local/interviewassistant/ui/info/InfoScreen.kt) allowing complete neural model weight deletion without uninstalling.
+   - Implemented `purgeDownloadedModels()` in [`AppConfig.kt`](file:///app/src/main/java/com/edgecue/app/core/model/AppConfig.kt).
+   - Added user confirmation dialog in [`InfoScreen.kt`](file:///app/src/main/java/com/edgecue/app/ui/info/InfoScreen.kt) allowing complete neural model weight deletion without uninstalling.
 4. **Notification Vector Drawables:**
-   - Created in-tree vector drawables (`ic_notification_mic.xml`, `ic_notification_stop.xml`, etc.) replacing framework drawables in [`AssistantForegroundService.kt`](file:///app/src/main/java/com/local/interviewassistant/service/AssistantForegroundService.kt) and [`ModelDownloadService.kt`](file:///app/src/main/java/com/local/interviewassistant/service/ModelDownloadService.kt).
+   - Created in-tree vector drawables (`ic_notification_mic.xml`, `ic_notification_stop.xml`, etc.) replacing framework drawables in [`AssistantForegroundService.kt`](file:///app/src/main/java/com/edgecue/app/service/AssistantForegroundService.kt) and [`ModelDownloadService.kt`](file:///app/src/main/java/com/edgecue/app/service/ModelDownloadService.kt).
 5. **Predictive Back & Android 17 Support:**
    - Enabled `android:enableOnBackInvokedCallback="true"` in [`AndroidManifest.xml`](file:///app/src/main/AndroidManifest.xml).
    - Documented `useLegacyPackaging = true` rationale for LiteRT EdgeTPU NPU execution in [`app/build.gradle.kts`](file:///app/build.gradle.kts).
@@ -62,7 +62,7 @@ Follow this checklist step-by-step when you are ready to upload and begin your C
 - [ ] **Video 1: Microphone Foreground Service (`AssistantForegroundService`) (~45 sec)**
   - *Action:* Open app -> tap **"Start Live Copilot"**.
   - *Show:* Green Android microphone privacy dot in status bar.
-  - *Show:* Pull down notification shade to highlight the ongoing `"AI Interview Assistant Active"` notification and its **"Stop Assistant"** button.
+  - *Show:* Pull down notification shade to highlight the ongoing `"EdgeCue Active"` notification and its **"Stop Assistant"** button.
   - *Show:* Switch to another app (e.g. Chrome with an interview question) with the floating teleprompter HUD visible over it.
   - *Show:* Speak a few words, observe live transcription in the HUD, then pull down the notification shade and tap **"Stop Assistant"** to cleanly terminate.
 - [ ] **Video 2: DataSync Foreground Service (`ModelDownloadService`) (~45 sec)**
@@ -74,7 +74,7 @@ Follow this checklist step-by-step when you are ready to upload and begin your C
 ---
 
 ### Step 3: Google Play Console — App Setup & Metadata
-- [ ] 1. Log in to [Google Play Console](https://play.google.com/console) and select **AI Interview Assistant**.
+- [ ] 1. Log in to [Google Play Console](https://play.google.com/console) and select **EdgeCue**.
 - [ ] 2. Go to **Policy and programs -> App content**:
   - **Privacy Policy:** Paste `https://eduardoben.github.io/ai-interview/privacy.html`.
   - **Target Audience:** Select **18 and older** (ensures COPPA/Families policy exemptions).
@@ -87,7 +87,7 @@ Follow this checklist step-by-step when you are ready to upload and begin your C
     - Audio is processed ephemerally in RAM only and not stored.
     - Session history is stored locally on-device.
 - [ ] 3. Go to **Grow -> Store presence -> Main store listing**:
-  - **App Name:** `AI Interview Assistant` (22/30 chars)
+  - **App Name:** `EdgeCue` (22/30 chars)
   - **Short Description:** `Private on-device AI interview practice coach & assistive speech teleprompter.` (78/80 chars)
   - **Full Description:** Copy from Section 7.3 of [`docs/play_store_dossier.md`](file:///docs/play_store_dossier.md#L743-L770).
 
@@ -121,7 +121,7 @@ Follow this checklist step-by-step when you are ready to upload and begin your C
 - [ ] 1. Create a Google Group (e.g., `ai-interview-testers@googlegroups.com`) to manage tester email addresses easily without waiting for Play Console sync delays.
 - [ ] 2. In Play Console **Closed testing -> Testers tab**, select your Google Group.
 - [ ] 3. **Recruit 20–22 testers** (an 8–10 tester safety buffer over the 12 minimum) using the recruitment script in Section 3 of [`docs/closed_testing_runbook.md`](file:///docs/closed_testing_runbook.md#L100-L200).
-- [ ] 4. Share the Closed Testing opt-in link: `https://play.google.com/apps/testing/com.local.interviewassistant`.
+- [ ] 4. Share the Closed Testing opt-in link: `https://play.google.com/apps/testing/com.edgecue.app`.
 - [ ] 5. Confirm that at least **14–16 testers have clicked "Become a tester"** before marking Day 1 started.
 - [ ] 6. **Day 5–6:** Push an iterative bug fix update (e.g., `v1.13.1`) to demonstrate active engagement to Google review evaluators.
 - [ ] 7. **Day 14:** Once 336 continuous hours are fulfilled, the **"Apply for Production"** button will unlock on your dashboard.

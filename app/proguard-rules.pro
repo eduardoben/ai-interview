@@ -1,5 +1,5 @@
 # ==============================================================================
-# AI Interview Assistant - Production ProGuard / R8 Rules
+# EdgeCue - Production ProGuard / R8 Rules
 # Target Platform: Android 14 to Android 17 (API 34-37)
 # R8 Mode: Full Mode Compatible
 # ==============================================================================
@@ -39,7 +39,7 @@
 # ------------------------------------------------------------------------------
 # Must use '-keep enum' AND '-keepclassmembers enum' so both enum class names
 # and values/methods are preserved for InterviewCategory.valueOf() in SessionHistoryRepository.
--keep enum com.local.interviewassistant.** {
+-keep enum com.edgecue.app.** {
     *;
 }
 -keepclassmembers enum * {
@@ -49,22 +49,22 @@
 }
 
 # Preserve all core data models and StateFlow structures
--keep class com.local.interviewassistant.core.model.** {
+-keep class com.edgecue.app.core.model.** {
     *;
 }
 
 # Preserve Session History and Telemetry models
--keep class com.local.interviewassistant.data.history.** {
+-keep class com.edgecue.app.data.history.** {
     *;
 }
 
 # Preserve Hardware Profiles and Delegate types
--keep class com.local.interviewassistant.data.hardware.** {
+-keep class com.edgecue.app.data.hardware.** {
     *;
 }
 
 # Preserve Model Provisioning models and descriptors
--keep class com.local.interviewassistant.data.provisioning.** {
+-keep class com.edgecue.app.data.provisioning.** {
     *;
 }
 

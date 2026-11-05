@@ -1,7 +1,7 @@
 # Google Play Console Production Release Dossier 🚀
 
 **Application Name:** AI Interview Assistant  
-**Package Name:** `com.local.interviewassistant` *(Target custom domain migration planned prior to first Closed Track upload)*  
+**Package Name:** `com.edgecue.app` *(Target custom domain migration planned prior to first Closed Track upload)*  
 **Target Platform:** Android 13+ (`minSdk 33`, `compileSdk 37`, `targetSdk 37`)  
 **Binary Architecture:** Multi-ABI 16 KB Memory Page-Aligned (`arm64-v8a`, `x86_64`)  
 **Release Version:** `v1.12.0` (Version Code: `16`)  
@@ -12,7 +12,7 @@
 
 ## Executive Overview & Document Purpose
 
-This document provides the authoritative, submission-ready Play Store Dossier for **AI Interview Assistant** (`com.local.interviewassistant`, v1.12.0, versionCode 16). It reconciles all technical specifications, Foreground Service declarations, Store Listing copy, creative assets, Data Safety questionnaires, Generative AI safety disclosures, open-source model licenses, security architectures, and App Content declarations.
+This document provides the authoritative, submission-ready Play Store Dossier for **EdgeCue** (`com.edgecue.app`, v1.12.0, versionCode 16). It reconciles all technical specifications, Foreground Service declarations, Store Listing copy, creative assets, Data Safety questionnaires, Generative AI safety disclosures, open-source model licenses, security architectures, and App Content declarations.
 
 The application delivers a private on-device, air-gapped interview practice coach and assistive speech teleprompter. Because it executes a 2.58 GB – 3.11 GB Large Language Model (LiteRT-LM Gemma 4 E2B IT) and continuous 16 kHz acoustic processing (Sherpa-ONNX streaming Zipformer + Silero VAD) locally on mobile hardware, all declarations in this dossier are strictly calibrated to satisfy Google Play's 2026 Developer Program Policies without ambiguity or compliance drift.
 
@@ -37,7 +37,7 @@ ModelDownloadService           dataSync      On-device neural asset provisioning
 
 ### 1.1 Declaration 1: Foreground Service Type `microphone`
 
-* **Service Class:** `com.local.interviewassistant.service.AssistantForegroundService`
+* **Service Class:** `com.edgecue.app.service.AssistantForegroundService`
 * **Declared Foreground Service Type:** `microphone` (`android:foregroundServiceType="microphone"`)
 * **Core Application Category:** **Voice Dictation & Assistive Live Teleprompter / Mock Interview Practice Coach**
 
@@ -77,7 +77,7 @@ Google Play User Data and Foreground Service policies mandate that microphone re
 
 ### 1.2 Declaration 2: Foreground Service Type `dataSync`
 
-* **Service Class:** `com.local.interviewassistant.service.ModelDownloadService`
+* **Service Class:** `com.edgecue.app.service.ModelDownloadService`
 * **Declared Foreground Service Type:** `dataSync` (`android:foregroundServiceType="dataSync"`)
 * **Core Application Category:** **Critical On-Device Neural Asset Provisioning (Data Transfer)**
 
@@ -462,5 +462,7 @@ When submitting the release bundle for Google Play review, provide the following
 
 ## 9. Privacy Policy URL & Public Data Transparency
 * **Official Public Privacy Policy URL:** `https://eduardoben.github.io/ai-interview/privacy.html`
-* **Custom Domain Mirror:** `https://aiinterviewassistant.app/privacy`
+* **Developer / Publisher:** Himmler Benitez
+* **Contact Email:** `hbenitez@hectisai.com`
+* **Application ID:** `com.edgecue.app`
 * **Data Transparency Summary:** Zero cloud transmission, zero server-side telemetry, ephemeral volatile RAM-only microphone buffering, on-device SQLite storage, and in-app model purging controls (~3.1 GB).

@@ -123,11 +123,11 @@ val keystoreProperties = Properties().apply {
 }
 
 android {
-    namespace = "com.local.interviewassistant"
+    namespace = "com.edgecue.app"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.local.interviewassistant"
+        applicationId = "com.edgecue.app"
         minSdk = 33
         targetSdk = 37
         versionCode = 18

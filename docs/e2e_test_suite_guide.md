@@ -22,7 +22,7 @@ AIInterviewAssistant/
 │       │   │   ├── interview_ground_truth.json
 │       │   │   ├── turn_01_hr.wav             # 16 kHz mono s16le HR Behavioral fixture (9.0s)
 │       │   │   └── turn_02_ml.wav             # 16 kHz mono s16le ML Technical fixture (10.8s)
-│       │   └── java/com/local/interviewassistant/
+│       │   └── java/com/edgecue/app/
 │       │       ├── RealDevicePipelineIntegrationTest.kt  # Physical device sanity check
 │       │       └── e2e/
 │       │           ├── ScriptedWavAudioSource.kt         # Non-intrusive 32ms audio frame injector
@@ -41,13 +41,13 @@ AIInterviewAssistant/
 1. **Zero Asset Bloat**: Audio fixtures (`.wav`), ground truth metadata, and test audio frames live in `test-suite/src/main/assets/audio/`. The production APK contains zero audio test assets.
 2. **Clean ProGuard / R8 Boundary**: `:app` release builds compile, obfuscate, and package only production code without test seams or mock harnesses.
 3. **Independent CI/CD Lifecycles**: Standard application builds (`./gradlew :app:bundleRelease`) complete rapidly without processing multi-megabyte audio fixtures or compiling heavy test dependencies.
-4. **Targeted Instrumentation**: The test APK (`test-suite-debug.apk`) is packaged under `com.local.interviewassistant.testsuite` and instruments the target application (`com.local.interviewassistant`) via standard Android instrumentation contracts.
+4. **Targeted Instrumentation**: The test APK (`test-suite-debug.apk`) is packaged under `com.edgecue.app.testsuite` and instruments the target application (`com.edgecue.app`) via standard Android instrumentation contracts.
 
 ---
 
 ## 2. The 6 Quantitative Verification Gates
 
-Every audio turn executed by [`ParameterizedInterviewE2ETest`](file:///c:/Users/Master/AndroidStudioProjects/AIInterviewAssistant/test-suite/src/main/java/com/local/interviewassistant/e2e/ParameterizedInterviewE2ETest.kt) must pass all 6 evaluation gates:
+Every audio turn executed by [`ParameterizedInterviewE2ETest`](file:///c:/Users/Master/AndroidStudioProjects/AIInterviewAssistant/test-suite/src/main/java/com/edgecue/app/e2e/ParameterizedInterviewE2ETest.kt) must pass all 6 evaluation gates:
 
 | Gate | Name | Measurement | Threshold / Pass Criteria | Emulator SLA Calibration |
 | :--- | :--- | :--- | :--- | :--- |
@@ -55,7 +55,7 @@ Every audio turn executed by [`ParameterizedInterviewE2ETest`](file:///c:/Users/
 | **Gate 2** | **VAD Segmentation Integrity** | Finalized speech segments & endpoint latency | Exactly **1 finalized segment** per turn; endpoint latency $\le 2000\text{ ms}$ from trailing silence start. | Emitted via Silero VAD without mid-utterance splits. |
 | **Gate 2b** | **Question Classification** | `TranscriptSegment.isLikelyQuestion` | Soft-fail: if classifier misses, manually invokes `triggerAnswerGeneration()` and records `QUESTION_DETECT_MISS`. | Ensures Gate 5 still executes even on classification edge cases. |
 | **Gate 3** | **Normalized Word Error Rate** | Dynamic programming word-level Levenshtein WER | $\text{WER} = \frac{S + D + I}{N} \le 0.15$ | Contraction-normalized (`don't` $\rightarrow$ `do not`, `it's` $\rightarrow$ `it is`). |
-| **Gate 4** | **Technical Hotwords Recall** | Required domain keywords present | **100% recall** of turn keywords (case- and compound-insensitive). | Verified against canonical [`AppConfig.ensureHotwordsFile()`](file:///c:/Users/Master/AndroidStudioProjects/AIInterviewAssistant/app/src/main/java/com/local/interviewassistant/core/model/AppConfig.kt#L130). |
+| **Gate 4** | **Technical Hotwords Recall** | Required domain keywords present | **100% recall** of turn keywords (case- and compound-insensitive). | Verified against canonical [`AppConfig.ensureHotwordsFile()`](file:///c:/Users/Master/AndroidStudioProjects/AIInterviewAssistant/app/src/main/java/com/edgecue/app/core/model/AppConfig.kt#L130). |
 | **Gate 5** | **LLM Response Relevance & TTFT** | Keyword coverage & Time-To-First-Token | Answer non-empty; contains $\ge \max(2, 75\%)$ keywords; $\text{TTFT} \le 15000\text{ ms}$ on x86_64 CPU. | Scaled for memory-mapped CPU execution on emulators. |
 | **Gate 6** | **Process Stability & Native Memory** | Crash detection & native memory delta | Zero crashes (`FATAL EXCEPTION`, `SIGSEGV`, ANR); heap + VmRSS growth $< 50\text{ MB}$ after Turn 1. | Guarantees no JNI session or native tensor memory leaks. |
 
@@ -63,21 +63,21 @@ Every audio turn executed by [`ParameterizedInterviewE2ETest`](file:///c:/Users/
 
 ## 3. Test Seam Architecture & Components
 
-### 1. [`ScriptedWavAudioSource.kt`](file:///c:/Users/Master/AndroidStudioProjects/AIInterviewAssistant/test-suite/src/main/java/com/local/interviewassistant/e2e/ScriptedWavAudioSource.kt)
-- Implements [`AudioSource`](file:///c:/Users/Master/AndroidStudioProjects/AIInterviewAssistant/app/src/main/java/com/local/interviewassistant/data/audio/AudioCaptureSource.kt#L16-L18) emitting `Flow<FloatArray>`.
+### 1. [`ScriptedWavAudioSource.kt`](file:///c:/Users/Master/AndroidStudioProjects/AIInterviewAssistant/test-suite/src/main/java/com/edgecue/app/e2e/ScriptedWavAudioSource.kt)
+- Implements [`AudioSource`](file:///c:/Users/Master/AndroidStudioProjects/AIInterviewAssistant/app/src/main/java/com/edgecue/app/data/audio/AudioCaptureSource.kt#L16-L18) emitting `Flow<FloatArray>`.
 - **Chunk-Scanning RIFF Parser**: Reliably reads standard PCM WAV files and safely skips metadata chunks (`LIST`, `JUNK`, `id3 `) with 2-byte alignment padding.
 - **Drift-Free Monotonic Pacing**: Emits 512-sample frames ($32\text{ ms}$ @ $16\text{ kHz}$) using monotonic nano-clock delays, eliminating cumulative thread sleep drift.
 - **Trailing Silence Injection**: Follows the audio with $2528\text{ ms}$ (79 frames) of silence to trigger Silero VAD speech-end.
 - **Indefinite Suspension**: Calls `awaitCancellation()` after silence to mimic a persistent live microphone without terminating the audio flow.
 
-### 2. [`E2ePipelineHarness.kt`](file:///c:/Users/Master/AndroidStudioProjects/AIInterviewAssistant/test-suite/src/main/java/com/local/interviewassistant/e2e/E2ePipelineHarness.kt)
-- **Zero Production Modifications**: Constructs an isolated [`AssistantPipelineCoordinator`](file:///c:/Users/Master/AndroidStudioProjects/AIInterviewAssistant/app/src/main/java/com/local/interviewassistant/service/AssistantPipelineCoordinator.kt) using public constructor seams.
-- **`SharedWarmLlmEngineWrapper`**: Wraps [`LiteRtGemmaEngine`](file:///c:/Users/Master/AndroidStudioProjects/AIInterviewAssistant/app/src/main/java/com/local/interviewassistant/data/llm/LiteRtGemmaEngine.kt). Turns coordinator `stop()` release calls into NO-OPs, keeping the 2.58 GB model weights warm in RAM across turns (0 ms re-initialization).
+### 2. [`E2ePipelineHarness.kt`](file:///c:/Users/Master/AndroidStudioProjects/AIInterviewAssistant/test-suite/src/main/java/com/edgecue/app/e2e/E2ePipelineHarness.kt)
+- **Zero Production Modifications**: Constructs an isolated [`AssistantPipelineCoordinator`](file:///c:/Users/Master/AndroidStudioProjects/AIInterviewAssistant/app/src/main/java/com/edgecue/app/service/AssistantPipelineCoordinator.kt) using public constructor seams.
+- **`SharedWarmLlmEngineWrapper`**: Wraps [`LiteRtGemmaEngine`](file:///c:/Users/Master/AndroidStudioProjects/AIInterviewAssistant/app/src/main/java/com/edgecue/app/data/llm/LiteRtGemmaEngine.kt). Turns coordinator `stop()` release calls into NO-OPs, keeping the 2.58 GB model weights warm in RAM across turns (0 ms re-initialization).
 - **Test Coroutine Scope**: Uses an isolated `SupervisorJob` per turn to prevent asynchronous coroutine leaks.
 
-### 3. [`TranscriptEvaluator.kt`](file:///c:/Users/Master/AndroidStudioProjects/AIInterviewAssistant/test-suite/src/main/java/com/local/interviewassistant/e2e/TranscriptEvaluator.kt)
+### 3. [`TranscriptEvaluator.kt`](file:///c:/Users/Master/AndroidStudioProjects/AIInterviewAssistant/test-suite/src/main/java/com/edgecue/app/e2e/TranscriptEvaluator.kt)
 - Computes word-level Levenshtein distance using an $O(N \times M)$ dynamic programming matrix with full Substitution, Deletion, and Insertion backtracking.
-- Contraction expansion and casing normalization matches [`QuestionPunctuationEngine`](file:///c:/Users/Master/AndroidStudioProjects/AIInterviewAssistant/app/src/main/java/com/local/interviewassistant/data/stt/QuestionPunctuationEngine.kt).
+- Contraction expansion and casing normalization matches [`QuestionPunctuationEngine`](file:///c:/Users/Master/AndroidStudioProjects/AIInterviewAssistant/app/src/main/java/com/edgecue/app/data/stt/QuestionPunctuationEngine.kt).
 - Compound-aware hotwords matching checks both individual tokens and adjacent bigrams ($t_k + t_{k+1} == \text{hotword}$, e.g. `"state flow"` vs `"stateflow"`).
 
 ---

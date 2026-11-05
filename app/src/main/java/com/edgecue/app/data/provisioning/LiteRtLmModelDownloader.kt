@@ -1,0 +1,98 @@
+package com.edgecue.app.data.provisioning
+
+import java.io.File
+import java.io.IOException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.withContext
+
+/**
+ * Handles the physical downloading and atomic saving of the .litertlm file.
+ */
+class LiteRtLmModelDownloader(
+    private val fetcher: StreamFetcher = HttpUrlStreamFetcher(),
+    val verifyChecksums: Boolean = true
+) {
+    
+    internal fun computeSha256(file: File): String {
+        val digest = java.security.MessageDigest.getInstance("SHA-256")
+        file.inputStream().use { input ->
+            val buffer = ByteArray(128 * 1024)
+            var bytesRead: Int
+            while (input.read(buffer).also { bytesRead = it } != -1) {
+                digest.update(buffer, 0, bytesRead)
+            }
+        }
+        return digest.digest().joinToString("") { "%02x".format(it) }
+    }
+
+    suspend fun downloadModelAtomic(
+        url: String,
+        targetFile: File,
+        expectedBytes: Long,
+        authToken: String?,
+        expectedSha256: String? = null,
+        onProgress: suspend (Long, Long) -> Unit
+    ) = withContext(Dispatchers.IO) {
+        
+        val tempFile = File(targetFile.parentFile, "${targetFile.name}.tmp")
+        if (tempFile.exists()) {
+            tempFile.delete()
+        }
+
+        var actualTotalBytes = -1L
+        
+        try {
+            val response = fetcher.openStream(url, 0L, authToken)
+            actualTotalBytes = response.contentLength
+            val inputStream = response.inputStream
+            
+            var downloadedBytes = 0L
+            val buffer = ByteArray(128 * 1024)
+            
+            inputStream.use { input ->
+                tempFile.outputStream().use { output ->
+                    var bytesRead: Int
+                    while (input.read(buffer).also { bytesRead = it } != -1) {
+                        currentCoroutineContext().ensureActive()
+                        output.write(buffer, 0, bytesRead)
+                        downloadedBytes += bytesRead
+                        
+                        // Callback to report progress
+                        val totalToReport = if (expectedBytes > 0) expectedBytes else actualTotalBytes
+                        onProgress(downloadedBytes, totalToReport)
+                    }
+                    output.flush()
+                }
+            }
+            
+            // Checksum / Size validation before atomic rename
+            if (expectedBytes > 0 && tempFile.length() != expectedBytes) {
+                throw IOException("Download corrupted: expected $expectedBytes bytes, but got ${tempFile.length()}")
+            }
+
+            if (verifyChecksums && !expectedSha256.isNullOrBlank()) {
+                val actualSha256 = computeSha256(tempFile)
+                if (!actualSha256.equals(expectedSha256, ignoreCase = true)) {
+                    throw IOException("Integrity verification failed for ${targetFile.name}: expected SHA-256 $expectedSha256, got $actualSha256")
+                }
+            }
+            
+            // Atomic rename
+            if (targetFile.exists()) {
+                targetFile.delete()
+            }
+            val success = tempFile.renameTo(targetFile)
+            if (!success) {
+                throw IOException("Failed to rename temporary file to ${targetFile.name}")
+            }
+            
+        } catch (e: Exception) {
+            if (tempFile.exists()) {
+                tempFile.delete()
+            }
+            throw e
+        }
+    }
+}

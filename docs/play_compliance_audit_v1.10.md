@@ -1,10 +1,10 @@
 # Google Play Policy & Best-Practice Compliance Audit Report
-## AI Interview Assistant (`com.local.interviewassistant`) · Release v1.10.0 (versionCode 14)
+## EdgeCue (`com.edgecue.app`) · Release v1.10.0 (versionCode 14)
 
 ---
 
 **Target Application:** AI Interview Assistant  
-**Application ID / Namespace:** `com.local.interviewassistant`  
+**Application ID / Namespace:** `com.edgecue.app`  
 **Release Version:** `v1.10.0` (Version Code: `14`)  
 **Target Platform:** `compileSdk 37` · `targetSdk 37` (Android 17) · `minSdk 33` (Android 13)  
 **Binary Architecture:** Multi-ABI (`arm64-v8a`, `x86_64`), 16 KB Memory Page-Aligned  
@@ -69,7 +69,7 @@
 ## 1. Executive Summary & Audit Overview
 
 ### 1.1 Scope and Objective
-This audit provides an exhaustive, pre-submission policy and technical compliance assessment of **AI Interview Assistant** (`com.local.interviewassistant`, v1.10.0, versionCode 14, minSdk 33, targetSdk 37) on branch `dev`. The objective is to identify and resolve every regulatory, architectural, and listing vulnerability before uploading the initial release bundle to the **Google Play Closed Testing track** (which requires 12 independent testers continuously opted in for 14 consecutive days for personal developer accounts created after November 13, 2023).
+This audit provides an exhaustive, pre-submission policy and technical compliance assessment of **EdgeCue** (`com.edgecue.app`, v1.10.0, versionCode 14, minSdk 33, targetSdk 37) on branch `dev`. The objective is to identify and resolve every regulatory, architectural, and listing vulnerability before uploading the initial release bundle to the **Google Play Closed Testing track** (which requires 12 independent testers continuously opted in for 14 consecutive days for personal developer accounts created after November 13, 2023).
 
 The audit operates in a **strict report-only scope**: no production source code or existing documentation files are modified. All findings include concrete remediation blueprints, file and line references, and severity classifications.
 
@@ -115,7 +115,7 @@ Before uploading the first Android App Bundle (`.aab`) to Google Play Console, t
 4. **[P0-04] Missing Multi-Party Recording Consent Gate:** Captures ambient microphone audio without in-app disclosures regarding two-party wiretapping laws (e.g., Cal. Pen. Code § 632).
 5. **[P0-05] Cloud Backup Privacy Leakage:** `backup_rules.xml` and `data_extraction_rules.xml` fail to exclude `domain="database"` and `domain="file" path="datastore"`, causing candidate transcripts in `interview_assistant.db` and DataStore preferences to upload unencrypted to Google Cloud Backup, directly contradicting Data Safety declarations.
 6. **[P0-06] Missing Mandatory Public Privacy Policy:** App requests `RECORD_AUDIO` but lacks a live public privacy policy URL.
-7. **[P0-07] Permanent Package Namespace Lock-in:** `com.local.interviewassistant` uses a placeholder domain. Under 2026 Developer Identity Verification, package names cannot be changed once uploaded to the Closed Testing track.
+7. **[P0-07] Permanent Package Namespace Lock-in:** `com.edgecue.app` uses a placeholder domain. Under 2026 Developer Identity Verification, package names cannot be changed once uploaded to the Closed Testing track.
 8. **[P0-08] Missing Play Console Device Catalog RAM Exclusions:** Devices with < 7 GB RAM entering the app crash with fatal OOMs during model allocation (`RamReadinessTier.UNSUPPORTED`), triggering Android Vitals Bad Behavior penalties (crash rate > 1.09%).
 9. **[P0-09] Pervasive "Stealth" Terminology in User-Facing UI Copy & Settings:** User-facing dialog titles, settings cards, and subtitles prominently feature "Stealth" and "Blind Controls" (e.g. `StealthDimmerDialog.kt:34`, `SettingsScreen.kt:70, 282`), triggering automated Play Store metadata and deceptive behavior flags. (Promoted from P1 to P0).
 10. **[P0-10] Missing Pre-Permission Prominent Disclosure for Microphone:** `MainActivity.kt:230-234` triggers the OS runtime permission dialog for `RECORD_AUDIO` directly without presenting a prior prominent disclosure modal explaining local ephemeral RAM processing and air-gapped zero-cloud transit, violating Google Play User Data policies. (Promoted from P1 to P0).
@@ -198,7 +198,7 @@ Policy Topic        Official Source Title                     Official Verified 
 ### 2.7 Android Developer Verification & Package Name Registration
 - **Source:** Android Developers (*Developer Verification and Package Name Registration Requirements*).
 - **Mandates:** Developer identity is verified and bound to package names on the first AAB upload to any track. Package names cannot be changed retroactively without creating a new app and forfeiting testing history.
-- **Audit Assessment:** **CRITICAL ARCHITECTURAL DECISION (P0)**. `com.local.interviewassistant` must be migrated to a production domain prior to the first Closed Testing upload.
+- **Audit Assessment:** **CRITICAL ARCHITECTURAL DECISION (P0)**. `com.edgecue.app` must be migrated to a production domain prior to the first Closed Testing upload.
 
 ### 2.8 Gemma Terms of Use & Prohibited Use Policy
 - **Source:** Google AI for Developers (`https://ai.google.dev/gemma/terms` and `/prohibited_use_policy`).
@@ -214,7 +214,7 @@ Policy Topic        Official Source Title                     Official Verified 
 - **Governing Policy:** Google Play Policy Center — *Enabling Dishonest Behavior*:
   > *"We don't allow apps that help users mislead others, including apps that create fake documents, enable academic cheating, or provide unauthorized assistance during tests or evaluations."*
 - **Audit Observations:**
-  1. **Direct Webcam Concealment Coaching:** In `app/src/main/java/com/local/interviewassistant/ui/info/InfoScreen.kt:463-468`:
+  1. **Direct Webcam Concealment Coaching:** In `app/src/main/java/com/edgecue/app/ui/info/InfoScreen.kt:463-468`:
      ```kotlin
      FormattedTeleprompterAnswer(
          text = "• **Eye-Line Alignment:** Rest device directly beneath your laptop webcam.\n" +
@@ -224,7 +224,7 @@ Policy Topic        Official Source Title                     Official Verified 
      )
      ```
      *Impact:* This explicitly trains candidates on how to covertly deceive an interviewer on a video call by hiding reflections and using blind hardware buttons.
-  2. **Covert Screen Dimming Framing:** In `app/src/main/java/com/local/interviewassistant/ui/prompter/components/StealthDimmerDialog.kt:34-39`:
+  2. **Covert Screen Dimming Framing:** In `app/src/main/java/com/edgecue/app/ui/prompter/components/StealthDimmerDialog.kt:34-39`:
      ```kotlin
      Text(
          "Reduces screen luminance to eliminate glare on eyeglasses or webcams during low-light video calls.",
@@ -233,12 +233,12 @@ Policy Topic        Official Source Title                     Official Verified 
          lineHeight = 17.sp
      )
      ```
-  3. **Blind Hardware Controls Framing:** In `app/src/main/java/com/local/interviewassistant/ui/settings/SettingsScreen.kt:70, 282`:
+  3. **Blind Hardware Controls Framing:** In `app/src/main/java/com/edgecue/app/ui/settings/SettingsScreen.kt:70, 282`:
      ```kotlin
      Text("Configure persona, on-device acceleration, and stealth controls", ...)
      SettingsGroupCard(title = "Teleprompter & Blind Controls")
      ```
-  4. **Active Candidate Persona System Prompt:** In `app/src/main/java/com/local/interviewassistant/core/model/AppConfig.kt:254-255`:
+  4. **Active Candidate Persona System Prompt:** In `app/src/main/java/com/edgecue/app/core/model/AppConfig.kt:254-255`:
      ```kotlin
      return "<start_of_turn>user\n" +
             "You are an expert candidate assisting in an interview. ${configOverride.promptStyle.systemInstruction}\n"
@@ -255,28 +255,28 @@ An exhaustive empirical regex scan of `app/src/main/` reveals **421 lines with m
 ========================================================================================================================
 Count  File Path                                                                    Primary Usage Category
 ------------------------------------------------------------------------------------------------------------------------
- 66    app/src/main/java/com/local/interviewassistant/ui/info/InfoScreen.kt          Stealth theme colors & UI copy
- 59    app/src/main/java/com/local/interviewassistant/ui/main/AppShell.kt            Theme wrapping & color references
- 56    app/src/main/java/com/local/interviewassistant/ui/overlay/FloatingHudOverlay.kt Theme tokens, icons & dimmer alpha
- 49    app/src/main/java/com/local/interviewassistant/ui/settings/SettingsScreen.kt  Settings copy, card titles & colors
+ 66    app/src/main/java/com/edgecue/app/ui/info/InfoScreen.kt          Stealth theme colors & UI copy
+ 59    app/src/main/java/com/edgecue/app/ui/main/AppShell.kt            Theme wrapping & color references
+ 56    app/src/main/java/com/edgecue/app/ui/overlay/FloatingHudOverlay.kt Theme tokens, icons & dimmer alpha
+ 49    app/src/main/java/com/edgecue/app/ui/settings/SettingsScreen.kt  Settings copy, card titles & colors
  38    .../ui/prompter/components/PrompterHeader.kt                                  Theme colors, dimmer state, icons
  37    .../ui/prompter/components/TeleprompterDisplay.kt                             Theme colors & prompter typography
- 37    app/src/main/java/com/local/interviewassistant/ui/usage/UsageScreen.kt        Stealth theme color references
- 34    app/src/main/java/com/local/interviewassistant/ui/theme/StealthTheme.kt       Theme definitions & 15 color tokens
+ 37    app/src/main/java/com/edgecue/app/ui/usage/UsageScreen.kt        Stealth theme color references
+ 34    app/src/main/java/com/edgecue/app/ui/theme/StealthTheme.kt       Theme definitions & 15 color tokens
  18    .../ui/prompter/components/TranscriptHistorySheet.kt                          Theme colors & typography tokens
  14    .../ui/prompter/components/StealthDimmerDialog.kt                             Dialog component, title & strings
- 13    app/src/main/java/com/local/interviewassistant/ui/prompter/PrompterScreen.kt  Dimmer state, theme, viewmodel wiring
+ 13    app/src/main/java/com/edgecue/app/ui/prompter/PrompterScreen.kt  Dimmer state, theme, viewmodel wiring
  11    .../ui/prompter/components/LiveTranscriptBar.kt                               Theme colors & status indicators
  11    .../ui/prompter/components/ThumbControlDock.kt                                Theme colors, icons & touch actions
  10    .../data/preferences/UserPreferencesRepository.kt                             DataStore preference keys & methods
   9    .../ui/prompter/FormattedTeleprompterAnswer.kt                                Theme colors & typography tokens
   6    .../ui/prompter/components/CategoryChipRow.kt                                 Theme colors & chip surface styling
-  5    app/src/main/java/com/local/interviewassistant/ui/prompter/PrompterViewModel.kt Dimmer state flow & setter methods
-  4    app/src/main/java/com/local/interviewassistant/core/di/AppContainer.kt        Repository & state wiring
-  3    app/src/main/java/com/local/interviewassistant/core/model/LlmGenerationConfig.kt Config field (stealthDimmerAlpha)
-  3    app/src/main/java/com/local/interviewassistant/service/AssistantForegroundService.kt Service comments & overlay wiring
-  2    app/src/main/java/com/local/interviewassistant/ui/main/MainActivity.kt        Root theme wrapper call
-  2    app/src/main/java/com/local/interviewassistant/ui/theme/StealthIcons.kt       Icon namespace definition
+  5    app/src/main/java/com/edgecue/app/ui/prompter/PrompterViewModel.kt Dimmer state flow & setter methods
+  4    app/src/main/java/com/edgecue/app/core/di/AppContainer.kt        Repository & state wiring
+  3    app/src/main/java/com/edgecue/app/core/model/LlmGenerationConfig.kt Config field (stealthDimmerAlpha)
+  3    app/src/main/java/com/edgecue/app/service/AssistantForegroundService.kt Service comments & overlay wiring
+  2    app/src/main/java/com/edgecue/app/ui/main/MainActivity.kt        Root theme wrapper call
+  2    app/src/main/java/com/edgecue/app/ui/theme/StealthIcons.kt       Icon namespace definition
 ------------------------------------------------------------------------------------------------------------------------
 487 TOTAL OCCURRENCES ACROSS 421 LINES IN 22 FILES
 ========================================================================================================================
@@ -445,13 +445,13 @@ DYNAMIC_RECEIVER_NOT_EXPORTED_          Signature          AndroidX Core (:36) I
 ### 4.5 Play Console Foreground Service Declarations (Draft Text)
 
 #### Declaration 1: Foreground Service Type `microphone`
-- **Service Class:** `com.local.interviewassistant.service.AssistantForegroundService`
+- **Service Class:** `com.edgecue.app.service.AssistantForegroundService`
 - **Category:** Voice Dictation & Assistive Live Teleprompter / Mock Interview Practice Coach
 - **Play Console Text Submission:**
   > *"AI Interview Assistant is an assistive speech teleprompter and interview rehearsal coach. When a user explicitly initiates an active practice session by tapping 'Start Live Copilot', the app operates a foreground service with microphone access to perform real-time, on-device speech-to-text dictation and display contextual talking points in a floating overlay window. Because users frequently reference external study documents, interview problem statements, or browser-based mock practice coding environments while the floating teleprompter is active, the foreground service is required to maintain continuous, uninterrupted speech recognition without Android muting or suspending audio capture when the user switches away from the main application screen. The user can immediately terminate microphone recording at any time via the prominent, accessible 'Stop Assistant' button directly inside the persistent notification."*
 
 #### Declaration 2: Foreground Service Type `dataSync`
-- **Service Class:** `com.local.interviewassistant.service.ModelDownloadService`
+- **Service Class:** `com.edgecue.app.service.ModelDownloadService`
 - **Category:** Critical On-Device Neural Asset Provisioning (Data Transfer)
 - **Play Console Text Submission:**
   > *"AI Interview Assistant requires on-device neural network assets (approximately 2.6 GB to 3.1 GB comprising Silero VAD, Sherpa-ONNX Zipformer, Whisper int8 rescorer, and Gemma 4 E2B weights) to provide private, zero-latency inference without sending user audio to the cloud. Because downloading multi-gigabyte models over mobile Wi-Fi requires several minutes and users frequently navigate to other applications or lock their devices while downloading, the app utilizes FOREGROUND_SERVICE_TYPE_DATA_SYNC with an ongoing progress notification and partial WakeLock. This guarantees uninterrupted sequential model downloading, atomic SHA-256 integrity verification, and automatic resumption if network connectivity fluctuates. The service implements Android 15+ timeout callbacks (onTimeout) and provides an immediate 'Pause / Cancel' action in the notification shade."*
@@ -475,7 +475,7 @@ DYNAMIC_RECEIVER_NOT_EXPORTED_          Signature          AndroidX Core (:36) I
 
 ### 4.7 Package Name Namespace Analysis & Migration Strategy
 - **Severity Rating:** **P0 (Critical Architecture Blocker)**
-- **Observation:** `app/build.gradle.kts:126, 130` declares `applicationId = "com.local.interviewassistant"` and `namespace = "com.local.interviewassistant"`.
+- **Observation:** `app/build.gradle.kts:126, 130` declares `applicationId = "com.edgecue.app"` and `namespace = "com.edgecue.app"`.
 - **Risk Analysis:** Under 2026 Developer Identity Verification rules, `applicationId` is permanently registered to the developer's legal entity on the first AAB upload to Closed Testing. `com.local` is a placeholder namespace that risks automated namespace vetting rejections and cannot be changed later without losing all 14-day closed tester history.
 - **Safe Migration Strategy (Pre-Upload):**
   1. Register a verified developer domain (e.g., `com.companyname.interviewassistant` or `ai.companyname.assistant`).
@@ -819,7 +819,7 @@ P0-04  P0   W2         Legal Consent     Missing two-party wiretapping consent g
 P0-05  P0   W4         Data Safety / DB  Cloud backup rules fail to exclude Room SQLite DB     res/xml/backup_rules.xml:1-6    0.5h
                                                                                                res/xml/data_extraction_rules.xml
 P0-06  P0   W4         Privacy Policy    Missing publicly hosted Privacy Policy URL            Play Console & SettingsScreen   3.0h
-P0-07  P0   W3         Identity Reg.     Placeholder package name com.local.interviewassistant  build.gradle.kts:126, 130       2.0h
+P0-07  P0   W3         Identity Reg.     Placeholder package name com.edgecue.app  build.gradle.kts:126, 130       2.0h
 P0-08  P0   W5/W6      Android Vitals    Missing Device Catalog RAM exclusion (< 7 GB)         Play Console Device Catalog     0.5h
 P0-09  P0   W2         Deceptive Policy  Pervasive "Stealth" naming in UI copy & settings      StealthDimmerDialog.kt:34       3.0h
                                          (Promoted from P1: triggers auto-scanner rejection)   SettingsScreen.kt:70, 282
@@ -863,7 +863,7 @@ P2-07  P2   W6         Audience Policy   Confirm 18+ selection in Target Audienc
 5. **P0-06 (Mandatory Public Privacy Policy):**
    - Author, host on a public HTTPS URL (e.g. GitHub Pages), and link in `SettingsScreen.kt` and `InfoScreen.kt`.
 6. **P0-07 (Package Name Migration):**
-   - Migrate `applicationId` from `com.local.interviewassistant` to a registered custom domain in `app/build.gradle.kts` before uploading the first AAB.
+   - Migrate `applicationId` from `com.edgecue.app` to a registered custom domain in `app/build.gradle.kts` before uploading the first AAB.
 7. **P0-08 (Device Catalog RAM Exclusions):**
    - Configure Play Console Device Catalog exclusion rule for `RAM < 7,168 MB`.
 8. **P0-09 (Stealth UI Terminology & Symbol Renaming — Promoted from P1-01):**
@@ -880,7 +880,7 @@ P2-07  P2   W6         Audience Policy   Confirm 18+ selection in Target Audienc
     - **Problem:** `AndroidManifest.xml:70` merges `androidx.work.impl.foreground.SystemForegroundService` with `dataSync`, forcing dual FGS declarations in Play Console alongside `ModelDownloadService`. Additionally, WorkManager injects `RECEIVE_BOOT_COMPLETED` (line 30) and 3 internal broadcast receivers.
     - **Remediation Action Plan:** Rather than applying a partial `tools:node="remove"` manifest workaround, execute a clean, definitive dead-code elimination:
       1. Remove `implementation(libs.androidx.work.runtime.ktx)` from `app/build.gradle.kts`.
-      2. Delete `app/src/main/java/com/local/interviewassistant/data/provisioning/DownloadWorker.kt` and `DownloadRepository.kt` (completely unused dead code superseded by `ModelDownloadService`).
+      2. Delete `app/src/main/java/com/edgecue/app/data/provisioning/DownloadWorker.kt` and `DownloadRepository.kt` (completely unused dead code superseded by `ModelDownloadService`).
       3. This single change cleanly:
          - Eliminates `SystemForegroundService` (resolving the duplicate `dataSync` FGS conflict).
          - Eliminates transitive `RECEIVE_BOOT_COMPLETED` permission (cleanly and automatically resolving `P2-01`).

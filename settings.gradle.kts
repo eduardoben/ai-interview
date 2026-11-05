@@ -22,5 +22,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "AI Interview Assistant"
+rootProject.name = "EdgeCue"
 include(":app", ":test-suite")

@@ -1,7 +1,7 @@
 # AI Interview Assistant: Google Play Closed Testing Runbook & Production Access Application Guide
 
 **Target Application:** AI Interview Assistant  
-**Package Name:** `com.local.interviewassistant` *(Migration to custom verified domain planned prior to first Closed Track upload)*  
+**Package Name:** `com.edgecue.app` *(Migration to custom verified domain planned prior to first Closed Track upload)*  
 **Release Version:** `v1.10.0` (Version Code: `14`)  
 **Target Platform:** `compileSdk 37` · `targetSdk 37` (Android 17) · `minSdk 33` (Android 13)  
 **Binary Architecture:** Multi-ABI (`arm64-v8a`, `x86_64`), 16 KB Memory Page Aligned  
@@ -240,15 +240,15 @@ Scalability & Audit Trail      Error-prone; easy to misplace  Clean, auditable l
 
 #### Step 2: Configure the Closed Testing Track in Google Play Console
 1. Log into the [Google Play Console](https://play.google.com/console/).
-2. Select **AI Interview Assistant** (`com.local.interviewassistant`).
+2. Select **EdgeCue** (`com.edgecue.app`).
 3. In the left navigation menu, expand **Testing** and select **Closed testing**.
 4. Click **Manage track** on the primary Closed testing track (or click **Create track** and name it `Closed Alpha/Beta`).
 5. Click the **Testers** tab.
 6. Under **How testers join your test**, select **Google Groups**.
 7. Enter the group email: `ai-interview-assistant-beta@googlegroups.com` and click **Add**.
 8. Scroll to the bottom of the page and copy the two generated URLs:
-   * **Join on the web:** `https://play.google.com/apps/testing/com.local.interviewassistant`
-   * **Join on Android:** `https://play.google.com/store/apps/details?id=com.local.interviewassistant`
+   * **Join on the web:** `https://play.google.com/apps/testing/com.edgecue.app`
+   * **Join on Android:** `https://play.google.com/store/apps/details?id=com.edgecue.app`
 9. Click **Save changes** at the bottom-right of the page.
 
 ### 3.3 Tester Opt-in Flows: Web Opt-in URL & On-Device Play Store Opt-in
@@ -276,7 +276,7 @@ To count toward the mandatory 12-tester requirement, each tester **must actively
 #### Phase 1: Registration & Opt-In (Day 1)
 - [ ] 1. Verify you are logged into your Android phone with the exact Google account submitted during screening.
 - [ ] 2. Open the Web Opt-in Link in your mobile browser:
-         https://play.google.com/apps/testing/com.local.interviewassistant
+         https://play.google.com/apps/testing/com.edgecue.app
 - [ ] 3. Tap "Become a Tester". Confirm you see the message: "You are now a tester."
 - [ ] 4. Tap the link "Download it on Google Play" to navigate to the Play Store listing.
 - [ ] 5. Tap "Install". Verify that Build v1.10.0 (versionCode 14) downloads and installs cleanly.
@@ -624,11 +624,11 @@ The following responses provide ready-to-submit answers formatted in three logic
 ### 6.2 Supplementary Play Console Compliance & Policy Declarations
 
 #### Declaration 1: Publicly Hosted Privacy Policy and Terms Links (RFC 6762 Compliance)
-* **Official Public Privacy Policy URL:** `https://aiinterviewassistant.app/privacy` *(Hosted on verified public HTTPS domain; GitHub Pages mirror: https://<github-user>.github.io/AIInterviewAssistant/privacy.html)*  
-* **Terms of Service URL:** `https://aiinterviewassistant.app/terms` *(Mirror: https://<github-user>.github.io/AIInterviewAssistant/terms.html)*  
+* **Official Public Privacy Policy URL:** `https://edgecue.app/privacy` *(Hosted on verified public HTTPS domain; GitHub Pages mirror: https://<github-user>.github.io/AIInterviewAssistant/privacy.html)*  
+* **Terms of Service URL:** `https://edgecue.app/terms` *(Mirror: https://<github-user>.github.io/AIInterviewAssistant/terms.html)*  
 * **Gemma Model Terms of Use:** `https://ai.google.dev/gemma/terms`  
 * **Gemma Prohibited Use Policy:** `https://ai.google.dev/gemma/prohibited_use_policy`  
-* **Open Source Licenses & Attributions:** Integrated in-app within the Settings screen and hosted at `https://aiinterviewassistant.app/licenses` *(Mirror: https://<github-user>.github.io/AIInterviewAssistant/licenses.html)*  
+* **Open Source Licenses & Attributions:** Integrated in-app within the Settings screen and hosted at `https://edgecue.app/licenses` *(Mirror: https://<github-user>.github.io/AIInterviewAssistant/licenses.html)*  
 
 > **⚠️ RFC 6762 DOMAIN COMPLIANCE NOTICE:** Under IETF RFC 6762, the `.local` top-level domain is strictly reserved for link-local multicast DNS (mDNS) and is NOT a publicly resolvable domain. Submitting an unresolvable `.local` mDNS address (e.g. `https://<app-name>.local/privacy`) in Google Play Console App Content or on the Production Access application will fail automated DNS crawlers and result in immediate, non-negotiable rejection under Google Play's User Data & Privacy Policy requirements. The URL must resolve publicly over HTTPS to a live web page.
 
@@ -693,7 +693,7 @@ To get started, please follow these 4 quick steps:
 
 STEP 1: ACCEPT BETA INVITATION
 Open this link in your Android phone's browser (make sure you're logged into [Tester Email]):
-👉 https://play.google.com/apps/testing/com.local.interviewassistant
+👉 https://play.google.com/apps/testing/com.edgecue.app
 Tap the blue "Become a Tester" button.
 
 STEP 2: INSTALL FROM PLAY STORE

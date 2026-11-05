@@ -9,7 +9,7 @@ Uses differential transfer verification: queries remote file size via `adb shell
 prior to pushing, skipping transfer if the remote file exists and byte size matches.
 
 Destination on device:
-    /sdcard/Android/data/com.local.interviewassistant/files/{vad,asr,whisper,llm}/
+    /sdcard/Android/data/com.edgecue.app/files/{vad,asr,whisper,llm}/
 
 Usage:
     python scripts/push_models_to_fleet.py [--serial <serial>] [--models-dir <path>] [--dry-run]
@@ -106,7 +106,7 @@ REQUIRED_MODELS = [
     }
 ]
 
-REMOTE_BASE_DIR = "/sdcard/Android/data/com.local.interviewassistant/files"
+REMOTE_BASE_DIR = "/sdcard/Android/data/com.edgecue.app/files"
 
 
 def find_adb_path() -> str:
@@ -434,7 +434,7 @@ def main():
     candidate_dirs = build_candidate_directories(args.models_dir)
 
     print("==================================================================")
-    print(" AI Interview Assistant - Fleet Model Push Tool")
+    print(" EdgeCue - Fleet Model Push Tool")
     print(f" ADB Path:        {adb_path}")
     print(f" Mode:            {'DRY-RUN' if args.dry_run else 'LIVE DIFFERENTIAL PUSH'}")
     print(f" Search Paths:")

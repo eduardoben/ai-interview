@@ -112,7 +112,7 @@ CRASH_PATTERNS = [
     re.compile(r"SIGBUS", re.IGNORECASE),
     re.compile(r"SIGFPE", re.IGNORECASE),
     re.compile(r"art::ThrowOutOfMemoryError", re.IGNORECASE),
-    re.compile(r"ANR in com\.local\.interviewassistant", re.IGNORECASE)
+    re.compile(r"ANR in com\.edgecue\.app", re.IGNORECASE)
 ]
 
 
@@ -478,7 +478,7 @@ def execute_test_on_device(
     models_dir: Optional[str],
     dry_run: bool,
     force_push: bool,
-    test_class: str = "com.local.interviewassistant.e2e.ParameterizedInterviewE2ETest"
+    test_class: str = "com.edgecue.app.e2e.ParameterizedInterviewE2ETest"
 ) -> Dict[str, Any]:
     """
     Executes E2E test lifecycle for a single target device.
@@ -516,7 +516,7 @@ def execute_test_on_device(
         # Write simulated logcat
         simulated_log = (
             f"--------- beginning of system\n"
-            f"11-01 05:00:00.120 1234 1234 I ActivityManager: Start proc com.local.interviewassistant for service com.local.interviewassistant/.service.AssistantForegroundService\n"
+            f"11-01 05:00:00.120 1234 1234 I ActivityManager: Start proc com.edgecue.app for service com.edgecue.app/.service.AssistantForegroundService\n"
             f"11-01 05:00:01.050 1234 1280 I SherpaVadSttEngine: Silero VAD initialized successfully\n"
             f"11-01 05:00:01.400 1234 1285 I LiteRtGemmaEngine: LiteRT CPU backend memory-mapped gemma-4-E2B-it.litertlm (2588147712 bytes)\n"
             f"11-01 05:00:15.500 1234 1285 I ParameterizedInterviewE2ETest: Turn 1 PASSED: WER=0.04, TTFT=6420ms\n"
@@ -541,10 +541,10 @@ def execute_test_on_device(
         run_adb(["logcat", "-c"], adb_path=adb_path, serial=serial, timeout=30)
 
         # 4. Clean remote results and run instrumentation
-        remote_e2e_dir = "/sdcard/Android/data/com.local.interviewassistant/files/e2e"
+        remote_e2e_dir = "/sdcard/Android/data/com.edgecue.app/files/e2e"
         run_adb(["shell", f"mkdir -p '{remote_e2e_dir}' && rm -f '{remote_e2e_dir}'/*_result.json"], adb_path=adb_path, serial=serial, timeout=30)
 
-        runner_pkg = "com.local.interviewassistant.testsuite" if (ROOT_DIR / TEST_SUITE_APK_REL).exists() or (ROOT_DIR / "test-suite").exists() else "com.local.interviewassistant.test"
+        runner_pkg = "com.edgecue.app.testsuite" if (ROOT_DIR / TEST_SUITE_APK_REL).exists() or (ROOT_DIR / "test-suite").exists() else "com.edgecue.app.test"
         runner = f"{runner_pkg}/androidx.test.runner.AndroidJUnitRunner"
         inst_cmd = [
             "shell", "am", "instrument", "-w", "-r",
@@ -592,7 +592,7 @@ def execute_test_on_device(
             print(f"[{serial}] [FATAL] Crashes detected in logcat:\n" + "\n".join(crash_lines[:5]))
 
         # 7. Pull turn JSON result files
-        remote_e2e_dir = "/sdcard/Android/data/com.local.interviewassistant/files/e2e"
+        remote_e2e_dir = "/sdcard/Android/data/com.edgecue.app/files/e2e"
         code_ls, out_ls, _ = run_adb(["shell", f"ls {remote_e2e_dir}/*_result.json 2>/dev/null"], adb_path=adb_path, serial=serial, timeout=30)
 
         json_remote_files = []
@@ -821,16 +821,16 @@ def main():
     reports_dir.mkdir(parents=True, exist_ok=True)
 
     test_class_map = {
-        "e2e": "com.local.interviewassistant.e2e.ParameterizedInterviewE2ETest",
-        "integration": "com.local.interviewassistant.RealDevicePipelineIntegrationTest",
-        "hardware": "com.local.interviewassistant.RealDevicePipelineIntegrationTest"
+        "e2e": "com.edgecue.app.e2e.ParameterizedInterviewE2ETest",
+        "integration": "com.edgecue.app.RealDevicePipelineIntegrationTest",
+        "hardware": "com.edgecue.app.RealDevicePipelineIntegrationTest"
     }
     resolved_test_class = test_class_map.get(args.test_class.lower(), args.test_class)
 
     adb_path = find_adb_path()
 
     print("==================================================================")
-    print(" AI Interview Assistant - Emulator Fleet Test Runner (M4)")
+    print(" EdgeCue - Emulator Fleet Test Runner (M4)")
     print(f" Execution Mode:  {'DRY-RUN (SIMULATION)' if args.dry_run else 'LIVE FLEET EXECUTION'}")
     print(f" ADB Path:        {adb_path}")
     print(f" Reports Dir:     {reports_dir}")

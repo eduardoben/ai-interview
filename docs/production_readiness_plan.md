@@ -1,6 +1,6 @@
 # AI Interview Assistant: Production Readiness Plan & Roadmap
 
-**Application Package:** `com.local.interviewassistant`  
+**Application Package:** `com.edgecue.app`  
 **Brand Identity:** *AI Interview Assistant* (ASO Keyword Variant: *Interview Assistant: Local AI*)  
 **Target Platform:** Android 14 to Android 17 (API 34–37) | Jetpack Compose | Kotlin 2.4.21  
 **On-Device AI Engine:** LiteRT-LM 0.18.1 (Gemma 4 E2B IT) & Sherpa-ONNX 1.12.21 (Zipformer + Silero VAD + Whisper)  
@@ -102,7 +102,7 @@ OVERALL PRODUCTION READINESS:    YELLOW (64/100)  Requires 4-Phase Hardening Pri
 ### 2.1 Code Modularity, Package Boundaries & Clean Architecture
 
 #### 2.1.1 Current Package Organization
-The codebase resides under `com.local.interviewassistant`:
+The codebase resides under `com.edgecue.app`:
 * `core/di/`: Contains `AppContainer.kt` (manual service locator).
 * `core/model/`: Contains `AssistantState.kt`, `CopilotUiState.kt`, `LlmGenerationConfig.kt`, `TranscriptSegment.kt`, and `AppConfig.kt`.
 * `data/audio/`: Contains `AudioCaptureSource.kt`.
@@ -116,7 +116,7 @@ The codebase resides under `com.local.interviewassistant`:
 
 #### 2.1.2 Identified Architectural Violations & Refactoring Directives
 1. **Misplaced Domain Orchestrator (`AssistantPipelineCoordinator.kt`):** Located in the `service` package despite containing zero Android Framework `Service` dependencies. It is a pure Kotlin domain state machine.  
-   *Refactoring Directive:* Move to `com.local.interviewassistant.domain.coordinator` or `com.local.interviewassistant.core.pipeline`.
+   *Refactoring Directive:* Move to `com.edgecue.app.domain.coordinator` or `com.edgecue.app.core.pipeline`.
 2. **The "God Configuration" Antipattern (`AppConfig.kt`):** `AppConfig` mixes domain data models, filesystem directory path resolution (`modelsRootDir`, `llmDir`, `whisperDir`), model validation logic (`validateModelsOnDisk`), hotwords generation (`ensureHotwordsFile`), Hugging Face URL constants, and Gemma prompt template formatting (`formatGemmaPrompt`).  
    *Refactoring Directive:* Decompose into:
    - `ModelPathResolver`: Filesystem resolution and directory creation.
@@ -192,13 +192,13 @@ Introduce dedicated ViewModels to isolate business logic from presentation:
 
 #### Proposed `PrompterViewModel.kt` Specification:
 ```kotlin
-package com.local.interviewassistant.ui.prompter
+package com.edgecue.app.ui.prompter
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.local.interviewassistant.core.model.*
-import com.local.interviewassistant.domain.coordinator.AssistantPipelineCoordinator
-import com.local.interviewassistant.data.history.SessionHistoryRepository
+import com.edgecue.app.core.model.*
+import com.edgecue.app.domain.coordinator.AssistantPipelineCoordinator
+import com.edgecue.app.data.history.SessionHistoryRepository
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
@@ -286,7 +286,7 @@ In `AssistantPipelineCoordinator.kt` (lines 47–133 `start()` and lines 291–3
 * **Impact:** Concurrent execution of `initialize()` and `release()` causes JNI use-after-free, null pointer dereferences, or native crash loops (`SIGSEGV`).
 * **Remediation Code Fix (`Mutex` Lifecycle Guard):**
 ```kotlin
-package com.local.interviewassistant.service
+package com.edgecue.app.service
 
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -433,7 +433,7 @@ Without hardware gating, this deficit triggers aggressive kernel `zram` paging, 
 To guarantee system stability and prevent OOM crashes, `DeviceHardwareDetector.kt` enforces a 3-tier RAM qualification gate:
 
 ```kotlin
-package com.local.interviewassistant.data.hardware
+package com.edgecue.app.data.hardware
 
 enum class RamReadinessTier {
     /**
@@ -515,7 +515,7 @@ object DeviceHardwareDetector {
 * **Impact:** Over a standard 60-minute interview, this allocates **>115,000 arrays and performs >115,000 array copies**, generating severe ART GC pressure and elevated CPU core temperatures.
 * **Remediation Specification (Zero-Allocation Circular Ring Buffer):**
 ```kotlin
-package com.local.interviewassistant.data.audio
+package com.edgecue.app.data.audio
 
 class CircularFloatRingBuffer(val capacity: Int) {
     private val buffer = FloatArray(capacity)
@@ -578,10 +578,10 @@ The JVM test suite contains 16 test files covering domain models, punctuation re
 To enable continuous integration (CI) verification without 3 GB binary files, establish headless mock contracts for STT and LLM engines:
 
 ```kotlin
-// app/src/test/java/com/local/interviewassistant/test/FakeLlmBackend.kt
-package com.local.interviewassistant.test
+// app/src/test/java/com/edgecue/app/test/FakeLlmBackend.kt
+package com.edgecue.app.test
 
-import com.local.interviewassistant.data.llm.*
+import com.edgecue.app.data.llm.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 
@@ -694,7 +694,7 @@ packaging {
 #### 3.2.2 Google Play Console FGS Policy Declaration Dossier
 
 ##### 1. Declaration for `FOREGROUND_SERVICE_MICROPHONE`:
-* **Service Class:** `com.local.interviewassistant.service.AssistantForegroundService`
+* **Service Class:** `com.edgecue.app.service.AssistantForegroundService`
 * **Declared Foreground Service Type:** `microphone`
 * **Core Application Category:** **Assistive Voice-to-Text Personal Note Prompter & Mock Practice Coach**
 * **User-Facing Description for Play Console Form:**  
@@ -703,7 +703,7 @@ packaging {
   *"The app performs continuous on-device speech-to-text transcription using local neural acoustic models (Sherpa-ONNX streaming Zipformer) processing 32ms audio frames in real time. Standard background execution mechanisms (such as WorkManager or JobScheduler) cannot support continuous low-latency streaming PCM audio input. In Android 14+ (API 34+), microphone recording is automatically blocked and muted by the operating system as soon as an app enters the background unless it runs as an active foreground service of type `microphone` with an ongoing user notification."*
 * **Ongoing Notification & Accessible Stop Action Specification:**  
   Google Play Developer Program Policy mandates that microphone recording notifications MUST provide an immediate, accessible action button to terminate recording directly from the notification shade.
-  - Notification Title: `"AI Interview Assistant Active"`
+  - Notification Title: `"EdgeCue Active"`
   - Notification Body: `"Transcribing spoken audio and generating prompt suggestions. Tap to open or pause."`
   - Action Buttons: `[Pause / Resume]`, `[Stop Assistant]` (via immutable `PendingIntent` mapped to `ACTION_STOP`).
 ```kotlin
@@ -720,7 +720,7 @@ private fun buildOngoingNotification(): Notification {
     )
 
     return NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
-        .setContentTitle("AI Interview Assistant Active")
+        .setContentTitle("EdgeCue Active")
         .setContentText("Transcribing spoken audio and generating prompt suggestions.")
         .setSmallIcon(android.R.drawable.ic_btn_speak_now)
         .setOngoing(true)
@@ -731,7 +731,7 @@ private fun buildOngoingNotification(): Notification {
 }
 ```
 * **Demonstration Video Protocol for Play Console Reviewers:**
-  1. Launch AI Interview Assistant.
+  1. Launch EdgeCue.
   2. Tap "Start Assistant" in `MainActivity`.
   3. Show persistent Android notification with active microphone indicator in notification shade.
   4. Demonstrate speaking into device: live partial words transcribed in floating HUD overlay.
@@ -739,7 +739,7 @@ private fun buildOngoingNotification(): Notification {
   6. Tap "Stop Assistant" in the notification shade: service immediately terminates, microphone releases, notification dismisses.
 
 ##### 2. Declaration for `FOREGROUND_SERVICE_DATA_SYNC`:
-* **Service Class:** `com.local.interviewassistant.service.ModelDownloadService`
+* **Service Class:** `com.edgecue.app.service.ModelDownloadService`
 * **User-Facing Description for Play Console:**  
   *"The application utilizes specialized on-device neural network models (Gemma 4 LLM and Sherpa-ONNX speech models) ranging from 2.5 GB to 3.1 GB. When the user initiates a model download, `ModelDownloadService` ensures the multi-gigabyte download completes reliably if the user navigates away or the device locks, displaying real-time progress and supporting pause and cancellation."*
 * **Compliance with Android 17 Timeouts:** The service overrides `onTimeout(startId: Int, fgsType: Int)` to cancel downloads cleanly, releases partial WakeLocks, and notifies the user with resume capability.
@@ -815,7 +815,7 @@ The application enforces a mandatory, non-dismissible onboarding dialog (`LegalN
 
 ```kotlin
 // ui/legal/LegalNoticeDialog.kt
-package com.local.interviewassistant.ui.legal
+package com.edgecue.app.ui.legal
 
 @Composable
 fun LegalNoticeDialog(
@@ -1016,27 +1016,27 @@ Create `app/proguard-rules.pro` with the following configuration. Note that usin
 # ------------------------------------------------------------------------------
 # Must use '-keep enum' (NOT '-keepclassmembers') so enum class names and
 # values are preserved for InterviewCategory.valueOf() in SessionHistoryRepository.
--keep enum com.local.interviewassistant.** {
+-keep enum com.edgecue.app.** {
     *;
 }
 
 # Preserve all core data models and StateFlow structures
--keep class com.local.interviewassistant.core.model.** {
+-keep class com.edgecue.app.core.model.** {
     *;
 }
 
 # Preserve Session History and Telemetry models
--keep class com.local.interviewassistant.data.history.** {
+-keep class com.edgecue.app.data.history.** {
     *;
 }
 
 # Preserve Hardware Profiles and Delegate types
--keep class com.local.interviewassistant.data.hardware.** {
+-keep class com.edgecue.app.data.hardware.** {
     *;
 }
 
 # Preserve Model Provisioning models and descriptors
--keep class com.local.interviewassistant.data.provisioning.** {
+-keep class com.edgecue.app.data.provisioning.** {
     *;
 }
 
