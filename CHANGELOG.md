@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.15.0] - 2026-11-05
+
+### Added
+- **Brand Identity & Dachshund Mascot:** Established the EdgeCue visual brand identity featuring the Dachshund mascot in both the `EC` monogram logo and standalone mascot marks.
+- **Scalable Master SVGs & Android VectorDrawables:** Generated clean master SVGs and runtime Android VectorDrawables (`ic_edgecue_logo.xml`, `ic_edgecue_mascot.xml`) supporting dynamic status tinting.
+- **Adaptive Launcher Icon Suite:** Redesigned adaptive launcher icon with pure white background (`ic_launcher_background.xml`), mathematically centered 66dp safe-zone foreground (`ic_launcher_foreground.xml`), Android 13+ monochrome layer (`ic_launcher_monochrome.xml`), and regenerated mipmap WebP icons across all densities (`mdpi`–`xxxhdpi`).
+- **Marketing Suite & Assets (`marketing/`):** Organized brand assets into a clean root directory structure:
+  - `marketing/brand/svg/`: Light and dark vector master files.
+  - `marketing/brand/raster/`: Lossless WebP and transparent PNG exports.
+  - `marketing/brand/originals/`: Preserved high-resolution source uploads.
+  - `marketing/brand/BRAND_GUIDELINES.md`: Comprehensive brand identity manual.
+  - `marketing/play-store/`: Google Play 512×512 store icon and 1024×500 feature graphic.
+  - `marketing/copy/play_store_listing.md`: Character-validated Google Play Store ASO metadata.
+  - `marketing/screenshots/`: Relocated AVD fleet test screenshots.
+- **In-App Stealth OLED UI Brand Integration:** Integrated the EdgeCue logo and Dachshund mascot into the Prompter header, Teleprompter empty and initializing states, Floating HUD minimized pill and header, and the Settings About & Legal card.
+
+### Changed
+- **Package Migration:** Relocated entire Kotlin source tree across `:app` and `:test-suite` modules from `com.local.interviewassistant` to `com.edgecue.app` (and `com.edgecue.app.testsuite`).
+- **Application ID & Namespace:** Set `applicationId = "com.edgecue.app"` and `namespace = "com.edgecue.app"` in `app/build.gradle.kts`, and `EdgeCue` root project name in `settings.gradle.kts`.
+- **Privacy Policy Updates:** Updated public privacy policy (`docs/privacy.html`, `docs/privacy_policy.md`) with publisher Himmler Benitez, contact email `hbenitez@hectisai.com`, and EdgeCue `com.edgecue.app` package declarations.
+- **In-App Contact Routing:** Updated `AppConfig.FEEDBACK_EMAIL` to `hbenitez@hectisai.com`.
+- **Build & Rules:** Updated ProGuard rules in `app/proguard-rules.pro` for `com.edgecue.app.**`.
+- Bumped application `versionCode` to 19 and `versionName` to `1.15.0`.
+
+---
+
 ## [1.14.0] - 2026-11-03
 
 ### Added
