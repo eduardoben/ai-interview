@@ -4,93 +4,178 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Privacy Policy - EdgeCue</title>
+    <meta name="description" content="Official Privacy Policy for EdgeCue: Local-First AI Interview Teleprompter & Practice Coach. 100% on-device neural processing, zero cloud transmission, zero audio retention.">
+    <link rel="icon" type="image/svg+xml" href="edgecue_mascot_light.svg">
     <style>
         :root {
             --bg-color: #06070a;
             --card-bg: #0e1017;
             --card-elevated: #161922;
+            --card-subtle: #1a1e29;
             --text-primary: #f3f4f6;
             --text-secondary: #9ca3af;
             --text-muted: #646b78;
             --accent: #6366f1;
             --accent-soft: #818cf8;
+            --accent-glow: rgba(99, 102, 241, 0.15);
             --status-emerald: #10b981;
+            --status-amber: #f59e0b;
             --border: #1c202b;
             --border-high: #282e3e;
         }
+        * {
+            box-sizing: border-box;
+        }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            line-height: 1.65;
+            line-height: 1.68;
             background-color: var(--bg-color);
             color: var(--text-primary);
             margin: 0;
-            padding: 32px 16px;
+            padding: 24px 16px 48px 16px;
+            -webkit-font-smoothing: antialiased;
         }
         .container {
-            max-width: 820px;
+            max-width: 860px;
             margin: 0 auto;
             background: var(--card-bg);
-            padding: 40px 36px;
-            border-radius: 18px;
+            padding: 36px 40px;
+            border-radius: 20px;
             border: 1px solid var(--border);
-            box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.7);
+            box-shadow: 0 16px 36px -8px rgba(0, 0, 0, 0.85);
         }
-        .badge {
+        
+        /* Top Navigation & Logo Header */
+        .top-nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
+            padding-bottom: 24px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 28px;
+        }
+        .brand-header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            text-decoration: none;
+        }
+        .brand-logo-img {
+            width: 140px;
+            height: auto;
+            max-height: 52px;
+            object-fit: contain;
+            display: block;
+        }
+        .brand-title-group {
+            display: flex;
+            flex-direction: column;
+        }
+        .brand-name {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: #ffffff;
+            letter-spacing: -0.02em;
+            line-height: 1.1;
+        }
+        .brand-tagline {
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+        
+        /* Trust Badges */
+        .badge-pill {
             display: inline-flex;
             align-items: center;
-            gap: 6px;
-            background: rgba(99, 102, 241, 0.15);
+            gap: 8px;
+            background: var(--accent-glow);
             color: var(--accent-soft);
             border: 1px solid rgba(99, 102, 241, 0.35);
-            padding: 5px 14px;
+            padding: 6px 14px;
             border-radius: 9999px;
             font-size: 0.82rem;
             font-weight: 600;
-            margin-bottom: 20px;
+            letter-spacing: 0.02em;
         }
         .badge-dot {
-            width: 7px;
-            height: 7px;
+            width: 8px;
+            height: 8px;
             border-radius: 50%;
             background-color: var(--status-emerald);
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.7);
             display: inline-block;
         }
+        
+        /* Typography */
         h1 {
             color: #ffffff;
-            font-size: 2rem;
-            margin-top: 0;
-            margin-bottom: 8px;
-            border-bottom: 2px solid var(--accent);
-            padding-bottom: 14px;
-            letter-spacing: -0.02em;
+            font-size: 2.1rem;
+            margin: 0 0 12px 0;
+            font-weight: 800;
+            letter-spacing: -0.025em;
+            line-height: 1.2;
         }
-        .meta-box {
+        .subtitle {
+            font-size: 1.05rem;
+            color: var(--text-secondary);
+            margin: 0 0 24px 0;
+        }
+        
+        .meta-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
             background: var(--card-elevated);
             border: 1px solid var(--border);
             border-radius: 12px;
-            padding: 16px 20px;
-            margin: 20px 0 28px 0;
-            font-size: 0.92rem;
+            padding: 18px 20px;
+            margin-bottom: 32px;
         }
-        .meta-box p {
-            margin: 4px 0;
-            color: var(--text-secondary);
+        .meta-item {
+            font-size: 0.9rem;
         }
+        .meta-label {
+            color: var(--text-muted);
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+        .meta-value {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+        
         h2 {
             color: #ffffff;
             font-size: 1.35rem;
-            margin-top: 32px;
+            margin-top: 36px;
             margin-bottom: 14px;
-            letter-spacing: -0.01em;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+            letter-spacing: -0.015em;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
+        }
+        h2::before {
+            content: "";
+            display: inline-block;
+            width: 4px;
+            height: 1.1em;
+            background: var(--accent);
+            border-radius: 2px;
         }
         h3 {
             color: #e2e8f0;
-            font-size: 1.1rem;
-            margin-top: 22px;
+            font-size: 1.08rem;
+            margin-top: 24px;
             margin-bottom: 8px;
+            font-weight: 700;
         }
         p, li {
             color: var(--text-secondary);
@@ -106,27 +191,63 @@
             padding: 2px 6px;
             border-radius: 4px;
             font-size: 0.88em;
+            border: 1px solid rgba(255, 255, 255, 0.08);
         }
         ul {
             padding-left: 22px;
+            margin: 10px 0;
         }
         li {
-            margin-bottom: 10px;
+            margin-bottom: 8px;
         }
-        .highlight-card {
+        
+        /* Highlight callout cards */
+        .callout-card {
             background: var(--card-elevated);
             border: 1px solid var(--border-high);
             border-left: 4px solid var(--accent);
             padding: 16px 20px;
             border-radius: 10px;
-            margin: 18px 0;
+            margin: 20px 0;
         }
-        .highlight-card p {
+        .callout-card.emerald {
+            border-left-color: var(--status-emerald);
+        }
+        .callout-card.amber {
+            border-left-color: var(--status-amber);
+        }
+        .callout-card p {
             margin: 4px 0;
         }
+        
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 14px;
+            margin: 20px 0;
+        }
+        .feature-item {
+            background: var(--card-elevated);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px;
+        }
+        .feature-item h4 {
+            margin: 0 0 6px 0;
+            color: #ffffff;
+            font-size: 0.96rem;
+            font-weight: 700;
+        }
+        .feature-item p {
+            margin: 0;
+            font-size: 0.88rem;
+            line-height: 1.5;
+        }
+        
+        /* Footer */
         .footer {
-            margin-top: 44px;
-            padding-top: 22px;
+            margin-top: 48px;
+            padding-top: 24px;
             border-top: 1px solid var(--border);
             font-size: 0.88rem;
             color: var(--text-muted);
@@ -134,79 +255,142 @@
             justify-content: space-between;
             align-items: center;
             flex-wrap: wrap;
-            gap: 12px;
+            gap: 14px;
         }
         a {
             color: var(--accent-soft);
             text-decoration: none;
+            transition: color 0.15s ease;
         }
         a:hover {
+            color: #ffffff;
             text-decoration: underline;
         }
-        @media (max-width: 600px) {
+        
+        @media (max-width: 640px) {
             body {
-                padding: 16px 10px;
+                padding: 14px 10px 32px 10px;
             }
             .container {
                 padding: 24px 18px;
+                border-radius: 14px;
+            }
+            .top-nav {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 14px;
             }
             h1 {
-                font-size: 1.6rem;
+                font-size: 1.65rem;
             }
-            h2 {
-                font-size: 1.2rem;
+            .brand-logo-img {
+                width: 120px;
             }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <span class="badge"><span class="badge-dot"></span> 100% Local On-Device AI • Zero Cloud Egress</span>
-        <h1>Privacy Policy for EdgeCue</h1>
-        
-        <div class="meta-box">
-            <p><strong>Application:</strong> EdgeCue (<code>com.edgecue.app</code>)</p>
-            <p><strong>Effective Date:</strong> November 3, 2026</p>
-            <p><strong>Last Updated:</strong> November 5, 2026</p>
-            <p><strong>Developer / Publisher:</strong> Himmler Benitez</p>
-            <p><strong>Contact Email:</strong> <a href="mailto:hbenitez@hectisai.com">hbenitez@hectisai.com</a></p>
-            <p><strong>Official Hosting URL:</strong> <a href="https://eduardoben.github.io/ai-interview/privacy.html">https://eduardoben.github.io/ai-interview/privacy.html</a></p>
+        <!-- Upper-Left Brand Header with Logo -->
+        <header class="top-nav">
+            <a href="https://eduardoben.github.io/ai-interview/privacy.html" class="brand-header-left" aria-label="EdgeCue Home">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 682" class="brand-logo-img" width="140" height="93" aria-hidden="true">
+                    <path fill="#F3F4F6" fill-rule="evenodd" d="M318.08,542.41C315.55,540.29 315.00,539.08 315.00,535.67C315.00,531.84 315.52,531.03 321.75,525.15C349.30,499.14 390.13,478.07 432.50,468.00C462.26,460.92 481.41,459.04 528.50,458.58C555.91,458.31 566.18,457.86 571.56,456.70C579.75,454.93 594.34,449.50 595.87,447.66C596.61,446.76 596.52,445.05 595.55,441.83C593.02,433.43 592.72,426.83 594.46,417.59C596.60,406.16 599.51,398.31 605.86,386.85C612.87,374.20 619.66,365.24 630.45,354.41C643.77,341.04 655.42,333.57 671.00,328.42C678.75,325.86 680.82,325.61 694.50,325.56C708.43,325.52 710.07,325.71 717.50,328.31C727.81,331.93 737.48,337.67 745.28,344.83C748.70,347.97 752.36,351.21 753.40,352.02C754.92,353.20 760.30,353.61 779.90,354.02C801.25,354.47 804.96,354.78 808.00,356.39C816.66,360.96 819.36,365.65 819.29,376.00C819.13,397.04 804.39,417.78 781.38,429.32C774.69,432.67 768.06,435.01 749.54,440.53C731.50,445.90 724.44,454.08 718.46,476.55C713.98,493.40 710.47,501.99 704.45,510.87C697.23,521.51 679.83,535.00 673.33,535.00C668.15,535.00 664.80,531.19 665.19,525.75C665.49,521.72 665.91,521.22 674.68,514.52C679.72,510.66 685.53,505.48 687.58,503.00C692.69,496.83 697.40,486.42 700.48,474.50C705.07,456.72 709.22,448.11 717.59,439.07C724.93,431.15 731.71,427.84 750.32,423.11C759.24,420.84 769.35,417.53 773.60,415.48C782.78,411.07 792.29,402.03 796.54,393.70C799.32,388.24 799.39,387.84 797.69,386.86C793.06,384.22 789.21,379.75 787.81,375.37L786.31,370.67L769.91,370.59C754.41,370.50 753.20,370.36 748.00,367.90C744.98,366.47 738.80,362.16 734.28,358.32C724.13,349.72 718.38,346.53 708.41,343.98C694.59,340.44 679.88,341.97 666.53,348.34C647.23,357.54 626.48,381.67 616.23,406.81C609.79,422.62 610.66,437.57 618.56,446.80C626.34,455.88 641.49,459.43 653.50,454.97C661.14,452.14 669.29,444.21 671.12,437.83C673.19,430.63 672.50,418.77 669.02,402.00C664.75,381.40 664.65,377.57 668.31,374.42C673.10,370.29 678.72,371.97 681.35,378.32C682.66,381.49 685.81,394.07 688.15,405.50C690.05,414.77 689.78,436.33 687.68,443.10C683.35,457.06 672.46,467.85 657.51,473.00C650.19,475.51 635.83,475.72 627.93,473.42C622.00,471.69 612.73,466.90 609.38,463.83C607.27,461.91 607.22,461.91 600.78,465.45C593.10,469.68 582.62,473.46 572.70,475.60C565.25,477.20 561.78,477.40 514.00,479.03C498.32,479.56 480.32,480.68 474.00,481.51C419.85,488.63 377.87,505.76 339.66,536.33C330.28,543.83 328.31,545.00 324.99,545.00C322.32,545.00 320.22,544.21 318.08,542.41ZM242.52,483.93C220.23,480.21 202.92,464.44 197.36,442.79C194.97,433.48 195.99,419.22 200.45,399.50C204.00,383.81 212.15,348.39 214.03,340.50C214.55,338.30 219.03,319.40 223.99,298.50C240.53,228.73 243.59,218.89 253.27,204.62C264.48,188.08 280.95,177.43 300.53,174.06C310.09,172.42 499.35,172.95 501.02,174.62C501.85,175.45 500.50,176.99 495.82,180.52C477.53,194.34 463.22,208.62 449.81,226.41L443.72,234.50L386.11,235.00C330.09,235.49 328.38,235.56 324.00,237.61C319.10,239.92 312.64,245.91 310.39,250.24C309.60,251.74 307.22,259.39 305.10,267.24C297.51,295.26 297.60,294.82 298.98,296.48C300.09,297.81 307.60,298.00 359.06,298.00C399.27,298.00 418.09,298.33 418.53,299.06C418.89,299.64 418.27,302.45 417.15,305.31C415.07,310.59 411.81,321.67 410.47,328.00C410.06,329.93 409.45,337.12 409.11,344.00L408.50,356.50L348.50,357.00C285.08,357.53 285.41,357.50 282.89,362.21C280.76,366.18 273.00,399.08 273.00,404.12C273.00,412.51 277.27,418.13 285.00,419.91C287.87,420.58 314.75,420.96 359.20,420.98L428.90,421.00L431.78,425.25C437.84,434.21 441.21,440.99 439.82,441.44C439.10,441.68 433.32,443.30 427.00,445.04C400.39,452.37 372.01,464.59 352.37,477.19L342.77,483.34L304.14,484.10C257.17,485.03 248.92,485.00 242.52,483.93ZM463.79,433.25C459.94,429.15 451.34,415.53 447.55,407.54C422.63,354.92 430.58,297.02 469.94,244.48C482.64,227.52 502.08,209.02 519.50,197.30C527.51,191.92 546.71,181.83 556.00,178.12C564.81,174.61 581.57,169.76 591.50,167.85C600.61,166.09 636.21,166.06 644.50,167.80C681.62,175.58 709.75,191.61 729.42,216.20C736.12,224.58 737.33,227.96 734.75,231.18C733.37,232.91 685.45,269.00 684.54,269.00C684.23,269.00 679.59,264.61 674.24,259.25C659.02,244.02 643.83,236.54 623.00,234.06C600.36,231.36 574.80,238.34 553.55,253.03C543.96,259.66 529.66,273.96 523.03,283.55C516.25,293.36 509.53,307.68 506.81,318.12C503.69,330.14 503.68,350.29 506.80,361.29C514.26,387.55 531.69,407.84 560.10,423.34C563.36,425.12 563.41,425.23 561.50,426.62C556.90,429.99 549.28,431.10 521.00,432.53C505.32,433.32 488.00,434.41 482.50,434.96C467.55,436.44 466.71,436.36 463.79,433.25ZM712.59,381.92C708.09,376.58 710.06,369.12 716.54,366.99C723.24,364.77 729.00,369.06 729.00,376.27C729.00,381.77 725.53,385.00 719.63,385.00C715.89,385.00 714.77,384.51 712.59,381.92Z"/>
+                </svg>
+                <div class="brand-title-group">
+                    <span class="brand-name">EdgeCue</span>
+                    <span class="brand-tagline">Local-First AI Interview Teleprompter</span>
+                </div>
+            </a>
+            <div class="header-badges">
+                <span class="badge-pill"><span class="badge-dot"></span> 100% On-Device AI • Zero Cloud Egress</span>
+            </div>
+        </header>
+
+        <h1>Privacy Policy</h1>
+        <p class="subtitle">Complete Data Transparency, On-Device Safety & Ephemeral Speech Processing</p>
+
+        <!-- Official Registration & Contact Metadata -->
+        <div class="meta-grid">
+            <div class="meta-item">
+                <div class="meta-label">Application</div>
+                <div class="meta-value">EdgeCue (<code>com.edgecue.app</code>)</div>
+            </div>
+            <div class="meta-item">
+                <div class="meta-label">Developer & Publisher</div>
+                <div class="meta-value">Himmler Benitez</div>
+            </div>
+            <div class="meta-item">
+                <div class="meta-label">Contact Email</div>
+                <div class="meta-value"><a href="mailto:hbenitez@hectisai.com">hbenitez@hectisai.com</a></div>
+            </div>
+            <div class="meta-item">
+                <div class="meta-label">Effective Date</div>
+                <div class="meta-value">November 3, 2026</div>
+            </div>
+            <div class="meta-item">
+                <div class="meta-label">Last Updated</div>
+                <div class="meta-value">November 5, 2026</div>
+            </div>
+            <div class="meta-item">
+                <div class="meta-label">Official Hosting URL</div>
+                <div class="meta-value"><a href="https://eduardoben.github.io/ai-interview/privacy.html">eduardoben.github.io/.../privacy.html</a></div>
+            </div>
         </div>
 
-        <h2>1. Overview & Architectural Privacy Commitment</h2>
+        <h2>1. Overview & Core Architectural Guarantee</h2>
         <p><strong>EdgeCue</strong> ("the Application", "we", "us", or "our") is designed from the ground up as a <strong>privacy-first, confidential, fully on-device AI cognitive rehearsal and speech teleprompter tool</strong> for interview preparation and practice.</p>
-        <p>Our engineering architecture is air-gapped by design, governed by three uncompromised guarantees:</p>
-        <ul>
-            <li><strong>Zero Cloud Transmission:</strong> All audio capture, voice activity detection (Silero VAD), acoustic speech-to-text recognition (Sherpa-ONNX Zipformer), question classification, and large language model inference (Google LiteRT-LM Gemma) execute <strong>100% locally on your device hardware</strong> (Neural Processing Unit / EdgeTPU, mobile GPU, or CPU). No audio, spoken words, questions, or answers ever leave your device.</li>
-            <li><strong>Zero Voice or Biometric Retention:</strong> Audio captured via your device's microphone is held ephemerally in volatile system RAM only while speech is active. Raw audio is immediately discarded and overwritten upon utterance endpointing. We never record, persist, serialize, or transmit audio files or acoustic voiceprints to disk or any remote server.</li>
-            <li><strong>Zero Developer Telemetry or Tracking:</strong> The Application contains zero third-party analytics SDKs, zero advertising libraries, and zero cloud tracking beacons. We do not track, collect, monetize, sell, or transmit personal data, interview questions, transcripts, or usage patterns.</li>
-        </ul>
+        <p>Unlike cloud copilots that upload live microphone streams and sensitive candidate resumes to remote servers, EdgeCue executes its entire machine learning and generative reasoning stack locally on your Android handset. Our architectural commitment is governed by three uncompromised guarantees:</p>
+        
+        <div class="feature-grid">
+            <div class="feature-item">
+                <h4>🔒 Zero Cloud Transmission</h4>
+                <p>Speech recognition, voice activity detection, and language model inference execute <strong>100% locally on your device hardware</strong>. No spoken words, questions, or answers ever leave your device.</p>
+            </div>
+            <div class="feature-item">
+                <h4>🎙️ Zero Voice/Biometric Retention</h4>
+                <p>Audio is buffered ephemerally in volatile system RAM only while speech is active and is discarded immediately after acoustic processing. We never store, serialize, or transmit audio recordings.</p>
+            </div>
+            <div class="feature-item">
+                <h4>🛡️ Zero Developer Telemetry</h4>
+                <p>We do not track, collect, monetize, sell, or transmit personal data, interview questions, transcripts, usage analytics, or telemetry. No third-party tracking or advertising SDKs exist in the app.</p>
+            </div>
+        </div>
 
         <h2>2. Information We Process & How It Is Handled</h2>
         
         <h3>A. Microphone Audio (<code>android.permission.RECORD_AUDIO</code>)</h3>
         <p>Microphone audio is accessed solely during active, user-initiated practice sessions to perform real-time speech-to-text transcription and detect spoken interview questions.</p>
         <ul>
-            <li><strong>RAM-Only Ephemeral Lifecycle:</strong> Audio chunks (16 kHz 16-bit mono PCM float arrays) are processed in-memory through a circular ring buffer and streamed into local neural networks. Trailing audio buffers are flushed and released immediately when speech pauses. Audio is never written to persistent flash storage or external media.</li>
-            <li><strong>Foreground Service Transparency:</strong> Continuous audio capture operates strictly under Android's <code>FOREGROUND_SERVICE_MICROPHONE</code> with an ongoing system notification and an accessible, one-tap "Stop Assistant" action button. Microphone capture terminates immediately when stopped.</li>
-            <li><strong>Legal Consent & Wiretapping Notice:</strong> Before microphone access is requested, the Application presents a mandatory disclosure requiring users to acknowledge compliance with applicable local, state, and international wiretapping and recording consent laws (such as all-party consent statutes).</li>
+            <li><strong>RAM-Only Ephemeral Lifecycle:</strong> Spoken audio is digitized into 16 kHz 16-bit mono PCM float arrays in volatile RAM, processed through a zero-allocation circular ring buffer (<code>CircularFloatRingBuffer</code>), fed to the on-device Silero VAD and Sherpa-ONNX Zipformer neural network, and immediately overwritten in memory upon utterance endpointing. Audio is never written to persistent flash storage, cache directories, or external SD cards.</li>
+            <li><strong>Foreground Service Notice:</strong> Continuous audio capture operates strictly under Android's <code>FOREGROUND_SERVICE_MICROPHONE</code> with an ongoing system notification in the notification shade featuring an accessible, single-tap <strong>"Stop Assistant"</strong> action button that terminates microphone capture immediately.</li>
+            <li><strong>Two-Party Wiretapping & Consent Notice:</strong> Before microphone access is requested, the Application presents a mandatory disclosure requiring users to acknowledge compliance with applicable local, state, and international wiretapping and recording consent laws (such as California Penal Code § 632, Florida, Illinois, Massachusetts, and international all-party consent statutes).</li>
         </ul>
 
         <h3>B. Local Session History & Transcripts</h3>
         <p>Practice transcripts and generated cue talking points are stored exclusively on your device in a private, sandboxed Android Room/SQLite database (<code>interview_assistant.db</code>) within internal app-specific storage (<code>/data/data/com.edgecue.app/databases/</code>).</p>
-        <div class="highlight-card">
-            <p><strong>Cloud Backup Exclusion:</strong> EdgeCue configures strict Android Auto Backup exclusion rules (<code>res/xml/backup_rules.xml</code> and <code>res/xml/data_extraction_rules.xml</code>). All databases, preferences, and session transcripts are explicitly excluded from Google Drive cloud backups and device-to-device transfers, ensuring your sensitive interview practice never syncs to third-party cloud storage.</p>
+        <div class="callout-card emerald">
+            <p><strong>Cloud Backup Exclusion:</strong> EdgeCue configures strict Android Auto Backup exclusion rules (<code>res/xml/backup_rules.xml</code> and <code>res/xml/data_extraction_rules.xml</code>). All databases, preferences, and session transcripts are explicitly excluded from Google Drive cloud backups and device-to-device transfers, ensuring your confidential interview practice never syncs to third-party cloud storage.</p>
         </div>
 
-        <h3>C. On-Device AI Model Weights Provisioning</h3>
-        <p>To enable offline, zero-latency inference, the Application allows you to download open-weight neural model files (Silero VAD, Sherpa-ONNX Zipformer, and Google LiteRT Gemma).</p>
+        <h3>C. Floating Teleprompter HUD & Focus Modes (<code>android.permission.SYSTEM_ALERT_WINDOW</code>)</h3>
+        <p>EdgeCue provides an optional floating teleprompter overlay (<code>FloatingHudOverlay</code>) that hovers over video conferencing apps (Google Meet, Zoom, Microsoft Teams, Slack) or coding documents during practice sessions.</p>
         <ul>
-            <li><strong>Direct Encrypted CDN Downloads:</strong> Model assets are retrieved directly over encrypted HTTPS from Hugging Face (<code>huggingface.co</code> / <code>hf.co</code>). EdgeCue does not route transfers through intermediate proxy servers and collects no connection metadata.</li>
-            <li><strong>Integrity Verification:</strong> All downloads are verified locally via streaming SHA-256 cryptographic checksums and exact byte length checks before use.</li>
-            <li><strong>Full Offline Functionality:</strong> Once models are downloaded, EdgeCue operates completely in Airplane Mode without internet connectivity.</li>
+            <li><strong>Stealth OLED Low-Glare Display:</strong> Designed in obsidian midnight black (<code>#06070A</code>) to eliminate eyeglass glare reflections on webcams and minimize ocular fatigue during extended 60–90 minute interview loops.</li>
+            <li><strong>Minimized Mascot Pill:</strong> Features the Dachshund mascot icon and "EdgeCue" status label in a compact 48dp accessible pill.</li>
+            <li><strong>Interview Focus Modes:</strong> Directs generative cues across distinct interview disciplines (System Design, Algorithms & Coding with Big-O complexity, Behavioral STAR method, QA / Code Review, and General Leadership).</li>
+            <li><strong>Content Reporting & Safety Notice:</strong> Displays a persistent AI hallucination notice and includes an in-app "Report" action (<code>ReportAiContentDialog</code>) allowing users to flag inaccurate or biased responses locally.</li>
         </ul>
 
-        <h3>D. User-Initiated Support & Feedback (Optional)</h3>
+        <h3>D. On-Device AI Model Weights Provisioning (<code>FOREGROUND_SERVICE_DATA_SYNC</code>)</h3>
+        <p>To enable offline, zero-latency inference, the Application allows you to download open-weight neural model files (Silero VAD, Sherpa-ONNX Zipformer, and Google LiteRT Gemma 4).</p>
+        <ul>
+            <li><strong>Direct Encrypted CDN Downloads:</strong> Model assets (~2.6 GB to 3.1 GB) are retrieved directly over encrypted HTTPS from Hugging Face (<code>huggingface.co</code> / <code>hf.co</code>). EdgeCue does not route transfers through intermediate proxy servers and collects no connection metadata.</li>
+            <li><strong>Cryptographic Checksum Verification:</strong> All downloads are verified locally via streaming SHA-256 cryptographic checksums and exact byte length checks before being marked ready for inference.</li>
+            <li><strong>Full Offline / Airplane Mode:</strong> Once models are downloaded, EdgeCue operates completely in Airplane Mode with zero internet connectivity.</li>
+        </ul>
+
+        <h3>E. User-Initiated Support & Feedback (Optional)</h3>
         <p>The Application includes an optional "Send Feedback" feature in Settings. Feedback is <strong>never</strong> transmitted automatically or in the background.</p>
         <p>When initiated, the Application composes a plain-text/Markdown template and launches your device's native email client via <code>Intent.ACTION_SEND</code> addressed to <code>hbenitez@hectisai.com</code>. You have complete transparency and control to review, edit, or delete any content before deciding to send.</p>
         <p>You may optionally choose to attach diagnostic metadata (app version, hardware SoC tier, model verification status) and/or recent session transcripts by explicitly checking in-app opt-in boxes. These options are disabled (unchecked) by default. Any feedback submitted is used strictly by the publisher to resolve technical defects and is never shared with third parties or used for advertising.</p>
@@ -219,20 +403,28 @@
             <li><strong>Application Uninstallation:</strong> Uninstalling EdgeCue via Android OS settings immediately and irreversibly destroys all sandboxed databases, preferences, cache files, and downloaded model weights.</li>
         </ul>
 
-        <h2>4. Children's Privacy (COPPA & Families Policy)</h2>
+        <h2>4. Hardware Acceleration & Runtime Environment</h2>
+        <p>EdgeCue is optimized for flagship and mid-tier Android devices running Android 13 to Android 17 (API 33–37):</p>
+        <ul>
+            <li><strong>Google Tensor EdgeTPU / NPU (Pixel 8 / 9 / 10 Pro):</strong> Direct southbound native acceleration via bundled <code>libLiteRtDispatch_GoogleTensor.so</code> shims for sub-300ms Time-To-First-Token (TTFT).</li>
+            <li><strong>Qualcomm Snapdragon & Samsung Exynos:</strong> OpenCL and Vulkan mobile GPU acceleration with automatic dynamic sequence caching.</li>
+            <li><strong>Thermal & Memory Protection:</strong> Automatic thermal status monitoring adaptively caps token generation during thermal surges, and <code>onTrimMemory</code> hooks release cache memory to prevent system memory pressure.</li>
+        </ul>
+
+        <h2>5. Children's Privacy (COPPA & Google Play Families Policy)</h2>
         <p>EdgeCue is professional interview preparation software intended solely for adults aged 18 and older preparing for job, collegiate, or technical interviews. We do not knowingly target, solicit, or collect information from children under 13 (or under 16 where applicable by law).</p>
 
-        <h2>5. Application Security & Defenses</h2>
+        <h2>6. Application Security & Defenses</h2>
         <ul>
             <li><strong>Global HTTPS Enforcement:</strong> The Application enforces a strict Android Network Security Configuration (<code>res/xml/network_security_config.xml</code>) that globally blocks all unencrypted cleartext HTTP traffic.</li>
             <li><strong>Zero Dynamic Code Execution:</strong> EdgeCue loads only passive numerical neural weights (<code>.onnx</code> and <code>.litertlm</code>) into verified native runtimes. It never utilizes dynamic class loading (<code>DexClassLoader</code>) or downloads executable binaries.</li>
             <li><strong>Production Log Stripping:</strong> All verbose, debug, and informational logs are stripped at compilation time via ProGuard/R8 to prevent transcript or audio telemetry leakage to Android system logcat.</li>
         </ul>
 
-        <h2>6. Policy Updates & Inquiries</h2>
+        <h2>7. Policy Updates & Inquiries</h2>
         <p>We may periodically update this Privacy Policy to reflect application improvements or legal requirements. Revisions will be published at this public URL with an updated "Last Updated" date.</p>
         
-        <div class="highlight-card">
+        <div class="callout-card">
             <p><strong>Publisher & Privacy Contact:</strong></p>
             <p><strong>Publisher:</strong> Himmler Benitez</p>
             <p><strong>Email:</strong> <a href="mailto:hbenitez@hectisai.com">hbenitez@hectisai.com</a></p>
@@ -242,7 +434,7 @@
 
         <div class="footer">
             <span>© 2026 Himmler Benitez. All rights reserved.</span>
-            <span>EdgeCue • Privacy-First On-Device AI</span>
+            <span>EdgeCue (<code>com.edgecue.app</code>) • Privacy-First On-Device AI</span>
         </div>
     </div>
 </body>

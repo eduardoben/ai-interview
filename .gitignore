@@ -29,5 +29,4 @@ skills-lock.json
 keystore.properties
 *.jks
 *.keystore
-docs/
 models/

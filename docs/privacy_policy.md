@@ -15,7 +15,7 @@
 EdgeCue ("the Application", "we", "us", or "our") is designed from the ground up as a **privacy-first, confidential, fully on-device AI cognitive rehearsal and speech teleprompter tool** for interview preparation and practice.
 
 Our architectural commitment is absolute:
-- **Zero Cloud Transmission:** All audio recording, voice activity detection (Silero VAD), speech-to-text recognition (Sherpa-ONNX Zipformer), question classification, and large language model inference (Google LiteRT-LM Gemma) execute **100% locally on your device hardware** (Neural Processing Unit, mobile GPU, or CPU). No audio, spoken words, questions, or answers ever leave your device.
+- **Zero Cloud Transmission:** All audio recording, voice activity detection (Silero VAD), speech-to-text recognition (Sherpa-ONNX Zipformer), question classification, and large language model inference (Google LiteRT-LM Gemma 4) execute **100% locally on your device hardware** (Neural Processing Unit, mobile GPU, or CPU). No audio, spoken words, questions, or answers ever leave your device.
 - **Zero Voice/Biometric Retention:** Audio captured via your microphone is buffered ephemerally in volatile system RAM only while speech is active and is discarded immediately after acoustic processing. We never record, persist, serialize, or transmit audio files or acoustic voiceprints to disk or any remote server.
 - **Zero Developer Telemetry:** We do not track, collect, monetize, sell, or transmit personal data, interview questions, transcripts, usage statistics, or telemetry.
 
@@ -25,20 +25,27 @@ Our architectural commitment is absolute:
 
 ### A. Microphone Audio (`android.permission.RECORD_AUDIO`)
 - **Purpose:** Used strictly for real-time speech-to-text recognition during active rehearsal sessions to detect questions and display assistive talking points.
-- **Lifecycle & Storage:** Ephemeral only. Audio is digitized into 16 kHz float PCM buffers in volatile RAM, processed through the local Silero VAD and Sherpa-ONNX Zipformer neural network, and immediately overwritten in memory upon utterance endpointing.
-- **Foreground Service Notice:** Microphone capture runs under Android's `FOREGROUND_SERVICE_MICROPHONE` with an ongoing system notification providing an accessible, one-tap "Stop Assistant" action button.
+- **Lifecycle & Storage:** Ephemeral only. Audio is digitized into 16 kHz float PCM buffers in volatile RAM through a zero-allocation circular ring buffer (`CircularFloatRingBuffer`), processed through the local Silero VAD and Sherpa-ONNX Zipformer neural network, and immediately overwritten in memory upon utterance endpointing. Audio is never written to persistent flash storage or external media.
+- **Foreground Service Notice:** Microphone capture runs under Android's `FOREGROUND_SERVICE_MICROPHONE` with an ongoing system notification providing an accessible, one-tap "Stop Assistant" action button that terminates recording immediately.
 - **Recording Laws & Consent Notice:** Before audio capture begins, the Application presents a prominent disclosure requiring explicit acknowledgment of applicable local recording consent and two-party wiretapping laws.
 
 ### B. Local Session History & Transcripts
-- **Storage Location:** Stored exclusively in a sandboxed local Android SQLite database (`interview_assistant.db`) within your device's private application storage directory (`/data/data/com.edgecue.app/databases/`).
+- **Storage Location:** Stored exclusively in a sandboxed local Android Room/SQLite database (`interview_assistant.db`) within your device's private application storage directory (`/data/data/com.edgecue.app/databases/`).
 - **Cloud Backup Exclusion:** Explicit Android Auto Backup rules (`res/xml/backup_rules.xml` and `res/xml/data_extraction_rules.xml`) exclude all database files, preferences, and downloaded model weights from Google Cloud and device-to-device transfers. Your interview content never uploads to Google Drive backups.
 
-### C. Downloaded AI Pipeline Model Weights
+### C. Floating Teleprompter HUD & Focus Modes (`android.permission.SYSTEM_ALERT_WINDOW`)
+- **Purpose:** Displays an optional floating teleprompter window (`FloatingHudOverlay`) positioned over third-party video conferencing apps (Google Meet, Zoom, Teams, Slack) or coding documents.
+- **Stealth OLED Display:** Obsidian black palette (`#06070A`) engineered to eliminate webcam eyeglass reflections and mitigate eye strain.
+- **Minimized Dachshund Pill:** Compact 48dp accessible pill displaying the Dachshund mascot icon and "EdgeCue" status label.
+- **Focus Modes:** Formats answers into System Design, Algorithms & Coding, Behavioral (STAR method), QA / Code Review, and Leadership frameworks.
+- **Safety Reporting:** Includes an in-app "Report" action (`ReportAiContentDialog`) allowing candidates to flag inaccurate or hallucinated AI responses locally.
+
+### D. Downloaded AI Pipeline Model Weights (`FOREGROUND_SERVICE_DATA_SYNC`)
 - **Purpose:** To perform on-device speech transcription and generative AI inference without third-party cloud APIs.
 - **Download Source:** Model weights (`.onnx`, `.litertlm`, and tokenizer vocabularies) are downloaded directly over encrypted HTTPS from Hugging Face (`huggingface.co` / `hf.co`). All downloads are cryptographically verified via streaming SHA-256 checksums and exact byte size validation.
 - **Network Metadata:** When downloading models, your device connects directly to Hugging Face CDN servers. We operate no intermediate proxy servers and capture no connection metadata. Once downloaded, the application operates completely offline in Airplane Mode.
 
-### D. User-Initiated Support & Feedback (Optional)
+### E. User-Initiated Support & Feedback (Optional)
 - **Mechanism:** The Application includes a voluntary "Send Feedback" option. Feedback is never transmitted automatically or in the background.
 - **User Review & Control:** When initiated, the Application composes a plain-text/Markdown message and opens your device's native email or sharing client (`Intent.ACTION_SEND`) addressed to `hbenitez@hectisai.com`. You can review, edit, or delete any content before deciding to send.
 - **Optional Diagnostic Logs & Transcripts:** Users may explicitly opt in by checking boxes to attach device diagnostics (app version, hardware SoC tier, model verification status, recent process logs) and/or saved session transcripts. These checkboxes are disabled (unchecked) by default. If included, this data is used strictly by the publisher to diagnose technical issues and reply to your inquiry; it is never sold, shared with third parties, or used for advertising.
@@ -54,13 +61,22 @@ You maintain complete sovereignty over your data at all times:
 
 ---
 
-## 4. Children's Privacy (COPPA & Google Play Families Policy)
+## 4. Hardware Acceleration & Runtime Environment
+
+EdgeCue is optimized for flagship and mid-tier Android devices running Android 13 to Android 17 (API 33–37):
+- **Google Tensor EdgeTPU / NPU (Pixel 8 / 9 / 10 Pro):** Direct southbound native acceleration via bundled `libLiteRtDispatch_GoogleTensor.so` shims for sub-300ms Time-To-First-Token (TTFT).
+- **Qualcomm Snapdragon & Samsung Exynos:** OpenCL and Vulkan mobile GPU acceleration with automatic dynamic sequence caching.
+- **Thermal & Memory Throttling Protection:** Real-time thermal status monitoring adaptively caps token generation during thermal surges, and `onTrimMemory` hooks release cache memory to prevent system memory pressure.
+
+---
+
+## 5. Children's Privacy (COPPA & Google Play Families Policy)
 
 EdgeCue is targeted exclusively at adults aged 18 and older preparing for professional, collegiate, or technical job interviews. We do not knowingly target, collect, or solicit information from children under the age of 13 (or under the age of 16 in applicable jurisdictions).
 
 ---
 
-## 5. Security & Network Protections
+## 6. Security & Network Protections
 
 - **Strict HTTPS Enforcement:** The Application declares a system-level Network Security Configuration (`res/xml/network_security_config.xml`) that prohibits all cleartext HTTP traffic globally.
 - **No Dynamic Code Loading:** The Application loads only passive numerical weights (`.onnx` and `.litertlm`) into native C++ runtimes (Sherpa-ONNX, LiteRT-LM). It never uses `DexClassLoader` or downloads executable code.
@@ -68,7 +84,7 @@ EdgeCue is targeted exclusively at adults aged 18 and older preparing for profes
 
 ---
 
-## 6. Policy Updates & Inquiries
+## 7. Policy Updates & Inquiries
 
 We may update this Privacy Policy from time to time to reflect operational or regulatory improvements. Any revisions will be published at this public URL and noted in application release notes.
 
