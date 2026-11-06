@@ -15,6 +15,7 @@ import android.view.View
 import android.view.WindowManager
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.ComposeView
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
@@ -135,6 +136,8 @@ class AssistantForegroundService : LifecycleService() {
             setContent {
                 val uiState = coordinator.copilotUiState.collectAsState().value
                 val isPrompterVisible = appContainer.isPrompterScreenVisible.collectAsState().value
+                val overlayDims by appContainer.userPreferencesRepository.overlayDimensionsFlow
+                    .collectAsState(initial = Pair(380f, 480f))
 
                 // Overlay ergonomics: Auto-hide floating overlay when user is on full-screen Prompter inside the app
                 LaunchedEffect(isPrompterVisible) {
@@ -151,6 +154,13 @@ class AssistantForegroundService : LifecycleService() {
                         onSelectCategory = { category -> coordinator.selectCategory(category) },
                         onToggleMinimize = { coordinator.setMinimized(!uiState.isMinimized) },
                         onCloseService = { stopAssistantServiceSafely() },
+                        initialWidthDp = overlayDims.first,
+                        initialHeightDp = overlayDims.second,
+                        onResize = { w, h ->
+                            lifecycleScope.launch {
+                                appContainer.userPreferencesRepository.saveOverlayDimensions(w, h)
+                            }
+                        },
                         onDrag = { dx, dy ->
                             layoutParams.x += dx.toInt()
                             layoutParams.y += dy.toInt()

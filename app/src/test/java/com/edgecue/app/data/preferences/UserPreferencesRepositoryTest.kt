@@ -130,4 +130,33 @@ class UserPreferencesRepositoryTest {
 
         tempFile.delete()
     }
+
+    @Test
+    fun testOverlayDimensionsDefaultAndUpdates() = runTest {
+        val testDispatcher = UnconfinedTestDispatcher(testScheduler)
+        val testScope = TestScope(testDispatcher)
+        val tempFile = File.createTempFile("overlay_dims_test_prefs", ".preferences_pb")
+
+        val dataStore = PreferenceDataStoreFactory.create(
+            scope = testScope,
+            produceFile = { tempFile }
+        )
+
+        val repo = UserPreferencesRepository(
+            externalDataStore = dataStore
+        )
+
+        // 1. Initial dimensions default to (380f, 480f)
+        val initialDims = repo.overlayDimensionsFlow.first()
+        assertEquals(380f, initialDims.first, 0.001f)
+        assertEquals(480f, initialDims.second, 0.001f)
+
+        // 2. Custom resize dimensions save and read back correctly
+        repo.saveOverlayDimensions(460f, 620f)
+        val updatedDims = repo.overlayDimensionsFlow.first()
+        assertEquals(460f, updatedDims.first, 0.001f)
+        assertEquals(620f, updatedDims.second, 0.001f)
+
+        tempFile.delete()
+    }
 }

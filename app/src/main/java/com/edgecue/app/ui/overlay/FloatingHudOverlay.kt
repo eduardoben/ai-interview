@@ -1,6 +1,7 @@
 package com.edgecue.app.ui.overlay
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -23,16 +24,22 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.edgecue.app.core.di.AppContainer
@@ -44,6 +51,17 @@ import com.edgecue.app.data.history.AiReportReason
 import com.edgecue.app.ui.prompter.FormattedTeleprompterAnswer
 import com.edgecue.app.ui.theme.*
 import kotlinx.coroutines.launch
+
+enum class HudTab(val title: String) {
+    ANSWER("Answer"),
+    TRANSCRIPTS("Transcripts")
+}
+
+enum class HudSizePreset(val label: String, val width: Dp, val height: Dp) {
+    COMPACT("S", 320.dp, 360.dp),
+    STANDARD("M", 380.dp, 480.dp),
+    EXPANDED("L", 460.dp, 640.dp)
+}
 
 @Suppress("UNUSED_PARAMETER")
 @Composable
@@ -57,12 +75,43 @@ fun FloatingHudOverlay(
     onCloseService: () -> Unit,
     onDrag: (dx: Float, dy: Float) -> Unit,
     modifier: Modifier = Modifier,
+    initialWidthDp: Float = 380f,
+    initialHeightDp: Float = 480f,
+    onResize: ((widthDp: Float, heightDp: Float) -> Unit)? = null,
     onSelectCategory: (InterviewCategory) -> Unit = {},
     onReportAiContent: ((AiReportReason, String?) -> Unit)? = null
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+    val clipboardManager = LocalClipboardManager.current
+    val configuration = LocalConfiguration.current
+    val density = LocalDensity.current
+
+    val screenWidthDp = configuration.screenWidthDp.dp
+    val screenHeightDp = configuration.screenHeightDp.dp
+
+    val minWidthDp = 280.dp
+    val maxWidthDp = (screenWidthDp - 16.dp).coerceAtLeast(320.dp)
+    val minHeightDp = 260.dp
+    val maxHeightDp = (screenHeightDp - 48.dp).coerceAtLeast(360.dp)
+
+    var overlayWidth by remember(initialWidthDp) {
+        mutableStateOf(initialWidthDp.dp.coerceIn(minWidthDp, maxWidthDp))
+    }
+    var overlayHeight by remember(initialHeightDp) {
+        mutableStateOf(initialHeightDp.dp.coerceIn(minHeightDp, maxHeightDp))
+    }
+
+    var selectedTab by remember { mutableStateOf(HudTab.ANSWER) }
     var showReportModal by remember { mutableStateOf(false) }
+
+    // Auto-switch to ANSWER tab when answer is generating or ready
+    LaunchedEffect(uiState.activeAnswer, uiState.pipelineState) {
+        if (!uiState.activeAnswer.isNullOrBlank() || uiState.pipelineState is AssistantState.GeneratingAnswer) {
+            selectedTab = HudTab.ANSWER
+        }
+    }
+
     val rawStatusColor = when (uiState.pipelineState) {
         is AssistantState.Listening, is AssistantState.DetectingSpeech -> OledStatusEmerald
         is AssistantState.GeneratingAnswer -> OledStatusAmber
@@ -93,7 +142,7 @@ fun FloatingHudOverlay(
     )
 
     if (uiState.isMinimized) {
-        // Minimized Pill with 8pt grid spacing, 48dp minimum accessible touch target, and soft elevation shadow
+        // Minimized Pill
         Box(
             modifier = modifier
                 .padding(8.dp)
@@ -115,192 +164,316 @@ fun FloatingHudOverlay(
                         onDrag(dragAmount.x, dragAmount.y)
                     }
                 }
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = 14.dp, vertical = 10.dp),
             contentAlignment = Alignment.Center
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(modifier = Modifier.size(8.dp).background(statusColor, CircleShape))
-                Spacer(modifier = Modifier.width(4.dp))
+                Spacer(modifier = Modifier.width(5.dp))
                 PrompterIcons.DachshundMascot(color = statusColor, size = 16.dp)
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = "EdgeCue",
-                    style = MaterialTheme.typography.titleSmall,
+                    style = MaterialTheme.typography.titleSmall.copy(fontSize = 13.sp),
                     color = OledTextPrimary
                 )
             }
         }
     } else {
-        val scrollState = rememberScrollState()
+        val answerScrollState = rememberScrollState()
         var autoFollowStream by remember { mutableStateOf(true) }
 
-        LaunchedEffect(scrollState.isScrollInProgress) {
-            if (scrollState.isScrollInProgress && scrollState.value < scrollState.maxValue - 36) {
-                autoFollowStream = false
+        // Disable auto-follow if the user manually drags upward to inspect earlier lines
+        LaunchedEffect(answerScrollState.isScrollInProgress) {
+            if (answerScrollState.isScrollInProgress) {
+                if (answerScrollState.value < answerScrollState.maxValue - 48) {
+                    autoFollowStream = false
+                } else if (answerScrollState.value >= answerScrollState.maxValue - 16) {
+                    autoFollowStream = true
+                }
             }
         }
 
-        // Reset to top when a new question starts
+        // Reset scroll to top and re-enable auto-follow when a new question starts
         LaunchedEffect(uiState.activeQuestion) {
             if (uiState.activeQuestion != null) {
                 autoFollowStream = true
-                scrollState.scrollTo(0)
+                answerScrollState.scrollTo(0)
             }
         }
 
-        // Smoothly auto-scroll as generated answer tokens stream in and expand the HUD
-        LaunchedEffect(uiState.activeAnswer, scrollState.maxValue) {
-            if (autoFollowStream && !uiState.activeAnswer.isNullOrBlank() && scrollState.maxValue > 0) {
-                scrollState.animateScrollTo(
-                    value = scrollState.maxValue,
+        // Smoothly auto-scroll as generated answer tokens stream in and expand the layout
+        LaunchedEffect(autoFollowStream) {
+            if (!autoFollowStream) return@LaunchedEffect
+            snapshotFlow { answerScrollState.maxValue }
+                .collect { maxVal ->
+                    if (autoFollowStream && maxVal > 0) {
+                        answerScrollState.animateScrollTo(
+                            value = maxVal,
+                            animationSpec = tween(
+                                durationMillis = 120,
+                                easing = LinearOutSlowInEasing
+                            )
+                        )
+                    }
+                }
+        }
+
+        // Final scroll pass when answer generation completes
+        LaunchedEffect(uiState.pipelineState) {
+            if (uiState.pipelineState is AssistantState.AnswerReady && autoFollowStream && answerScrollState.maxValue > 0) {
+                answerScrollState.animateScrollTo(
+                    value = answerScrollState.maxValue,
                     animationSpec = tween(durationMillis = 160)
                 )
             }
         }
 
-        // Outer 8.dp margin prevents WindowManager ComposeView from clipping the 16.dp drop shadow
         Box(
             modifier = modifier
-                .padding(8.dp)
-                .width(352.dp)
-                .heightIn(max = 416.dp)
+                .padding(6.dp)
+                .width(overlayWidth)
+                .height(overlayHeight)
                 .shadow(
                     elevation = 16.dp,
                     shape = RoundedCornerShape(16.dp),
                     ambientColor = Color.Black,
                     spotColor = OledAccentIndigo.copy(alpha = 0.40f)
                 )
-                // 96% opaque OLED surface with 0.5.dp top-lit border to lift off underlying dark apps
                 .background(Color(0xF506070A), RoundedCornerShape(16.dp))
                 .border(0.5.dp, OledBorderHigh, RoundedCornerShape(16.dp))
         ) {
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                    .fillMaxSize()
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
             ) {
-                // Subtle Top Drag Handle + Header Bar (48dp accessible hit targets for Minimize/Close)
+                // Top Drag Handle & Sleek Header Bar
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .pointerInput(Unit) {
-                        detectDragGestures { change, dragAmount ->
-                            change.consume()
-                            onDrag(dragAmount.x, dragAmount.y)
+                            detectDragGestures { change, dragAmount ->
+                                change.consume()
+                                onDrag(dragAmount.x, dragAmount.y)
+                            }
                         }
-                    }
-            ) {
-                Box(
-                    modifier = Modifier
-                        .width(32.dp)
-                        .height(4.dp)
-                        .background(OledBorderHigh, RoundedCornerShape(50))
-                        .align(Alignment.CenterHorizontally)
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    val statusText = when (uiState.pipelineState) {
-                        is AssistantState.Idle -> "STANDBY"
-                        is AssistantState.Initializing -> "LOADING"
-                        is AssistantState.Listening -> "LISTENING"
-                        is AssistantState.DetectingSpeech -> "SPEECH ACTIVE"
-                        is AssistantState.GeneratingAnswer -> "SYNTHESIZING"
-                        is AssistantState.AnswerReady -> "READY"
-                        is AssistantState.Paused -> "PAUSED"
-                        is AssistantState.Error -> "ERROR"
-                    }
-
-                    Box(modifier = Modifier.size(8.dp).background(statusColor, CircleShape))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    PrompterIcons.DachshundMascot(color = statusColor, size = 14.dp)
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = if (uiState.lastTtftMs > 0) "$statusText • ${uiState.lastTtftMs}ms" else statusText,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = OledTextPrimary,
-                        modifier = Modifier.weight(1f)
+                    // Center Drag Indicator Bar
+                    Box(
+                        modifier = Modifier
+                            .width(32.dp)
+                            .height(4.dp)
+                            .background(OledBorderHigh, RoundedCornerShape(50))
+                            .align(Alignment.CenterHorizontally)
                     )
+                    Spacer(modifier = Modifier.height(4.dp))
 
-                    // Milestone 2.3: Thermal throttle indicator badge
-                    if (uiState.isThermalThrottled) {
-                        Box(
-                            modifier = Modifier
-                                .background(OledStatusAmber.copy(alpha = 0.2f), RoundedCornerShape(4.dp))
-                                .border(0.5.dp, OledStatusAmber, RoundedCornerShape(4.dp))
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val statusText = when (uiState.pipelineState) {
+                            is AssistantState.Idle -> "STANDBY"
+                            is AssistantState.Initializing -> "LOADING"
+                            is AssistantState.Listening -> "LISTENING"
+                            is AssistantState.DetectingSpeech -> "SPEECH"
+                            is AssistantState.GeneratingAnswer -> "AI ACTIVE"
+                            is AssistantState.AnswerReady -> "READY"
+                            is AssistantState.Paused -> "PAUSED"
+                            is AssistantState.Error -> "ERROR"
+                        }
+
+                        // Left: Status Dot & Label
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
                         ) {
+                            Box(modifier = Modifier.size(7.dp).background(statusColor, CircleShape))
+                            Spacer(modifier = Modifier.width(5.dp))
                             Text(
-                                text = "THROTTLED",
-                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Bold),
-                                color = OledStatusAmber
+                                text = statusText,
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold
+                                ),
+                                color = OledTextPrimary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
+
+                            if (uiState.isThermalThrottled) {
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .background(OledStatusAmber.copy(alpha = 0.2f), RoundedCornerShape(3.dp))
+                                        .border(0.5.dp, OledStatusAmber, RoundedCornerShape(3.dp))
+                                        .padding(horizontal = 4.dp, vertical = 1.dp)
+                                ) {
+                                    Text(
+                                        text = "HOT",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontSize = 8.sp,
+                                            fontWeight = FontWeight.Bold
+                                        ),
+                                        color = OledStatusAmber
+                                    )
+                                }
+                            }
                         }
+
+                        // Middle: View Mode Tabs (Answer vs Transcripts)
+                        Row(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(OledSurfaceHigh)
+                                .border(0.5.dp, OledBorder, RoundedCornerShape(16.dp))
+                                .padding(2.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            HudTab.values().forEach { tab ->
+                                val isTabSelected = (selectedTab == tab)
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .background(if (isTabSelected) OledAccentIndigo else Color.Transparent)
+                                        .clickable { selectedTab = tab }
+                                        .padding(horizontal = 7.dp, vertical = 3.dp)
+                                        .semantics { contentDescription = "Switch to ${tab.title} view" },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = tab.title,
+                                            fontSize = 10.5.sp,
+                                            fontWeight = if (isTabSelected) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (isTabSelected) Color.White else OledTextSecondary
+                                        )
+                                        if (tab == HudTab.TRANSCRIPTS && uiState.transcriptHistory.isNotEmpty()) {
+                                            Spacer(modifier = Modifier.width(3.dp))
+                                            Box(
+                                                modifier = Modifier
+                                                    .background(
+                                                        if (isTabSelected) Color.White.copy(alpha = 0.25f) else OledBorderHigh,
+                                                        CircleShape
+                                                    )
+                                                    .padding(horizontal = 4.dp, vertical = 1.dp)
+                                            ) {
+                                                Text(
+                                                    text = "${uiState.transcriptHistory.size}",
+                                                    fontSize = 8.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = if (isTabSelected) Color.White else OledTextMuted
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
                         Spacer(modifier = Modifier.width(6.dp))
-                    }
 
-                    // 48x48dp touch target wrapping a clean 28dp visual circle
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(CircleShape)
-                            .clickable { onToggleMinimize() }
-                            .semantics { contentDescription = "Minimize HUD overlay" },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(28.dp)
-                                .background(OledSurfaceHigh, CircleShape)
-                                .border(0.5.dp, OledBorder, CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            PrompterIcons.MinimizeLine(color = OledTextSecondary, size = 12.dp)
+                        // Right: Quick Size Preset Toggle (S/M/L)
+                        val currentPreset = when {
+                            overlayWidth <= 340.dp && overlayHeight <= 380.dp -> HudSizePreset.COMPACT
+                            overlayWidth >= 430.dp || overlayHeight >= 600.dp -> HudSizePreset.EXPANDED
+                            else -> HudSizePreset.STANDARD
                         }
-                    }
 
-                    // 48x48dp touch target wrapping a clean 28dp visual circle
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(CircleShape)
-                            .clickable { onCloseService() }
-                            .semantics { contentDescription = "Close assistant overlay" },
-                        contentAlignment = Alignment.Center
-                    ) {
                         Box(
                             modifier = Modifier
                                 .size(28.dp)
-                                .background(OledSurfaceHigh, CircleShape)
-                                .border(0.5.dp, OledBorder, CircleShape),
+                                .clip(CircleShape)
+                                .clickable {
+                                    val nextPreset = when (currentPreset) {
+                                        HudSizePreset.COMPACT -> HudSizePreset.STANDARD
+                                        HudSizePreset.STANDARD -> HudSizePreset.EXPANDED
+                                        HudSizePreset.EXPANDED -> HudSizePreset.COMPACT
+                                    }
+                                    overlayWidth = nextPreset.width.coerceIn(minWidthDp, maxWidthDp)
+                                    overlayHeight = nextPreset.height.coerceIn(minHeightDp, maxHeightDp)
+                                    onResize?.invoke(overlayWidth.value, overlayHeight.value)
+                                }
+                                .semantics { contentDescription = "Cycle overlay size: current is ${currentPreset.label}" },
                             contentAlignment = Alignment.Center
                         ) {
-                            PrompterIcons.CloseCross(color = OledTextSecondary, size = 12.dp)
+                            Box(
+                                modifier = Modifier
+                                    .size(22.dp)
+                                    .background(OledSurfaceHigh, CircleShape)
+                                    .border(0.5.dp, OledBorder, CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = currentPreset.label,
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold
+                                    ),
+                                    color = OledAccentIndigoSoft
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.width(4.dp))
+
+                        // Minimize Button
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(CircleShape)
+                                .clickable { onToggleMinimize() }
+                                .semantics { contentDescription = "Minimize HUD overlay" },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(22.dp)
+                                    .background(OledSurfaceHigh, CircleShape)
+                                    .border(0.5.dp, OledBorder, CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                PrompterIcons.MinimizeLine(color = OledTextSecondary, size = 10.dp)
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.width(4.dp))
+
+                        // Close Button
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(CircleShape)
+                                .clickable { onCloseService() }
+                                .semantics { contentDescription = "Close assistant overlay" },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(22.dp)
+                                    .background(OledSurfaceHigh, CircleShape)
+                                    .border(0.5.dp, OledBorder, CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                PrompterIcons.CloseCross(color = OledTextSecondary, size = 10.dp)
+                            }
                         }
                     }
                 }
-            }
 
-            // Quick Category Chips (48dp accessible touch target height with compact 28dp visual pill)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                InterviewCategory.entries.forEach { category ->
-                    val isSelected = uiState.selectedCategory == category
-                    Box(
-                        modifier = Modifier
-                            .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
-                            .clickable { onSelectCategory(category) }
-                            .semantics { contentDescription = "Category: ${category.displayName}" },
-                        contentAlignment = Alignment.Center
-                    ) {
+                Spacer(modifier = Modifier.height(6.dp))
+
+                // Compact Quick Category Chips Row
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(5.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    InterviewCategory.entries.forEach { category ->
+                        val isSelected = uiState.selectedCategory == category
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(50))
@@ -312,318 +485,560 @@ fun FloatingHudOverlay(
                                     color = if (isSelected) OledAccentIndigo else OledBorder,
                                     shape = RoundedCornerShape(50)
                                 )
-                                .padding(horizontal = 12.dp, vertical = 4.dp)
+                                .clickable { onSelectCategory(category) }
+                                .padding(horizontal = 9.dp, vertical = 3.dp)
+                                .semantics { contentDescription = "Category: ${category.displayName}" },
+                            contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = category.displayName,
-                                style = MaterialTheme.typography.bodySmall.copy(
-                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
-                                ),
+                                fontSize = 10.5.sp,
+                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                                 color = if (isSelected) OledTextPrimary else OledTextSecondary
                             )
                         }
                     }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(6.dp))
 
-            // Zone 1: Top-Anchored Question & Formatted Answer
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .verticalScroll(scrollState)
-            ) {
-                if (uiState.activeQuestion != null) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(OledSurfaceHigh, RoundedCornerShape(8.dp))
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .width(4.dp)
-                                .height(16.dp)
-                                .background(OledAccentIndigo, RoundedCornerShape(2.dp))
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = uiState.activeQuestion,
-                            style = MaterialTheme.typography.titleSmall,
-                            color = OledTextPrimary
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
-
-                if (!uiState.activeAnswer.isNullOrBlank()) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "AI RESPONSE",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = OledAccentIndigoSoft
-                        )
-                        Box(
-                            modifier = Modifier
-                                .size(28.dp)
-                                .clip(CircleShape)
-                                .background(OledSurfaceHigh)
-                                .clickable { showReportModal = true }
-                                .semantics { contentDescription = "Report AI Response" },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            PrompterIcons.Flag(color = OledTextSecondary, size = 13.dp)
-                        }
-                    }
-
-                    FormattedTeleprompterAnswer(
-                        text = uiState.activeAnswer,
-                        fontSize = 15.sp
-                    )
-                } else if (uiState.pipelineState is AssistantState.GeneratingAnswer) {
-                    Row(
-                        modifier = Modifier.padding(vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(16.dp),
-                            strokeWidth = 2.dp,
-                            color = OledStatusAmber
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Synthesizing answer...",
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                fontStyle = FontStyle.Italic
-                            ),
-                            color = OledStatusAmber
-                        )
-                    }
-                } else {
-                    // Welcoming, structured Empty State (Peak-End & Emotional Design Rule)
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .background(OledStatusEmerald.copy(alpha = 0.12f), CircleShape)
-                                .border(0.5.dp, OledStatusEmerald.copy(alpha = 0.35f), CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            PrompterIcons.Microphone(
-                                color = OledStatusEmerald,
-                                size = 16.dp,
-                                modifier = Modifier.alpha(micPulseAlpha)
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Ready for interview practice",
-                            style = MaterialTheme.typography.titleSmall,
-                            color = OledTextPrimary
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "Speak naturally or select a category above.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = OledTextMuted,
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            // Persistent micro-disclaimer beneath reading area (100% visible across all states)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 4.dp, vertical = 2.dp)
-                    .semantics { contentDescription = "AI hallucination notice: AI output may contain inaccuracies. Verify independently." },
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    modifier = Modifier.weight(1f),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    PrompterIcons.AlertCircle(color = OledTextMuted, size = 10.dp)
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "AI output may contain inaccuracies. Verify independently.",
-                        fontSize = 10.sp,
-                        color = OledTextMuted
-                    )
-                }
-                if (!uiState.activeAnswer.isNullOrBlank()) {
-                    Text(
-                        text = "Report",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = OledAccentIndigoSoft,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(4.dp))
-                            .clickable { showReportModal = true }
-                            .padding(horizontal = 4.dp, vertical = 2.dp)
-                            .semantics { contentDescription = "Report AI-generated answer" }
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            // Zone 2: Compact Bottom STT Ticker with pulsing Microphone micro-animation
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(OledSurface, RoundedCornerShape(8.dp))
-                    .border(
-                        0.5.dp,
-                        if (isDetectingSpeech) OledStatusEmerald.copy(alpha = 0.45f) else OledBorder,
-                        RoundedCornerShape(8.dp)
-                    )
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                PrompterIcons.Microphone(
-                    color = if (isDetectingSpeech) OledStatusEmerald else OledTextMuted,
-                    size = 12.dp,
-                    modifier = Modifier.alpha(if (isDetectingSpeech) micPulseAlpha else 1f)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                val transcriptText = when {
-                    uiState.livePartialTranscript.isNotBlank() -> "${uiState.livePartialTranscript}..."
-                    uiState.transcriptHistory.isNotEmpty() -> uiState.transcriptHistory.last().text
-                    else -> "Audio capture active"
-                }
-                Text(
-                    text = transcriptText,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (isDetectingSpeech) OledStatusEmerald else OledTextMuted,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Zone 3: Footer Action Buttons (48dp minimum accessible height + 60/30/10 visual hierarchy)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Primary CTA (60% focal weight): Soft indigo glow halo + solid primary fill
+                // Primary Content View (Tabs: Answer or Transcripts)
                 Box(
                     modifier = Modifier
-                        .weight(1.4f)
-                        .heightIn(min = 48.dp)
-                        .background(OledAccentIndigo.copy(alpha = 0.14f), RoundedCornerShape(12.dp))
-                        .padding(2.dp)
+                        .weight(1f)
+                        .fillMaxWidth()
                 ) {
+                    if (selectedTab == HudTab.ANSWER) {
+                        // TAB 1: ANSWER / TELEPROMPTER VIEW
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .verticalScroll(answerScrollState)
+                        ) {
+                            if (uiState.activeQuestion != null) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(OledSurfaceHigh, RoundedCornerShape(8.dp))
+                                        .border(0.5.dp, OledBorder, RoundedCornerShape(8.dp))
+                                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .width(3.dp)
+                                            .height(14.dp)
+                                            .background(OledAccentIndigo, RoundedCornerShape(2.dp))
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = uiState.activeQuestion,
+                                        style = MaterialTheme.typography.titleSmall.copy(fontSize = 12.5.sp),
+                                        color = OledTextPrimary,
+                                        maxLines = 3,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(6.dp))
+                            }
+
+                            if (!uiState.activeAnswer.isNullOrBlank()) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(bottom = 4.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = "AI RESPONSE",
+                                            fontSize = 9.5.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = OledAccentIndigoSoft
+                                        )
+                                        if (uiState.lastTtftMs > 0) {
+                                            Text(
+                                                text = " • ${uiState.lastTtftMs}ms",
+                                                fontSize = 9.sp,
+                                                color = OledTextMuted
+                                            )
+                                        }
+                                    }
+
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        // Copy Answer Button
+                                        Box(
+                                            modifier = Modifier
+                                                .size(24.dp)
+                                                .clip(CircleShape)
+                                                .background(OledSurfaceHigh)
+                                                .clickable {
+                                                    clipboardManager.setText(AnnotatedString(uiState.activeAnswer))
+                                                }
+                                                .semantics { contentDescription = "Copy AI response to clipboard" },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            PrompterIcons.Copy(color = OledTextSecondary, size = 12.dp)
+                                        }
+
+                                        // Report Button
+                                        Box(
+                                            modifier = Modifier
+                                                .size(24.dp)
+                                                .clip(CircleShape)
+                                                .background(OledSurfaceHigh)
+                                                .clickable { showReportModal = true }
+                                                .semantics { contentDescription = "Report AI Response" },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            PrompterIcons.Flag(color = OledTextSecondary, size = 12.dp)
+                                        }
+                                    }
+                                }
+
+                                FormattedTeleprompterAnswer(
+                                    text = uiState.activeAnswer,
+                                    fontSize = 14.sp
+                                )
+                            } else if (uiState.pipelineState is AssistantState.GeneratingAnswer) {
+                                Row(
+                                    modifier = Modifier.padding(vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(14.dp),
+                                        strokeWidth = 2.dp,
+                                        color = OledStatusAmber
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Synthesizing answer...",
+                                        style = MaterialTheme.typography.bodySmall.copy(
+                                            fontStyle = FontStyle.Italic
+                                        ),
+                                        color = OledStatusAmber
+                                    )
+                                }
+                            } else {
+                                // Welcoming, structured Empty State
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 24.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(36.dp)
+                                            .background(OledStatusEmerald.copy(alpha = 0.12f), CircleShape)
+                                            .border(0.5.dp, OledStatusEmerald.copy(alpha = 0.35f), CircleShape),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        PrompterIcons.Microphone(
+                                            color = OledStatusEmerald,
+                                            size = 16.dp,
+                                            modifier = Modifier.alpha(micPulseAlpha)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = "Listening for interview questions",
+                                        style = MaterialTheme.typography.titleSmall.copy(fontSize = 13.sp),
+                                        color = OledTextPrimary
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "Speak naturally or tap 'Answer Now' to answer recent speech.",
+                                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                        color = OledTextMuted,
+                                        textAlign = TextAlign.Center
+                                    )
+                                    if (uiState.transcriptHistory.isNotEmpty()) {
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Text(
+                                            text = "View ${uiState.transcriptHistory.size} recorded transcripts ->",
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                fontSize = 11.sp,
+                                                color = OledAccentIndigoSoft
+                                            ),
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(6.dp))
+                                                .clickable { selectedTab = HudTab.TRANSCRIPTS }
+                                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        // Floating button to resume auto-follow when user has scrolled upward
+                        if (!autoFollowStream && answerScrollState.maxValue > 0 && answerScrollState.value < answerScrollState.maxValue - 32) {
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .padding(bottom = 6.dp)
+                                    .shadow(6.dp, RoundedCornerShape(50))
+                                    .clip(RoundedCornerShape(50))
+                                    .background(OledAccentIndigo.copy(alpha = 0.94f))
+                                    .clickable {
+                                        autoFollowStream = true
+                                        coroutineScope.launch {
+                                            answerScrollState.animateScrollTo(
+                                                value = answerScrollState.maxValue,
+                                                animationSpec = tween(durationMillis = 160)
+                                            )
+                                        }
+                                    }
+                                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                                    .semantics { contentDescription = "Resume auto-scroll to latest answer text" },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    PrompterIcons.ChevronUp(
+                                        color = Color.White,
+                                        size = 10.dp,
+                                        modifier = Modifier.rotate(180f)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "Auto-scroll",
+                                        fontSize = 10.5.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color.White
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        // TAB 2: TRANSCRIPTS / CONVERSATION HISTORY VIEW
+                        if (uiState.transcriptHistory.isEmpty()) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(vertical = 24.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                PrompterIcons.ActivityBar(color = OledTextMuted, size = 26.dp)
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "No speech captured yet",
+                                    style = MaterialTheme.typography.titleSmall.copy(fontSize = 12.5.sp),
+                                    color = OledTextSecondary
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Spoken interview questions will appear here in real-time.",
+                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                    color = OledTextMuted,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        } else {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .verticalScroll(rememberScrollState()),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text(
+                                    text = "TAP ANY TURN TO GENERATE ANSWER",
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = OledTextMuted,
+                                    modifier = Modifier.padding(bottom = 2.dp)
+                                )
+
+                                uiState.transcriptHistory.asReversed().forEachIndexed { index, segment ->
+                                    val originalTurnNumber = uiState.transcriptHistory.size - index
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(
+                                                if (segment.isLikelyQuestion) OledSurfaceElevated else OledSurfaceHigh
+                                            )
+                                            .border(
+                                                0.5.dp,
+                                                if (segment.isLikelyQuestion) OledAccentIndigo.copy(alpha = 0.5f) else OledBorder,
+                                                RoundedCornerShape(8.dp)
+                                            )
+                                            .clickable {
+                                                onSelectSegment(segment)
+                                                selectedTab = HudTab.ANSWER
+                                            }
+                                            .padding(horizontal = 10.dp, vertical = 8.dp)
+                                            .semantics {
+                                                contentDescription = "Turn $originalTurnNumber: ${segment.text}"
+                                            }
+                                    ) {
+                                        Column {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                if (segment.isLikelyQuestion) {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .background(
+                                                                OledAccentIndigo.copy(alpha = 0.22f),
+                                                                RoundedCornerShape(4.dp)
+                                                            )
+                                                            .border(0.5.dp, OledAccentIndigoSoft, RoundedCornerShape(4.dp))
+                                                            .padding(horizontal = 5.dp, vertical = 2.dp)
+                                                    ) {
+                                                        Text(
+                                                            text = "QUESTION",
+                                                            fontSize = 8.5.sp,
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = OledAccentIndigoSoft
+                                                        )
+                                                    }
+                                                } else {
+                                                    Text(
+                                                        text = "TURN $originalTurnNumber",
+                                                        fontSize = 8.5.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = OledTextMuted
+                                                    )
+                                                }
+
+                                                Text(
+                                                    text = "Answer this ->",
+                                                    fontSize = 9.sp,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = OledAccentIndigoSoft
+                                                )
+                                            }
+
+                                            Spacer(modifier = Modifier.height(4.dp))
+
+                                            Text(
+                                                text = segment.text,
+                                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                                                color = OledTextPrimary
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // Bottom Compact Live STT Bar (Clickable to switch to Transcripts)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(OledSurface)
+                        .border(
+                            0.5.dp,
+                            if (isDetectingSpeech) OledStatusEmerald.copy(alpha = 0.45f) else OledBorder,
+                            RoundedCornerShape(6.dp)
+                        )
+                        .clickable {
+                            selectedTab = if (selectedTab == HudTab.ANSWER) HudTab.TRANSCRIPTS else HudTab.ANSWER
+                        }
+                        .padding(horizontal = 8.dp, vertical = 5.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    PrompterIcons.Microphone(
+                        color = if (isDetectingSpeech) OledStatusEmerald else OledTextMuted,
+                        size = 11.dp,
+                        modifier = Modifier.alpha(if (isDetectingSpeech) micPulseAlpha else 1f)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    val transcriptText = when {
+                        uiState.livePartialTranscript.isNotBlank() -> "${uiState.livePartialTranscript}..."
+                        uiState.transcriptHistory.isNotEmpty() -> uiState.transcriptHistory.last().text
+                        else -> "Mic listening (16 kHz mono)"
+                    }
+                    Text(
+                        text = transcriptText,
+                        fontSize = 11.sp,
+                        color = if (isDetectingSpeech) OledStatusEmerald else OledTextMuted,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(3.dp))
+
+                // Persistent Micro-Disclaimer
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 2.dp, vertical = 1.dp)
+                        .semantics {
+                            contentDescription = "AI hallucination notice: AI output may contain inaccuracies."
+                        },
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        PrompterIcons.AlertCircle(color = OledTextMuted, size = 9.dp)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "AI output may contain inaccuracies.",
+                            fontSize = 9.sp,
+                            color = OledTextMuted
+                        )
+                    }
+                    if (!uiState.activeAnswer.isNullOrBlank()) {
+                        Text(
+                            text = "Report",
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = OledAccentIndigoSoft,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .clickable { showReportModal = true }
+                                .padding(horizontal = 4.dp, vertical = 1.dp)
+                                .semantics { contentDescription = "Report AI-generated answer" }
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // Footer Action Buttons & Corner Resize Handle
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Primary CTA: Answer Now
                     Button(
                         onClick = onForceAnswer,
                         enabled = uiState.pipelineState !is AssistantState.Paused &&
                                 uiState.pipelineState !is AssistantState.GeneratingAnswer,
                         modifier = Modifier
-                            .fillMaxSize()
+                            .weight(1.3f)
+                            .height(36.dp)
                             .semantics { contentDescription = "Force immediate answer generation" },
-                        colors = ButtonDefaults.buttonColors(containerColor = OledAccentIndigo),
-                        shape = RoundedCornerShape(10.dp),
-                        contentPadding = PaddingValues(0.dp)
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = OledAccentIndigo,
+                            disabledContainerColor = OledSurfaceHigh
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
                     ) {
                         Text(
                             text = "Answer Now",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = Color.White
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (uiState.pipelineState !is AssistantState.Paused &&
+                                uiState.pipelineState !is AssistantState.GeneratingAnswer) Color.White else OledTextMuted
                         )
                     }
-                }
 
-                // Secondary Action (30% tonal weight): Subtle outlined surface button
-                OutlinedButton(
-                    onClick = onPauseToggle,
-                    modifier = Modifier
-                        .weight(1f)
-                        .semantics { contentDescription = if (uiState.pipelineState is AssistantState.Paused) "Resume assistant listening" else "Pause assistant listening" }
-                        .heightIn(min = 48.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = OledSurface,
-                        contentColor = OledTextPrimary
-                    ),
-                    shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(0.5.dp, OledBorderHigh),
-                    contentPadding = PaddingValues(0.dp)
-                ) {
-                    Text(
-                        text = if (uiState.pipelineState is AssistantState.Paused) "Resume" else "Pause",
-                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                        color = OledTextPrimary
-                    )
-                }
+                    // Secondary Action: Pause / Resume
+                    OutlinedButton(
+                        onClick = onPauseToggle,
+                        modifier = Modifier
+                            .weight(1.0f)
+                            .height(36.dp)
+                            .semantics {
+                                contentDescription = if (uiState.pipelineState is AssistantState.Paused)
+                                    "Resume assistant listening" else "Pause assistant listening"
+                            },
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = OledSurface,
+                            contentColor = OledTextPrimary
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(0.5.dp, OledBorderHigh),
+                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)
+                    ) {
+                        Text(
+                            text = if (uiState.pipelineState is AssistantState.Paused) "Resume" else "Pause",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = OledTextPrimary
+                        )
+                    }
 
-                // Tertiary Action (10% quiet weight): Low-emphasis ghost button
-                TextButton(
-                    onClick = onClear,
-                    modifier = Modifier
-                        .weight(0.8f)
-                        .semantics { contentDescription = "Clear current answer and transcript" }
-                        .heightIn(min = 48.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    contentPadding = PaddingValues(0.dp)
-                ) {
-                    Text(
-                        text = "Clear",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = OledTextSecondary
-                    )
-                }
-            }
-        }
+                    // Tertiary Action: Clear
+                    TextButton(
+                        onClick = onClear,
+                        modifier = Modifier
+                            .weight(0.7f)
+                            .height(36.dp)
+                            .semantics { contentDescription = "Clear current answer and transcript" },
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
+                    ) {
+                        Text(
+                            text = "Clear",
+                            fontSize = 12.sp,
+                            color = OledTextSecondary
+                        )
+                    }
 
-        // In-Tree Modal: Prevents WindowManager$BadTokenException in Foreground Service Overlay
-        if (showReportModal && !uiState.activeAnswer.isNullOrBlank()) {
-            ReportAiContentOverlayCard(
-                question = uiState.activeQuestion,
-                answer = uiState.activeAnswer,
-                onDismiss = { showReportModal = false },
-                onSubmit = { reason, comment ->
-                    showReportModal = false
-                    if (onReportAiContent != null) {
-                        onReportAiContent(reason, comment)
-                    } else {
-                        coroutineScope.launch {
-                            try {
-                                val appContainer = AppContainer.getInstance(context)
-                                appContainer.sessionHistoryRepository.submitAiReport(
-                                    question = uiState.activeQuestion,
-                                    answer = uiState.activeAnswer,
-                                    reason = reason,
-                                    comment = comment
-                                )
-                            } catch (_: Exception) {}
-                        }
+                    // Bottom-Right Corner Resize Grip Handle
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .pointerInput(Unit) {
+                                detectDragGestures { change, dragAmount ->
+                                    change.consume()
+                                    val dxDp = with(density) { dragAmount.x.toDp() }
+                                    val dyDp = with(density) { dragAmount.y.toDp() }
+                                    val newW = (overlayWidth + dxDp).coerceIn(minWidthDp, maxWidthDp)
+                                    val newH = (overlayHeight + dyDp).coerceIn(minHeightDp, maxHeightDp)
+                                    overlayWidth = newW
+                                    overlayHeight = newH
+                                    onResize?.invoke(newW.value, newH.value)
+                                }
+                            }
+                            .semantics { contentDescription = "Drag to resize overlay window" },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        PrompterIcons.ResizeGrip(color = OledTextMuted, size = 14.dp)
                     }
                 }
-            )
+            }
+
+            // In-Tree Modal: Prevents WindowManager$BadTokenException in Foreground Service Overlay
+            if (showReportModal && !uiState.activeAnswer.isNullOrBlank()) {
+                ReportAiContentOverlayCard(
+                    question = uiState.activeQuestion,
+                    answer = uiState.activeAnswer,
+                    onDismiss = { showReportModal = false },
+                    onSubmit = { reason, comment ->
+                        showReportModal = false
+                        if (onReportAiContent != null) {
+                            onReportAiContent(reason, comment)
+                        } else {
+                            coroutineScope.launch {
+                                try {
+                                    val appContainer = AppContainer.getInstance(context)
+                                    appContainer.sessionHistoryRepository.submitAiReport(
+                                        question = uiState.activeQuestion,
+                                        answer = uiState.activeAnswer,
+                                        reason = reason,
+                                        comment = comment
+                                    )
+                                } catch (_: Exception) {}
+                            }
+                        }
+                    }
+                )
+            }
         }
     }
-}
 }
 
 /**

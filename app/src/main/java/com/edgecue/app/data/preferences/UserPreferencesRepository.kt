@@ -49,6 +49,8 @@ class UserPreferencesRepository(
         val MIN_SILENCE_DURATION_SEC = floatPreferencesKey("minSilenceDurationSec")
         val ENABLE_HARDWARE_AUDIO_EFFECTS = booleanPreferencesKey("enableHardwareAudioEffects")
         val HAS_ACKNOWLEDGED_AUDIO_CONSENT = booleanPreferencesKey("hasAcknowledgedAudioConsent")
+        val OVERLAY_WIDTH_DP = floatPreferencesKey("overlayWidthDp")
+        val OVERLAY_HEIGHT_DP = floatPreferencesKey("overlayHeightDp")
     }
 
     val hasAcknowledgedAudioConsent: Flow<Boolean> = dataStore.data
@@ -66,6 +68,27 @@ class UserPreferencesRepository(
     suspend fun setHasAcknowledgedAudioConsent(acknowledged: Boolean) {
         dataStore.edit { preferences ->
             preferences[PreferencesKeys.HAS_ACKNOWLEDGED_AUDIO_CONSENT] = acknowledged
+        }
+    }
+
+    val overlayDimensionsFlow: Flow<Pair<Float, Float>> = dataStore.data
+        .catch { exception ->
+            if (exception is IOException) {
+                emit(emptyPreferences())
+            } else {
+                throw exception
+            }
+        }
+        .map { preferences ->
+            val w = preferences[PreferencesKeys.OVERLAY_WIDTH_DP] ?: 380f
+            val h = preferences[PreferencesKeys.OVERLAY_HEIGHT_DP] ?: 480f
+            Pair(w, h)
+        }
+
+    suspend fun saveOverlayDimensions(widthDp: Float, heightDp: Float) {
+        dataStore.edit { preferences ->
+            preferences[PreferencesKeys.OVERLAY_WIDTH_DP] = widthDp
+            preferences[PreferencesKeys.OVERLAY_HEIGHT_DP] = heightDp
         }
     }
 

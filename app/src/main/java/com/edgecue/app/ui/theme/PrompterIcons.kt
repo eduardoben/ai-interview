@@ -355,4 +355,60 @@ object PrompterIcons {
             drawPath(path, color = color, style = stroke)
         }
     }
+
+    @Composable
+    fun ResizeGrip(color: Color, modifier: Modifier = Modifier, size: Dp = 12.dp) {
+        Canvas(modifier = modifier.size(size)) {
+            val strokeWidth = 1.5.dp.toPx()
+            val w = this.size.width
+            val h = this.size.height
+            // 3 diagonal grip lines in the bottom-right corner (45 degrees)
+            drawLine(
+                color = color,
+                start = Offset(w * 0.68f, h * 0.95f),
+                end = Offset(w * 0.95f, h * 0.68f),
+                strokeWidth = strokeWidth,
+                cap = StrokeCap.Round
+            )
+            drawLine(
+                color = color,
+                start = Offset(w * 0.40f, h * 0.95f),
+                end = Offset(w * 0.95f, h * 0.40f),
+                strokeWidth = strokeWidth,
+                cap = StrokeCap.Round
+            )
+            drawLine(
+                color = color,
+                start = Offset(w * 0.12f, h * 0.95f),
+                end = Offset(w * 0.95f, h * 0.12f),
+                strokeWidth = strokeWidth,
+                cap = StrokeCap.Round
+            )
+        }
+    }
+
+    @Composable
+    fun Copy(color: Color, modifier: Modifier = Modifier, size: Dp = 14.dp) {
+        Canvas(modifier = modifier.size(size)) {
+            val stroke = Stroke(width = 1.35.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+            val w = this.size.width
+            val h = this.size.height
+            // Back sheet
+            drawRoundRect(
+                color = color,
+                topLeft = Offset(w * 0.32f, h * 0.10f),
+                size = Size(w * 0.56f, h * 0.56f),
+                cornerRadius = CornerRadius(w * 0.12f, w * 0.12f),
+                style = stroke
+            )
+            // Front sheet
+            drawRoundRect(
+                color = color,
+                topLeft = Offset(w * 0.12f, h * 0.32f),
+                size = Size(w * 0.56f, h * 0.56f),
+                cornerRadius = CornerRadius(w * 0.12f, w * 0.12f),
+                style = stroke
+            )
+        }
+    }
 }
