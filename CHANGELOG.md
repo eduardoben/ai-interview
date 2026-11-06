@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.16.0] - 2026-11-05
+
+### Added
+- **Interactive Overlay Resizability:** Implemented real-time window resizing for `FloatingHudOverlay`:
+  - Added a tactile corner drag grip (`PrompterIcons.ResizeGrip`) allowing continuous drag resizing from 280dp up to screen width, and 260dp up to screen height.
+  - Added a quick-size preset badge button in the header (`[S]`, `[M]`, `[L]`) cycling between Compact (320×360dp), Standard (380×480dp), and Expanded (460×640dp).
+  - Integrated `OVERLAY_WIDTH_DP` and `OVERLAY_HEIGHT_DP` in `UserPreferencesRepository` to persist custom overlay dimensions in Jetpack DataStore across sessions and minimize/expand cycles.
+- **Dual-View Navigation (Answer vs. Transcripts):** Integrated an in-tree segmented tab selector in the HUD header:
+  - **Answer View:** Dedicated teleprompter reading canvas for the active question and AI structured response, with a 1-tap clipboard copy button (`PrompterIcons.Copy`).
+  - **Transcripts View:** Scrollable conversational turn history displaying all recognized speech segments with question tags and a 1-tap "Answer this" trigger for past turns.
+- **Floating Resume Auto-Scroll Pill:** Added a floating action pill (`↓ Auto-scroll`) in the HUD that surfaces whenever the user scrolls upward to inspect earlier lines, providing a 1-tap snap-back to follow live token streaming.
+
+### Changed
+- **Proportional UI Chrome & Button Sizing:** Completely overhauled HUD vertical real estate:
+  - Replaced oversized 48dp action buttons with crisp 36dp controls and 24dp compact category chips.
+  - Streamlined header controls to 28dp touch targets, expanding readable viewport area by >4x (>324dp in standard mode, >480dp in expanded mode).
+- **Dynamic Auto-Scroll Engine:** Migrated streaming auto-scroll to a reactive `snapshotFlow { answerScrollState.maxValue }` engine that eliminates coroutine cancellation churn during high-TPS EdgeTPU/GPU generation, anchors initial reading position at the top (`scrollTo(0)`), and provides smooth follower scrolling.
+- Bumped application `versionCode` to 20 and `versionName` to `1.16.0`.
+
+---
+
 ## [1.15.0] - 2026-11-05
 
 ### Added
