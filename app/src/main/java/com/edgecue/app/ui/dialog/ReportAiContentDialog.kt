@@ -57,7 +57,7 @@ fun ReportAiContentDialog(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    text = "Google Play requires user reporting mechanisms for AI-generated text. Reports are stored locally on your device to maintain zero cloud data egress.",
+                    text = "Google Play requires user reporting mechanisms for AI-generated text. Reports are stored locally and open in your email addressed to the engineering team for prompt review.",
                     fontSize = 12.sp,
                     lineHeight = 16.sp,
                     color = OledTextSecondary

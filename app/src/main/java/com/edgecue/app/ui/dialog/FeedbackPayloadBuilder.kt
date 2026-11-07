@@ -1,12 +1,16 @@
 package com.edgecue.app.ui.dialog
 
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.os.Process
 import com.edgecue.app.BuildConfig
 import com.edgecue.app.core.di.AppContainer
+import com.edgecue.app.core.model.AppConfig
 import com.edgecue.app.data.hardware.DeviceHardwareDetector
 import com.edgecue.app.data.hardware.HardwareProfile
+import com.edgecue.app.data.history.AiReportReason
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.text.SimpleDateFormat
@@ -54,6 +58,91 @@ object FeedbackPayloadBuilder {
         versionName: String = BuildConfig.VERSION_NAME
     ): String {
         return "[EdgeCue v$versionName] ${category.title}"
+    }
+
+    fun buildReportSubject(
+        reason: AiReportReason,
+        versionName: String = BuildConfig.VERSION_NAME
+    ): String {
+        return "[EdgeCue v$versionName] AI Content Report: ${reason.title}"
+    }
+
+    fun buildReportBody(
+        question: String?,
+        answer: String,
+        reason: AiReportReason,
+        comment: String?,
+        timestampMs: Long = System.currentTimeMillis()
+    ): String {
+        val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss 'UTC'Z", Locale.US)
+        val sb = StringBuilder()
+        sb.append("# EdgeCue — AI Content Report\n\n")
+        sb.append("- **Reason:** ${reason.title} (${reason.description})\n")
+        sb.append("- **Submitted:** ${sdf.format(Date(timestampMs))}\n")
+        sb.append("- **App Version:** ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})\n")
+        sb.append("- **Device:** ${Build.MANUFACTURER} ${Build.MODEL} (Android ${Build.VERSION.RELEASE}, API ${Build.VERSION.SDK_INT})\n\n")
+
+        if (!comment.isNullOrBlank()) {
+            sb.append("## User Comment\n\n")
+            sb.append(comment.trim()).append("\n\n")
+        }
+
+        if (!question.isNullOrBlank()) {
+            sb.append("## Question / Prompt\n\n")
+            sb.append(question.trim()).append("\n\n")
+        }
+
+        sb.append("## AI Generated Response\n\n")
+        sb.append(answer.trim()).append("\n")
+        return sb.toString().trimEnd()
+    }
+
+    /**
+     * Launches an email client directly via ACTION_SENDTO mailto:, falling back to
+     * a generic ACTION_SEND chooser if no direct mail handler is installed.
+     */
+    fun launchEmailIntent(
+        context: Context,
+        recipient: String = AppConfig.FEEDBACK_EMAIL,
+        subject: String,
+        body: String,
+        chooserTitle: String = "Send Email"
+    ) {
+        val mailtoUri = Uri.parse("mailto:$recipient")
+        val sendToIntent = Intent(Intent.ACTION_SENDTO, mailtoUri).apply {
+            putExtra(Intent.EXTRA_EMAIL, arrayOf(recipient))
+            putExtra(Intent.EXTRA_SUBJECT, subject)
+            putExtra(Intent.EXTRA_TEXT, body)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        try {
+            context.startActivity(sendToIntent)
+        } catch (_: Throwable) {
+            val fallbackIntent = Intent(Intent.ACTION_SEND).apply {
+                type = "message/rfc822"
+                putExtra(Intent.EXTRA_EMAIL, arrayOf(recipient))
+                putExtra(Intent.EXTRA_SUBJECT, subject)
+                putExtra(Intent.EXTRA_TEXT, body)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            try {
+                context.startActivity(Intent.createChooser(fallbackIntent, chooserTitle).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                })
+            } catch (_: Throwable) {
+                // Last-ditch plain text share
+                val textIntent = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_EMAIL, arrayOf(recipient))
+                    putExtra(Intent.EXTRA_SUBJECT, subject)
+                    putExtra(Intent.EXTRA_TEXT, body)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(Intent.createChooser(textIntent, chooserTitle).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                })
+            }
+        }
     }
 
     /**

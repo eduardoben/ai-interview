@@ -83,8 +83,8 @@ fun PrompterHeader(
         Row(
             verticalAlignment = Alignment.CenterVertically
         ) {
-            PrompterIcons.EdgeCueLogo(color = OledTextPrimary, size = 22.dp)
-            Spacer(modifier = Modifier.width(8.dp))
+            PrompterIcons.EdgeCueLogo(color = OledTextPrimary, size = 36.dp)
+            Spacer(modifier = Modifier.width(12.dp))
 
             // Status indicator pill
             Row(

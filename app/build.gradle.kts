@@ -130,8 +130,8 @@ android {
         applicationId = "com.edgecue.app"
         minSdk = 33
         targetSdk = 37
-        versionCode = 22
-        versionName = "1.18.0"
+        versionCode = 23
+        versionName = "1.18.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

@@ -48,6 +48,7 @@ import com.edgecue.app.core.model.CopilotUiState
 import com.edgecue.app.core.model.InterviewCategory
 import com.edgecue.app.core.model.TranscriptSegment
 import com.edgecue.app.data.history.AiReportReason
+import com.edgecue.app.ui.dialog.FeedbackPayloadBuilder
 import com.edgecue.app.ui.prompter.FormattedTeleprompterAnswer
 import com.edgecue.app.ui.theme.*
 import kotlinx.coroutines.launch
@@ -169,8 +170,8 @@ fun FloatingHudOverlay(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(modifier = Modifier.size(8.dp).background(statusColor, CircleShape))
-                Spacer(modifier = Modifier.width(5.dp))
-                PrompterIcons.DachshundMascot(color = statusColor, size = 16.dp)
+                Spacer(modifier = Modifier.width(6.dp))
+                PrompterIcons.DachshundMascot(color = statusColor, size = 20.dp)
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = "EdgeCue",
@@ -590,26 +591,25 @@ fun FloatingHudOverlay(
                                 Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(vertical = 24.dp),
+                                        .padding(vertical = 18.dp),
                                     horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
                                     Box(
                                         modifier = Modifier
-                                            .size(36.dp)
+                                            .size(58.dp)
                                             .background(OledStatusEmerald.copy(alpha = 0.12f), CircleShape)
                                             .border(0.5.dp, OledStatusEmerald.copy(alpha = 0.35f), CircleShape),
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        PrompterIcons.Microphone(
+                                        PrompterIcons.DachshundMascot(
                                             color = OledStatusEmerald,
-                                            size = 16.dp,
-                                            modifier = Modifier.alpha(micPulseAlpha)
+                                            size = 36.dp
                                         )
                                     }
                                     Spacer(modifier = Modifier.height(8.dp))
                                     Text(
-                                        text = "Listening for interview questions",
-                                        style = MaterialTheme.typography.titleSmall.copy(fontSize = 13.sp),
+                                        text = "Edge is Listening",
+                                        style = MaterialTheme.typography.titleSmall.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
                                         color = OledTextPrimary
                                     )
                                     Spacer(modifier = Modifier.height(4.dp))
@@ -995,6 +995,19 @@ fun FloatingHudOverlay(
                                     )
                                 } catch (_: Exception) {}
                             }
+                            val subject = FeedbackPayloadBuilder.buildReportSubject(reason)
+                            val body = FeedbackPayloadBuilder.buildReportBody(
+                                question = uiState.activeQuestion,
+                                answer = uiState.activeAnswer.orEmpty(),
+                                reason = reason,
+                                comment = comment
+                            )
+                            FeedbackPayloadBuilder.launchEmailIntent(
+                                context = context,
+                                subject = subject,
+                                body = body,
+                                chooserTitle = "Send AI Report to EdgeCue Team"
+                            )
                         }
                     }
                 )

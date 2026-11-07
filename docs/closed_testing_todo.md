@@ -118,7 +118,7 @@ Follow this checklist step-by-step when you are ready to upload and begin your C
 > [!IMPORTANT]
 > For personal accounts created after Nov 13, 2023, you must have **at least 12 testers continuously opted in for 14 consecutive days**. If the active count drops to 11 at any point, the 14-day clock resets to Day 0.
 
-- [ ] 1. Create a Google Group (e.g., `ai-interview-testers@googlegroups.com`) to manage tester email addresses easily without waiting for Play Console sync delays.
+- [ ] 1. Create a Google Group (`edgecue-beta@googlegroups.com`) to manage tester email addresses easily without waiting for Play Console sync delays.
 - [ ] 2. In Play Console **Closed testing -> Testers tab**, select your Google Group.
 - [ ] 3. **Recruit 20–22 testers** (an 8–10 tester safety buffer over the 12 minimum) using the recruitment script in Section 3 of [`docs/closed_testing_runbook.md`](file:///docs/closed_testing_runbook.md#L100-L200).
 - [ ] 4. Share the Closed Testing opt-in link: `https://play.google.com/apps/testing/com.edgecue.app`.

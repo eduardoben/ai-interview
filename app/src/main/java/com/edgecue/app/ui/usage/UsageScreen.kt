@@ -26,8 +26,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.os.ConfigurationCompat
+import com.edgecue.app.core.model.AppConfig
 import com.edgecue.app.data.history.AggregateTelemetry
 import com.edgecue.app.data.history.QuestionAnswerRecord
+import com.edgecue.app.ui.dialog.FeedbackPayloadBuilder
 import com.edgecue.app.ui.prompter.FormattedTeleprompterAnswer
 import com.edgecue.app.ui.theme.*
 import java.text.SimpleDateFormat
@@ -395,9 +397,11 @@ private fun MetricCard(
 }
 
 private fun shareText(context: Context, text: String) {
-    val intent = Intent(Intent.ACTION_SEND).apply {
-        type = "text/plain"
-        putExtra(Intent.EXTRA_TEXT, text)
-    }
-    context.startActivity(Intent.createChooser(intent, "Share Interview Session"))
+    FeedbackPayloadBuilder.launchEmailIntent(
+        context = context,
+        recipient = AppConfig.FEEDBACK_EMAIL,
+        subject = "EdgeCue Interview Session Report",
+        body = text,
+        chooserTitle = "Share Interview Session via Email"
+    )
 }

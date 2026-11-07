@@ -28,13 +28,13 @@ object PrompterIcons {
     fun EdgeCueLogo(
         color: Color = OledTextPrimary,
         modifier: Modifier = Modifier,
-        size: Dp = 24.dp
+        size: Dp = 32.dp
     ) {
         Icon(
             painter = painterResource(id = R.drawable.ic_edgecue_logo),
             contentDescription = "EdgeCue Logo",
             tint = color,
-            modifier = modifier.size(size)
+            modifier = modifier.size(width = (size.value * 1.5f).dp, height = size)
         )
     }
 
@@ -42,13 +42,13 @@ object PrompterIcons {
     fun DachshundMascot(
         color: Color = OledAccentIndigoSoft,
         modifier: Modifier = Modifier,
-        size: Dp = 24.dp
+        size: Dp = 32.dp
     ) {
         Icon(
             painter = painterResource(id = R.drawable.ic_edgecue_mascot),
-            contentDescription = "EdgeCue Dachshund Mascot",
+            contentDescription = "Edge Dachshund Mascot",
             tint = color,
-            modifier = modifier.size(size)
+            modifier = modifier.size(width = (size.value * 1.5f).dp, height = size)
         )
     }
 

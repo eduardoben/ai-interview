@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.18.1] - 2026-11-06
+
+### Changed
+- **Direct Support & Feedback Email Trigger (`hbenitez@hectisai.com`):**
+  - Updated `FeedbackPayloadBuilder` and `SendFeedbackDialog` to launch an `ACTION_SENDTO` mailto intent directly pre-populated with recipient `hbenitez@hectisai.com`, subject, and formatted markdown diagnostics/logs.
+  - Wired AI content reporting (`ReportAiContentDialog` and `FloatingHudOverlay`) to launch an email intent to `hbenitez@hectisai.com` with question, answer, categorization, and reviewer notes upon report submission, in addition to local Room database recording.
+  - Updated session report sharing in `UsageScreen` to prefill `hbenitez@hectisai.com` via `FeedbackPayloadBuilder.launchEmailIntent`.
+- **Google Play Closed Testing Group:**
+  - Standardized closed testing email distribution to `edgecue-beta@googlegroups.com` across all runbooks, onboarding checklists, and documentation.
+- **Brand Identity & Mascot ("Edge") Protagonism:**
+  - Enlarged the EdgeCue brand logo (`ic_edgecue_logo`) in `PrompterHeader` (height 36dp, width 54dp) and `SettingsScreen` (height 32dp, width 48dp) with 1.5:1 aspect ratio preserve rendering.
+  - Elevating mascot **"Edge"** (the dachshund silhouette in `ic_edgecue_mascot`) to full UI protagonism:
+    - Main teleprompter idle/ready state now features a hero circular badge (116dp container with 68dp mascot silhouette) and welcoming header **"Edge is Ready"**.
+    - Main teleprompter active listening state features an emerald status badge with **"Edge is Listening"**.
+    - Initializing state features an animated container with **"Edge is Waking Up"**.
+    - Floating HUD overlay empty state features Edge the mascot with **"Edge is Listening"** and expanded collapsed icon badge.
+- Bumped `versionCode` to 23 and `versionName` to `1.18.1`.
+
+---
+
 ## [1.18.0] - 2026-11-06
 
 ### Added

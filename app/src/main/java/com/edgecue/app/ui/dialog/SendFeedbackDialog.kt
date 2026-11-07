@@ -173,13 +173,13 @@ fun SendFeedbackDialog(
                         }
                     )
 
-                    val sendIntent = Intent(Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(Intent.EXTRA_EMAIL, arrayOf(AppConfig.FEEDBACK_EMAIL))
-                        putExtra(Intent.EXTRA_SUBJECT, subject)
-                        putExtra(Intent.EXTRA_TEXT, body)
-                    }
-                    context.startActivity(Intent.createChooser(sendIntent, "Send Feedback"))
+                    FeedbackPayloadBuilder.launchEmailIntent(
+                        context = context,
+                        recipient = AppConfig.FEEDBACK_EMAIL,
+                        subject = subject,
+                        body = body,
+                        chooserTitle = "Send Feedback to EdgeCue"
+                    )
                     onDismiss()
                 },
                 enabled = canSend,

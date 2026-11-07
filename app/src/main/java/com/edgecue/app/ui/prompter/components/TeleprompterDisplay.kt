@@ -34,6 +34,7 @@ import com.edgecue.app.core.di.AppContainer
 import com.edgecue.app.core.model.AssistantState
 import com.edgecue.app.core.model.TranscriptSegment
 import com.edgecue.app.data.history.AiReportReason
+import com.edgecue.app.ui.dialog.FeedbackPayloadBuilder
 import com.edgecue.app.ui.dialog.ReportAiContentDialog
 import com.edgecue.app.ui.prompter.FormattedTeleprompterAnswer
 import com.edgecue.app.ui.theme.*
@@ -183,22 +184,22 @@ fun TeleprompterDisplay(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 48.dp),
+                        .padding(top = 40.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(56.dp)
+                            .size(100.dp)
                             .background(OledSurfaceHigh, CircleShape)
-                            .border(0.5.dp, OledBorder, CircleShape),
+                            .border(1.dp, OledBorderHigh, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         PrompterIcons.DachshundMascot(
                             color = OledAccentIndigoSoft,
-                            size = 32.dp
+                            size = 56.dp
                         )
                     }
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(18.dp))
                     CircularProgressIndicator(
                         modifier = Modifier.size(24.dp),
                         strokeWidth = 2.dp,
@@ -206,8 +207,8 @@ fun TeleprompterDisplay(
                     )
                     Spacer(modifier = Modifier.height(14.dp))
                     Text(
-                        text = "Initializing EdgeCue Pipeline",
-                        fontSize = 15.sp,
+                        text = "Edge is Waking Up",
+                        fontSize = 16.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = OledTextPrimary
                     )
@@ -302,53 +303,53 @@ fun TeleprompterDisplay(
                     }
                 }
             } else {
-                // Minimal empty state
+                // Protagonist empty state featuring "Edge" the dachshund mascot
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 64.dp),
+                        .padding(top = 44.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(56.dp)
+                            .size(116.dp)
                             .background(
                                 if (isServiceRunning) OledStatusEmerald.copy(alpha = 0.12f)
                                 else OledSurfaceHigh,
                                 CircleShape
                             )
                             .border(
-                                0.5.dp,
+                                1.dp,
                                 if (isServiceRunning) OledStatusEmerald.copy(alpha = 0.35f)
-                                else OledBorder,
+                                else OledBorderHigh,
                                 CircleShape
                             ),
                         contentAlignment = Alignment.Center
                     ) {
                         PrompterIcons.DachshundMascot(
                             color = if (isServiceRunning) OledStatusEmerald else OledAccentIndigoSoft,
-                            size = 32.dp
+                            size = 68.dp
                         )
                     }
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = if (isServiceRunning) "Listening for Questions" else "EdgeCue Ready",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        text = if (isServiceRunning) "Edge is Listening" else "Edge is Ready",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
                         color = if (isServiceRunning) OledTextPrimary else OledTextSecondary
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         text = if (isServiceRunning) {
-                            "Speak naturally or tap the transcript bar below to enter a prompt."
+                            "Edge is tracking questions in real time. Speak naturally or tap below to prompt."
                         } else {
-                            "Start the practice copilot below to capture questions in real time."
+                            "Edge is standing by. Start the copilot below to capture questions during your interview."
                         },
-                        fontSize = 12.sp,
-                        lineHeight = 17.sp,
+                        fontSize = 12.5.sp,
+                        lineHeight = 18.sp,
                         color = OledTextMuted,
                         textAlign = TextAlign.Center,
-                        modifier = Modifier.widthIn(max = 260.dp)
+                        modifier = Modifier.widthIn(max = 280.dp)
                     )
                 }
             }
@@ -417,13 +418,26 @@ fun TeleprompterDisplay(
                                     reason = reason,
                                     comment = comment
                                 )
-                                android.widget.Toast.makeText(
-                                    context,
-                                    "Report submitted. Thank you for your feedback.",
-                                    android.widget.Toast.LENGTH_SHORT
-                                ).show()
                             } catch (_: Exception) {}
                         }
+                        val subject = FeedbackPayloadBuilder.buildReportSubject(reason)
+                        val body = FeedbackPayloadBuilder.buildReportBody(
+                            question = activeQuestion,
+                            answer = activeAnswer,
+                            reason = reason,
+                            comment = comment
+                        )
+                        FeedbackPayloadBuilder.launchEmailIntent(
+                            context = context,
+                            subject = subject,
+                            body = body,
+                            chooserTitle = "Send AI Report to EdgeCue Team"
+                        )
+                        android.widget.Toast.makeText(
+                            context,
+                            "Opening email to report AI response...",
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
                     }
                 }
             )

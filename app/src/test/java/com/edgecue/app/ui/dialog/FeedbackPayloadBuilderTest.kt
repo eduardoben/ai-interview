@@ -1,6 +1,7 @@
 package com.edgecue.app.ui.dialog
 
 import com.edgecue.app.core.model.AppConfig
+import com.edgecue.app.data.history.AiReportReason
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -125,6 +126,40 @@ class FeedbackPayloadBuilderTest {
         assertTrue(body.contains("VAD: Ready, Zipformer: Ready"))
         assertTrue(body.contains("## Session Transcripts"))
         assertTrue(body.contains("Q: What is REST API?"))
+    }
+
+    @Test
+    fun `feedback email is configured to hbenitez@hectisai dot com`() {
+        assertEquals("hbenitez@hectisai.com", AppConfig.FEEDBACK_EMAIL)
+    }
+
+    @Test
+    fun `buildReportSubject includes version and reason title`() {
+        val subject = FeedbackPayloadBuilder.buildReportSubject(
+            reason = AiReportReason.FACTUAL_INACCURACY,
+            versionName = "1.18.0"
+        )
+        assertEquals("[EdgeCue v1.18.0] AI Content Report: ${AiReportReason.FACTUAL_INACCURACY.title}", subject)
+    }
+
+    @Test
+    fun `buildReportBody includes reason, user comment, question, and answer`() {
+        val body = FeedbackPayloadBuilder.buildReportBody(
+            question = "What is the time complexity of quicksort?",
+            answer = "Quicksort has an average time complexity of O(n log n).",
+            reason = AiReportReason.FACTUAL_INACCURACY,
+            comment = "Please verify average vs worst case explanation.",
+            timestampMs = 1730000000000L
+        )
+
+        assertTrue(body.contains("# EdgeCue — AI Content Report"))
+        assertTrue(body.contains("- **Reason:** Factual Inaccuracy"))
+        assertTrue(body.contains("## User Comment"))
+        assertTrue(body.contains("Please verify average vs worst case explanation."))
+        assertTrue(body.contains("## Question / Prompt"))
+        assertTrue(body.contains("What is the time complexity of quicksort?"))
+        assertTrue(body.contains("## AI Generated Response"))
+        assertTrue(body.contains("Quicksort has an average time complexity of O(n log n)."))
     }
 }
 

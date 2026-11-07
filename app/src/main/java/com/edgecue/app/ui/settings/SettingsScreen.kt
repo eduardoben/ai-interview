@@ -528,12 +528,12 @@ fun SettingsScreen(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(44.dp)
+                        .size(width = 56.dp, height = 44.dp)
                         .background(OledSurfaceHigh, RoundedCornerShape(10.dp))
                         .border(0.5.dp, OledBorderHigh, RoundedCornerShape(10.dp)),
                     contentAlignment = Alignment.Center
                 ) {
-                    PrompterIcons.EdgeCueLogo(size = 28.dp, color = OledTextPrimary)
+                    PrompterIcons.EdgeCueLogo(size = 32.dp, color = OledTextPrimary)
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {

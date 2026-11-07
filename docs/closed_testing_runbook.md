@@ -203,7 +203,7 @@ Before sending a Play Store testing link, candidates must complete a 2-minute Go
 ### 3.1 Distribution Architecture: Google Groups vs. Individual Email Lists
 Google Play Console supports two distribution methods for Closed testing tracks:
 1. **Individual Email Lists:** The developer manually types or pastes up to 2,000 email addresses into a static text box in Play Console.
-2. **Google Groups Distribution (RECOMMENDED):** The developer links a single Google Group email address (e.g., `ai-interview-assistant-beta@googlegroups.com`) to the Closed testing track.
+2. **Google Groups Distribution (RECOMMENDED):** The developer links a single Google Group email address (e.g., `edgecue-beta@googlegroups.com`) to the Closed testing track.
 
 ```
 ========================================================================================================
@@ -231,7 +231,7 @@ Scalability & Audit Trail      Error-prone; easy to misplace  Clean, auditable l
 1. Navigate to [Google Groups](https://groups.google.com/) while signed into your developer account.
 2. Click **Create group**.
 3. Set **Group name:** `AI Interview Assistant Closed Beta`.
-4. Set **Group email:** `ai-interview-assistant-beta@googlegroups.com`.
+4. Set **Group email:** `edgecue-beta@googlegroups.com`.
 5. In **Privacy settings**:
    * Who can view conversations: *Group members*.
    * Who can post: *Group managers only* (prevents spam).
@@ -245,7 +245,7 @@ Scalability & Audit Trail      Error-prone; easy to misplace  Clean, auditable l
 4. Click **Manage track** on the primary Closed testing track (or click **Create track** and name it `Closed Alpha/Beta`).
 5. Click the **Testers** tab.
 6. Under **How testers join your test**, select **Google Groups**.
-7. Enter the group email: `ai-interview-assistant-beta@googlegroups.com` and click **Add**.
+7. Enter the group email: `edgecue-beta@googlegroups.com` and click **Add**.
 8. Scroll to the bottom of the page and copy the two generated URLs:
    * **Join on the web:** `https://play.google.com/apps/testing/com.edgecue.app`
    * **Join on Android:** `https://play.google.com/store/apps/details?id=com.edgecue.app`
@@ -534,7 +534,7 @@ The following responses provide ready-to-submit answers formatted in three logic
 > 
 > Because AI Interview Assistant executes local on-device neural language modeling (LiteRT-LM Gemma 4 E2B IT) and on-device speech recognition (Sherpa-ONNX Zipformer), candidates were pre-screened using a structured hardware eligibility questionnaire. We verified that each participant owned a physical 64-bit ARM device running Android 13 or higher (API 33–37), possessed at least 7.0 GB of physical RAM to safely support local model weights without Out-Of-Memory (OOM) risks (classifying 8 GB devices into our CONSTRAINED tier with automatic Whisper rescorer throttling to maintain system stability, and 12+ GB devices as OPTIMAL), had at least 5 GB of free flash storage, and had access to high-speed unmetered Wi-Fi for initial model provisioning. Furthermore, to completely shield Android Vitals against OOM crashes on unsupported hardware (< 7 GB RAM), we configured Google Play Console Device Catalog exclusion rules targeting devices with RAM < 7,168 MB.  
 > 
-> We enrolled all 20 verified, highly qualified testers directly into an invite-only Google Group distribution list (`ai-interview-assistant-beta@googlegroups.com`) linked directly to the Google Play Console Closed Testing track opt-in URL on Day 1. This provided an unbreakable 67% safety buffer above the 12-tester requirement to ensure unbroken continuity throughout the 14-day testing window without relying on external reserve pools or risking synchronization lag."
+> We enrolled all 20 verified, highly qualified testers directly into an invite-only Google Group distribution list (`edgecue-beta@googlegroups.com`) linked directly to the Google Play Console Closed Testing track opt-in URL on Day 1. This provided an unbreakable 67% safety buffer above the 12-tester requirement to ensure unbroken continuity throughout the 14-day testing window without relying on external reserve pools or risking synchronization lag."
 
 #### Question 2: How did you decide when your app was ready for production? (Section 3, Field 9)
 > **Answer:**  
@@ -765,7 +765,7 @@ The AI Interview Assistant Engineering Team
 
 - [ ] 1. Package Name: Verify custom namespace is finalized before uploading the first Closed AAB.
 - [ ] 2. Closed Testing Track: Created and named "Closed Beta".
-- [ ] 3. Testers Tab: "Google Groups" selected with `ai-interview-assistant-beta@googlegroups.com`.
+- [ ] 3. Testers Tab: "Google Groups" selected with `edgecue-beta@googlegroups.com`.
 - [ ] 4. Opt-In Links: Verified both Web and Android URLs resolve to active opt-in screens.
 - [ ] 5. App Bundle: Build v1.10.0 (versionCode 14) uploaded, processed, and rolled out to 100%.
 - [ ] 6. Device Catalog Exclusions: Exclusion rule active for `RAM < 7,168 MB`.
