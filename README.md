@@ -187,7 +187,39 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 1. **Launch the App:** Open **EdgeCue** and navigate to the **System** tab to grant Microphone, Notification, and System Overlay permissions.
 2. **Download All Neural Models:** Tap **Download Missing Assets** to automatically provision Silero VAD, Zipformer STT, Whisper Offline Rescorer, and the hardware-matched Gemma 4 LLM in a single background-resilient workflow.
-3. **Start Assistant:** Navigate to **Prompter** and tap **Start** — use the full-screen stealth teleprompter or switch to any app with the draggable floating HUD.
+3. **Upload Curriculum & Job Description (Lite RAG):** Open **Settings** $\rightarrow$ **Lite RAG Knowledge** to upload `.pdf` or `.txt` files (or paste text) for your Resume and Target Role. Everything stays 100% on-device.
+4. **Start Assistant:** Navigate to **Prompter** and tap **Start** — use the full-screen stealth teleprompter or switch to any app with the draggable floating HUD.
+
+---
+
+## 🎯 Recommended LLM Configuration & Tuning Guide
+
+You can view this guide directly inside the app by tapping the **Tuning Guide (`i`)** icon in the **Settings** tab (which also includes a one-tap **Apply Golden Preset** button).
+
+### 1. The "Golden Preset" for Live Interviews
+| Setting | Recommended Value | Why It Works Best for Gemma 4 E2B |
+|---|---|---|
+| **Response Style** | **`Concise`** | Produces **3 structured, glanceable bullet points** you can read in 2 seconds while speaking naturally. |
+| **Max Answer Length** | **`250 tokens`** (`220–280` range) | (~190 words). Gives enough room to finish 3 deep technical bullets cleanly with a 30-token safety buffer against mid-sentence cutoffs. |
+| **Temperature** | **`0.20`** (`0.15–0.25` range) | Keeps answers factual, deterministic, and strictly grounded in your CV and technical mechanisms. |
+| **Top-K Sampling** | **`20`** (`20–30` range) | Focuses token selection on high-confidence domain terminology. |
+| **Hardware Delegate** | **`NPU_GOOGLE_TENSOR`** | Delivers sub-1s TTFT (`~950 ms` with RAG context) on Pixel Tensor TPU. |
+
+### 2. Choosing Between Response Styles (`Concise`, `Verbose`, `Simple`)
+- **`Concise` (Recommended Default — 90% of Interviews):**
+  - **Best Token Range:** `220 – 260 tokens`
+  - **Behavior:** Emits 3 structured bullets: (1) core mechanism/answer, (2) concrete trade-offs & tools (`FastAPI`, `Docker`, `MLflow`, `PyTorch`), and (3) real metrics/projects from your CV. Fits on the HUD without scrolling.
+- **`Verbose` (System Design & Deep Architecture Rounds):**
+  - **Best Token Range:** `380 – 480 tokens`
+  - **Behavior:** Generates 4–5 comprehensive sections covering architecture, data flow, trade-offs, edge cases, and candidate experience. Best for broad design prompts (*"Design an end-to-end MLOps pipeline..."*).
+- **`Simple` (Recruiter & Executive Screenings):**
+  - **Best Token Range:** `120 – 160 tokens`
+  - **Behavior:** Outputs 2–3 plain-English sentences focused on the core takeaway without heavy code-level jargon.
+
+### 3. Max Answer Length (`maxTokens`) Guidelines
+- **`< 150 tokens`:** Risk of mid-sentence truncation on multi-part or mathematical questions.
+- **`250 tokens` (Sweet Spot):** Optimal balance between complete 3-bullet depth and fast generation (`~7–9s` total decode time).
+- **`400+ tokens`:** Reserve for `Verbose` mode when you want exhaustive system design breakdowns.
 
 ---
 

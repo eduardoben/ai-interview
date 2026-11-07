@@ -30,11 +30,14 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
+import com.edgecue.app.data.rag.LiteRagEngine
+
 class LiteRtGemmaEngine(
     private val context: Context?,
     private val config: AppConfig,
     private val systemPrompt: String? = null,
-    private val customBackend: LlmInferenceBackend? = null
+    private val customBackend: LlmInferenceBackend? = null,
+    private val ragEngine: LiteRagEngine? = null
 ) : LlmEngine {
     private val _isInitialized = MutableStateFlow(false)
     override val isInitialized: StateFlow<Boolean> = _isInitialized.asStateFlow()
@@ -195,13 +198,15 @@ class LiteRtGemmaEngine(
     }
 
     override fun generateAnswerStream(question: String): Flow<LlmStreamEvent> = callbackFlow {
+        val retrievedRag = ragEngine?.retrieveFormattedContext(question, maxChars = 1100)?.formattedContext ?: ""
+
         if (customBackend != null) {
             if (!_isInitialized.value) {
                 trySend(LlmStreamEvent.Error(IllegalStateException("Engine not initialized")))
                 close()
                 return@callbackFlow
             }
-            val formattedPrompt = config.formatGemmaPrompt(question)
+            val formattedPrompt = config.formatGemmaPrompt(question, ragContext = retrievedRag)
             val genId = generationIdCounter.incrementAndGet()
             val callbackFinished = AtomicBoolean(false)
             tracker.startTracking()
@@ -278,11 +283,25 @@ class LiteRtGemmaEngine(
             )
         }
 
+        val contextTrimmed = llmConfig.interviewContext.trim().take(500)
+        val safeRag = retrievedRag.trim().take(1200)
+
         val effectiveSystemPrompt = systemPrompt?.takeIf { it.isNotBlank() } ?: run {
             val base = "${AppConfig.SYSTEM_SAFETY_GUARDRAIL}\n${llmConfig.promptStyle.systemInstruction}"
-            if (llmConfig.interviewContext.isNotBlank()) {
-                val contextTrimmed = llmConfig.interviewContext.trim().take(500)
-                "$base\n<interview_context>\nInterview Context (Role, Program & Domain): $contextTrimmed\n</interview_context>"
+            val contextSection = when {
+                contextTrimmed.isNotBlank() && safeRag.isNotBlank() -> {
+                    "<interview_context>\nInterview Context (Role, Program & Domain): $contextTrimmed\n\nTailored Reference Context:\n$safeRag\n</interview_context>\n${AppConfig.CANDIDATE_RAG_GROUNDING_DIRECTIVE}"
+                }
+                contextTrimmed.isNotBlank() -> {
+                    "<interview_context>\nInterview Context (Role, Program & Domain): $contextTrimmed\n</interview_context>"
+                }
+                safeRag.isNotBlank() -> {
+                    "<interview_context>\nTailored Reference Context:\n$safeRag\n</interview_context>\n${AppConfig.CANDIDATE_RAG_GROUNDING_DIRECTIVE}"
+                }
+                else -> ""
+            }
+            if (contextSection.isNotBlank()) {
+                "$base\n$contextSection"
             } else {
                 base
             }
@@ -308,8 +327,16 @@ class LiteRtGemmaEngine(
         tracker.startTracking()
         val accumulatedText = StringBuilder()
 
+        val userTurnText = if (safeRag.isNotBlank()) {
+            "<interview_context>\n$safeRag\n</interview_context>\n" +
+            "${AppConfig.CANDIDATE_RAG_GROUNDING_DIRECTIVE}\n\n" +
+            "Interviewer Question: $question"
+        } else {
+            question
+        }
+
         newConversation.sendMessageAsync(
-            Contents.of(Content.Text(question)),
+            Contents.of(Content.Text(userTurnText)),
             object : MessageCallback {
                 override fun onMessage(message: Message) {
                     if (generationIdCounter.get() != genId || callbackFinished.get()) return

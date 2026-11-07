@@ -34,6 +34,11 @@
 -dontwarn com.k2fsa.sherpa.onnx.**
 -dontwarn org.jetbrains.annotations.**
 
+# PDFBox-Android (Apache PDFBox port)
+-keep class com.tom_roush.pdfbox.** { *; }
+-dontwarn com.tom_roush.pdfbox.**
+-dontwarn org.bouncycastle.**
+
 # ------------------------------------------------------------------------------
 # 3. Domain Models, Enums & JSON Serialization (CRITICAL ENUM RETENTION)
 # ------------------------------------------------------------------------------

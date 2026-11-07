@@ -52,5 +52,82 @@
     "expectLikelyQuestion": true,
     "maxAllowedWer": 0.15,
     "audioDurationSec": 10.848
+  },
+  {
+    "turnId": "turn_03_himmler_rag",
+    "id": "turn_03_himmler_rag",
+    "filename": "turn_03_himmler_rag.wav",
+    "topic": "Tailored RAG (Himmler Benitez CV + ML Engineer JD)",
+    "groundTruthRaw": "Good. Could you walk me through your background, covering your professional journey as well as your academic progression?",
+    "groundTruthNormalized": "good could you walk me through your background covering your professional journey as well as your academic progression",
+    "mustContainHotwords": [
+      "background",
+      "professional",
+      "journey",
+      "academic",
+      "progression"
+    ],
+    "expectedLlmKeywords": [
+      "Lenovo",
+      "QA",
+      "Sonora",
+      "Artificial Intelligence",
+      "Biomedical"
+    ],
+    "expectLikelyQuestion": true,
+    "maxAllowedWer": 0.15,
+    "audioDurationSec": 6.348
+  },
+  {
+    "turnId": "turn_04_ml_deployment",
+    "id": "turn_04_ml_deployment",
+    "filename": "turn_04_ml_deployment.wav",
+    "topic": "Specialized ML Deployment & Tradeoffs (PyTorch, Docker, FastAPI, Latency vs Throughput)",
+    "groundTruthRaw": "Looking at the job description, a core part of this role involves serving models in production. Could you walk me through an end-to-end project where you took a trained PyTorch or scikit-learn model and exposed it via an API like FastAPI or Flask inside a Docker container? What tradeoffs did you make regarding latency versus throughput?",
+    "groundTruthNormalized": "looking at the job description a core part of this role involves serving models in production could you walk me through an end to end project where you took a trained pytorch or scikit learn model and exposed it via an api like fastapi or flask inside a docker container what tradeoffs did you make regarding latency versus throughput",
+    "mustContainHotwords": [
+      "job description",
+      "serving models",
+      "docker",
+      "fastapi",
+      "latency",
+      "throughput"
+    ],
+    "expectedLlmKeywords": [
+      "latency",
+      "throughput",
+      "batching",
+      "FastAPI",
+      "Docker",
+      "concurrency"
+    ],
+    "expectLikelyQuestion": true,
+    "maxAllowedWer": 0.15,
+    "audioDurationSec": 21.500
+  },
+  {
+    "turnId": "turn_05_feature_pipeline",
+    "id": "turn_05_feature_pipeline",
+    "filename": "turn_05_feature_pipeline.wav",
+    "topic": "Feature Engineering & Streaming Pipelines (Training-Serving Skew & Consistency)",
+    "groundTruthRaw": "Moving to the data layer, the role requires building and maintaining scalable data pipelines and feature extraction. When handling large or streaming datasets, how do you structure your feature pipeline to ensure feature definitions remain consistent between training and live inference?",
+    "groundTruthNormalized": "moving to the data layer the role requires building and maintaining scalable data pipelines and feature extraction when handling large or streaming datasets how do you structure your feature pipeline to ensure feature definitions remain consistent between training and live inference",
+    "mustContainHotwords": [
+      "data pipelines",
+      "feature extraction",
+      "feature pipeline",
+      "live inference"
+    ],
+    "expectedLlmKeywords": [
+      "feature store",
+      "skew",
+      "pipeline",
+      "training",
+      "inference",
+      "transformation"
+    ],
+    "expectLikelyQuestion": true,
+    "maxAllowedWer": 0.15,
+    "audioDurationSec": 16.500
   }
 ]

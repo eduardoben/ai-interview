@@ -1,5 +1,7 @@
 package com.edgecue.app.ui.settings
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -25,6 +27,9 @@ import com.edgecue.app.BuildConfig
 import com.edgecue.app.core.model.PromptStyle
 import com.edgecue.app.data.hardware.DelegateType
 import com.edgecue.app.data.hardware.HardwareProfile
+import com.edgecue.app.data.rag.RagDocumentSummary
+import com.edgecue.app.data.rag.RagStatus
+import com.edgecue.app.data.rag.db.RagSourceType
 import com.edgecue.app.ui.dialog.OpenSourceLicensesDialog
 import com.edgecue.app.ui.dialog.SendFeedbackDialog
 import com.edgecue.app.ui.prompter.FormattedTeleprompterAnswer
@@ -45,7 +50,11 @@ fun SettingsScreen(
     SettingsScreen(
         config = state.config,
         hardwareProfile = state.hardwareProfile,
+        ragStatus = state.ragStatus,
         onConfigChange = viewModel::updateConfig,
+        onImportRagDocument = viewModel::importDocument,
+        onPasteRagDocument = viewModel::pasteDocument,
+        onClearRagDocument = viewModel::clearDocument,
         modifier = modifier
     )
 }
@@ -54,12 +63,17 @@ fun SettingsScreen(
 fun SettingsScreen(
     config: LlmGenerationConfig,
     hardwareProfile: HardwareProfile?,
+    ragStatus: RagStatus = RagStatus(),
     onConfigChange: (LlmGenerationConfig) -> Unit,
+    onImportRagDocument: (Uri, RagSourceType) -> Unit = { _, _ -> },
+    onPasteRagDocument: (String, RagSourceType, String) -> Unit = { _, _, _ -> },
+    onClearRagDocument: (RagSourceType) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val isTensorTpu = hardwareProfile?.preferredDelegate == DelegateType.NPU_GOOGLE_TENSOR
     var showLicensesDialog by remember { mutableStateOf(false) }
     var showFeedbackDialog by remember { mutableStateOf(false) }
+    var showLlmConfigGuideDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier
@@ -69,27 +83,74 @@ fun SettingsScreen(
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Column {
-            Text(
-                text = "Settings",
-                style = MaterialTheme.typography.headlineSmall,
-                color = OledTextPrimary
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = "Configure persona, on-device acceleration, and display controls",
-                style = MaterialTheme.typography.bodySmall,
-                color = OledTextMuted
-            )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Settings",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = OledTextPrimary
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "Configure persona, on-device acceleration, and display controls",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = OledTextMuted
+                )
+            }
+
+            // Interactive Info Icon Button for Recommended LLM Tuning Guide
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(OledAccentIndigo.copy(alpha = 0.14f))
+                    .border(0.5.dp, OledAccentIndigo.copy(alpha = 0.4f), RoundedCornerShape(10.dp))
+                    .clickable { showLlmConfigGuideDialog = true }
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                PrompterIcons.InfoCircle(color = OledAccentIndigoSoft, size = 16.dp)
+                Text(
+                    text = "Tuning Guide",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = OledAccentIndigoSoft
+                )
+            }
         }
 
         // Card 1: Context & Response Persona
         SettingsGroupCard(title = "Practice Context & Persona") {
-            Text(
-                text = "RESPONSE STYLE",
-                style = MaterialTheme.typography.labelSmall,
-                color = OledTextMuted
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "RESPONSE STYLE",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = OledTextMuted
+                )
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .clickable { showLlmConfigGuideDialog = true }
+                        .padding(horizontal = 4.dp, vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    PrompterIcons.InfoCircle(color = OledAccentIndigoSoft, size = 13.dp)
+                    Text(
+                        text = "Which style is best?",
+                        fontSize = 10.sp,
+                        color = OledAccentIndigoSoft
+                    )
+                }
+            }
             Spacer(modifier = Modifier.height(8.dp))
 
             // Minimal Segmented Control
@@ -162,6 +223,93 @@ fun SettingsScreen(
                     unfocusedTextColor = OledTextPrimary,
                     cursorColor = OledAccentIndigoSoft
                 )
+            )
+
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 12.dp),
+                thickness = 0.5.dp,
+                color = OledBorder
+            )
+
+            // Lite RAG: Optional Curriculum & Job Description
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "LITE RAG KNOWLEDGE (OPTIONAL)",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = OledTextMuted
+                    )
+                    Text(
+                        text = "Local-only reference context (≤ 700 chars/turn)",
+                        fontSize = 11.sp,
+                        color = OledTextSecondary
+                    )
+                }
+
+                // Status Badge
+                val isRAGActive = ragStatus.isConfigured
+                Box(
+                    modifier = Modifier
+                        .background(
+                            if (isRAGActive) OledStatusEmerald.copy(alpha = 0.15f) else OledSurfaceHigh,
+                            RoundedCornerShape(6.dp)
+                        )
+                        .border(
+                            0.5.dp,
+                            if (isRAGActive) OledStatusEmerald.copy(alpha = 0.4f) else OledBorder,
+                            RoundedCornerShape(6.dp)
+                        )
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = if (isRAGActive) "Active (${ragStatus.totalChunks} chunks)" else "Not Loaded",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (isRAGActive) OledStatusEmerald else OledTextMuted
+                    )
+                }
+            }
+
+            if (ragStatus.isBusy && ragStatus.statusMessage != null) {
+                Spacer(modifier = Modifier.height(8.dp))
+                LinearProgressIndicator(
+                    modifier = Modifier.fillMaxWidth().height(2.dp),
+                    color = OledAccentIndigo
+                )
+                Text(
+                    text = ragStatus.statusMessage,
+                    fontSize = 11.sp,
+                    color = OledAccentIndigoSoft,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Curriculum Slot
+            RagDocumentSlot(
+                title = "Curriculum / Resume",
+                sourceType = RagSourceType.CURRICULUM,
+                summary = ragStatus.curriculumDoc,
+                onImport = { uri -> onImportRagDocument(uri, RagSourceType.CURRICULUM) },
+                onPaste = { text, label -> onPasteRagDocument(text, RagSourceType.CURRICULUM, label) },
+                onClear = { onClearRagDocument(RagSourceType.CURRICULUM) }
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Job Description Slot
+            RagDocumentSlot(
+                title = "Job Description (Target Role)",
+                sourceType = RagSourceType.JOB_DESCRIPTION,
+                summary = ragStatus.jobDescriptionDoc,
+                onImport = { uri -> onImportRagDocument(uri, RagSourceType.JOB_DESCRIPTION) },
+                onPaste = { text, label -> onPasteRagDocument(text, RagSourceType.JOB_DESCRIPTION, label) },
+                onClear = { onClearRagDocument(RagSourceType.JOB_DESCRIPTION) }
             )
         }
 
@@ -242,12 +390,42 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            LabeledSlider(
-                label = "Max Answer Length",
-                valueText = "${config.maxTokens} tokens",
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(text = "Max Answer Length", fontSize = 12.sp, color = OledTextSecondary)
+                    Box(
+                        modifier = Modifier
+                            .size(22.dp)
+                            .clip(RoundedCornerShape(11.dp))
+                            .clickable { showLlmConfigGuideDialog = true },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        PrompterIcons.InfoCircle(color = OledAccentIndigoSoft, size = 14.dp)
+                    }
+                }
+                Text(
+                    text = "${config.maxTokens} tokens",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = OledTextPrimary
+                )
+            }
+            Slider(
                 value = config.maxTokens.toFloat(),
+                onValueChange = { onConfigChange(config.copy(maxTokens = it.toInt())) },
                 valueRange = 64f..512f,
-                onValueChange = { onConfigChange(config.copy(maxTokens = it.toInt())) }
+                colors = SliderDefaults.colors(
+                    thumbColor = OledAccentIndigo,
+                    activeTrackColor = OledAccentIndigo,
+                    inactiveTrackColor = OledSurfaceHigh
+                )
             )
         }
 
@@ -460,6 +638,23 @@ fun SettingsScreen(
             onDismiss = { showLicensesDialog = false }
         )
     }
+
+    if (showLlmConfigGuideDialog) {
+        LlmConfigurationGuideDialog(
+            onDismiss = { showLlmConfigGuideDialog = false },
+            onApplyGoldenPreset = {
+                onConfigChange(
+                    config.copy(
+                        promptStyle = PromptStyle.CONCISE,
+                        maxTokens = 250,
+                        temperature = 0.2f,
+                        topK = 20
+                    )
+                )
+                showLlmConfigGuideDialog = false
+            }
+        )
+    }
 }
 
 @Composable
@@ -567,6 +762,372 @@ private fun SettingsToggleRow(
                 uncheckedTrackColor = OledSurfaceHigh,
                 uncheckedBorderColor = OledBorderHigh
             )
+        )
+    }
+}
+
+@Composable
+private fun RagDocumentSlot(
+    title: String,
+    sourceType: RagSourceType,
+    summary: RagDocumentSummary?,
+    onImport: (Uri) -> Unit,
+    onPaste: (String, String) -> Unit,
+    onClear: () -> Unit
+) {
+    var showPasteDialog by remember { mutableStateOf(false) }
+
+    val filePicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri?.let { onImport(it) }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(OledBackground, RoundedCornerShape(10.dp))
+            .border(0.5.dp, OledBorder, RoundedCornerShape(10.dp))
+            .padding(12.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = title,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                color = OledTextPrimary
+            )
+            if (summary != null) {
+                Text(
+                    text = "${summary.charCount} chars · ${summary.chunkCount} chunks",
+                    fontSize = 10.sp,
+                    color = OledTextMuted
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        if (summary != null) {
+            Text(
+                text = summary.fileName,
+                fontSize = 11.sp,
+                fontFamily = FontFamily.Monospace,
+                color = OledAccentIndigoSoft,
+                maxLines = 1
+            )
+            if (summary.previewText.isNotBlank()) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = summary.previewText,
+                    fontSize = 10.sp,
+                    color = OledTextSecondary,
+                    maxLines = 2
+                )
+            }
+        } else {
+            Text(
+                text = "None uploaded (optional)",
+                fontSize = 11.sp,
+                color = OledTextMuted
+            )
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            OutlinedButton(
+                onClick = {
+                    filePicker.launch(arrayOf("application/pdf", "text/plain", "text/markdown"))
+                },
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(min = 44.dp),
+                shape = RoundedCornerShape(8.dp),
+                colors = ButtonDefaults.outlinedButtonColors(containerColor = OledSurfaceHigh),
+                border = BorderStroke(0.5.dp, OledBorderHigh),
+                contentPadding = PaddingValues(horizontal = 8.dp)
+            ) {
+                Text(
+                    text = "Upload PDF/TXT",
+                    fontSize = 11.sp,
+                    color = OledTextPrimary,
+                    maxLines = 1
+                )
+            }
+
+            OutlinedButton(
+                onClick = { showPasteDialog = true },
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(min = 44.dp),
+                shape = RoundedCornerShape(8.dp),
+                colors = ButtonDefaults.outlinedButtonColors(containerColor = OledSurfaceHigh),
+                border = BorderStroke(0.5.dp, OledBorderHigh),
+                contentPadding = PaddingValues(horizontal = 8.dp)
+            ) {
+                Text(
+                    text = "Paste Text",
+                    fontSize = 11.sp,
+                    color = OledTextPrimary,
+                    maxLines = 1
+                )
+            }
+
+            if (summary != null) {
+                IconButton(
+                    onClick = onClear,
+                    modifier = Modifier.size(44.dp)
+                ) {
+                    PrompterIcons.CloseCross(color = OledStatusCoral, size = 16.dp)
+                }
+            }
+        }
+    }
+
+    if (showPasteDialog) {
+        RagPasteDialog(
+            title = "Paste $title",
+            initialText = summary?.rawText ?: "",
+            onDismiss = { showPasteDialog = false },
+            onSave = { text ->
+                onPaste(text, "Direct Text Input")
+                showPasteDialog = false
+            }
+        )
+    }
+}
+
+@Composable
+private fun RagPasteDialog(
+    title: String,
+    initialText: String = "",
+    onDismiss: () -> Unit,
+    onSave: (String) -> Unit
+) {
+    var text by remember(initialText) { mutableStateOf(initialText) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = OledSurface,
+        title = {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = OledTextPrimary
+            )
+        },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "Text will be parsed into local RAG chunks and never exported off-device.",
+                    fontSize = 11.sp,
+                    color = OledTextSecondary,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    placeholder = { Text("Paste resume or job description content here...", fontSize = 12.sp, color = OledTextMuted) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(240.dp),
+                    textStyle = LocalTextStyle.current.copy(fontSize = 12.sp, color = OledTextPrimary),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = OledAccentIndigo,
+                        unfocusedBorderColor = OledBorder,
+                        focusedTextColor = OledTextPrimary,
+                        unfocusedTextColor = OledTextPrimary
+                    )
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onSave(text) },
+                enabled = text.isNotBlank(),
+                colors = ButtonDefaults.buttonColors(containerColor = OledAccentIndigo),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text("Save to RAG", color = Color.White, fontSize = 12.sp)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", color = OledTextSecondary, fontSize = 12.sp)
+            }
+        },
+        shape = RoundedCornerShape(16.dp)
+    )
+}
+
+@Composable
+private fun LlmConfigurationGuideDialog(
+    onDismiss: () -> Unit,
+    onApplyGoldenPreset: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = OledSurface,
+        title = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                PrompterIcons.InfoCircle(color = OledAccentIndigoSoft, size = 20.dp)
+                Text(
+                    text = "LLM Configuration Guide",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = OledTextPrimary
+                )
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 420.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Golden Config Banner
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(OledStatusEmerald.copy(alpha = 0.1f), RoundedCornerShape(10.dp))
+                        .border(0.5.dp, OledStatusEmerald.copy(alpha = 0.35f), RoundedCornerShape(10.dp))
+                        .padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = "RECOMMENDED GOLDEN PRESET",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = OledStatusEmerald
+                    )
+                    Text(
+                        text = "Style: Concise · Max Length: 250 tokens · Temp: 0.20 · Top-K: 20",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = OledTextPrimary
+                    )
+                    Text(
+                        text = "Delivers 3 structured, glanceable talking points with zero mid-sentence cutoffs and ~950 ms first-token latency on Tensor TPU.",
+                        fontSize = 11.sp,
+                        lineHeight = 15.sp,
+                        color = OledTextSecondary
+                    )
+                }
+
+                // Style Breakdown
+                Text(
+                    text = "1. RESPONSE STYLES",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = OledTextMuted
+                )
+
+                GuideItemCard(
+                    title = "Concise (Recommended for 90% of Interviews)",
+                    badge = "220 – 260 tokens",
+                    description = "Produces 3 punchy bullet points: (1) core concept/mechanism, (2) concrete trade-offs & tools, and (3) real metrics/projects from your CV. Fits on screen without scrolling so you can speak naturally right away."
+                )
+
+                GuideItemCard(
+                    title = "Verbose (System Design & Deep Architecture)",
+                    badge = "380 – 480 tokens",
+                    description = "Generates 4–5 detailed sections covering architecture, edge cases, failure modes, and trade-offs. Best when asked to walk through an end-to-end system design."
+                )
+
+                GuideItemCard(
+                    title = "Simple (Recruiter & Executive Screens)",
+                    badge = "120 – 160 tokens",
+                    description = "Outputs 2–3 plain-English sentences focused on the core takeaway without heavy code jargon. Ideal for rapid introductory or HR rounds."
+                )
+
+                // Max Answer Length Guide
+                Text(
+                    text = "2. MAX ANSWER LENGTH (TOKENS)",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = OledTextMuted
+                )
+
+                GuideItemCard(
+                    title = "Why 250 Tokens is the Sweet Spot",
+                    badge = "~190 words",
+                    description = "• Below 150 tokens: Complex technical or math answers may get cut off mid-sentence.\n• 220 – 280 tokens: Gives enough room to finish all 3 bullets cleanly with a 30-token safety buffer.\n• 400+ tokens: Best reserved for Verbose mode on multi-part questions."
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onApplyGoldenPreset,
+                colors = ButtonDefaults.buttonColors(containerColor = OledAccentIndigo),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text("Apply Golden Preset", color = Color.White, fontSize = 12.sp)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close", color = OledTextSecondary, fontSize = 12.sp)
+            }
+        },
+        shape = RoundedCornerShape(16.dp)
+    )
+}
+
+@Composable
+private fun GuideItemCard(
+    title: String,
+    badge: String,
+    description: String
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(OledBackground, RoundedCornerShape(10.dp))
+            .border(0.5.dp, OledBorder, RoundedCornerShape(10.dp))
+            .padding(10.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = title,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = OledTextPrimary,
+                modifier = Modifier.weight(1f)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = badge,
+                fontSize = 10.sp,
+                fontFamily = FontFamily.Monospace,
+                color = OledAccentIndigoSoft
+            )
+        }
+        Text(
+            text = description,
+            fontSize = 11.sp,
+            lineHeight = 15.sp,
+            color = OledTextSecondary
         )
     }
 }

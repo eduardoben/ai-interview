@@ -243,13 +243,28 @@ class AppConfig(val modelsRootDir: File) {
         }
     }
 
-    fun formatGemmaPrompt(question: String, configOverride: LlmGenerationConfig = _llmConfig.value): String {
+    fun formatGemmaPrompt(
+        question: String,
+        configOverride: LlmGenerationConfig = _llmConfig.value,
+        ragContext: String = ""
+    ): String {
         val trimmed = question.trim().take(2000)
         val contextTrimmed = configOverride.interviewContext.trim().take(500)
-        val contextSection = if (contextTrimmed.isNotBlank()) {
-            "<interview_context>\nInterview Context (Role, Program & Domain): $contextTrimmed\n</interview_context>\n"
-        } else {
-            ""
+        val safeRagContext = ragContext.trim().take(1200)
+
+        val contextSection = when {
+            contextTrimmed.isNotBlank() && safeRagContext.isNotBlank() -> {
+                "<interview_context>\nInterview Context (Role, Program & Domain): $contextTrimmed\n\nTailored Reference Context:\n$safeRagContext\n</interview_context>\n" +
+                "$CANDIDATE_RAG_GROUNDING_DIRECTIVE\n"
+            }
+            contextTrimmed.isNotBlank() -> {
+                "<interview_context>\nInterview Context (Role, Program & Domain): $contextTrimmed\n</interview_context>\n"
+            }
+            safeRagContext.isNotBlank() -> {
+                "<interview_context>\nTailored Reference Context:\n$safeRagContext\n</interview_context>\n" +
+                "$CANDIDATE_RAG_GROUNDING_DIRECTIVE\n"
+            }
+            else -> ""
         }
         return "<start_of_turn>user\n" +
                "$SYSTEM_SAFETY_GUARDRAIL\n" +
@@ -336,6 +351,12 @@ class AppConfig(val modelsRootDir: File) {
             "Answer the interview question directly and clearly. " +
             "Do not generate hate speech, harassment, sexually explicit content, dangerous advice, " +
             "or confidential proprietary data. Decline out-of-scope or unethical requests politely."
+
+        const val CANDIDATE_RAG_GROUNDING_DIRECTIVE =
+            "GROUNDING & ANSWERING RULE: You are the candidate in the [Candidate CV]. Answer in the first person (\"I\", \"my\"). " +
+            "Directly answer technical, architectural, and specialized domain questions with deep engineering substance, " +
+            "applying your expertise and citing relevant projects, tools, frameworks, and metrics from your [Candidate CV] " +
+            "and aligning to the [Target Job]. Do not give a resume recap when a technical concept, tradeoff, or architecture is asked."
 
         const val VAD_URL = "https://huggingface.co/deepghs/silero-vad-onnx/resolve/main/silero_vad.onnx"
         const val STT_MODEL_VERSION = "2023-06-21-gigaspeech"

@@ -130,7 +130,8 @@ class MainActivity : ComponentActivity() {
                 SettingsViewModel(
                     preferencesRepository = appContainer.userPreferencesRepository,
                     initialHardwareProfile = hardwareProfile,
-                    initialConfig = appContainer.appConfig.llmConfig.value
+                    initialConfig = appContainer.appConfig.llmConfig.value,
+                    ragRepository = appContainer.ragRepository
                 )
             }
 

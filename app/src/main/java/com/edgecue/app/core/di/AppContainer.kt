@@ -12,6 +12,10 @@ import com.edgecue.app.data.history.db.AppDatabase
 import com.edgecue.app.data.llm.LiteRtGemmaEngine
 import com.edgecue.app.data.preferences.UserPreferencesRepository
 import com.edgecue.app.data.provisioning.ModelProvisioningManager
+import com.edgecue.app.data.rag.LiteRagEngine
+import com.edgecue.app.data.rag.LiteRagEngineImpl
+import com.edgecue.app.data.rag.RagRepository
+import com.edgecue.app.data.rag.db.RagDao
 import com.edgecue.app.data.stt.SherpaOfflineWhisperRescorer
 import com.edgecue.app.data.stt.SherpaOnnxRuntimeBackend
 import com.edgecue.app.data.stt.SherpaVadSttEngine
@@ -48,6 +52,11 @@ class AppContainer private constructor(private val context: Context) {
         legacyStorageDir = context.filesDir,
         scope = appScope
     )
+
+    // Lite RAG: Local document DAO, lexical engine, and repository
+    val ragDao: RagDao = appDatabase.ragDao()
+    val liteRagEngine: LiteRagEngine = LiteRagEngineImpl()
+    val ragRepository: RagRepository = RagRepository(context, ragDao, liteRagEngine, appScope)
 
     init {
         // Fast-path initial configuration bootstrap from DataStore / SharedPreferences
@@ -138,7 +147,7 @@ class AppContainer private constructor(private val context: Context) {
     )
 
     fun createLlmEngine(): LiteRtGemmaEngine {
-        return LiteRtGemmaEngine(context, appConfig)
+        return LiteRtGemmaEngine(context, appConfig, ragEngine = liteRagEngine)
     }
 
     @Suppress("UNUSED_PARAMETER")

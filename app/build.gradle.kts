@@ -130,8 +130,8 @@ android {
         applicationId = "com.edgecue.app"
         minSdk = 33
         targetSdk = 37
-        versionCode = 20
-        versionName = "1.16.0"
+        versionCode = 21
+        versionName = "1.17.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -226,6 +226,7 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
+    implementation(libs.pdfbox.android)
     implementation(files("libs/sherpa-onnx.aar"))
 
     testImplementation(libs.junit)

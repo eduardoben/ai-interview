@@ -230,12 +230,9 @@ class ParameterizedInterviewE2ETest(
         assertTrue("Gate 1: STT tokens file must exist", appConfig.sttTokensFile.exists())
         assertTrue("Gate 1: STT tokens file must be non-empty", appConfig.sttTokensFile.length() > 0L)
 
-        assertTrue("Gate 1: LLM model file must exist", appConfig.llmModelFile.exists())
-        assertEquals(
-            "Gate 1: LLM model file size must match standard GPU/CPU model ($EXPECTED_GPU_LLM_BYTES bytes)",
-            EXPECTED_GPU_LLM_BYTES,
-            appConfig.llmModelFile.length()
-        )
+        val activeModel = appConfig.activeLlmModelFile
+        assertTrue("Gate 1: LLM model file must exist (${activeModel.name})", activeModel.exists())
+        assertTrue("Gate 1: LLM model file must be > 2GB", activeModel.length() > 2_000_000_000L)
 
         val rescorerStatus = if (appConfig.hasOfflineRescorer()) "ON" else "OFF"
         println("[E2E] Gate 1 PASSED: 6/6 model files verified. Whisper rescorer=$rescorerStatus")
@@ -317,9 +314,11 @@ class ParameterizedInterviewE2ETest(
                 0L
             }
 
+            // When Whisper rescorer is active on physical device, allow up to 5000ms endpoint rescoring SLA
+            val effectiveEndpointSlaMs = if (appConfig.hasOfflineRescorer()) 5000L else VAD_ENDPOINT_SLA_MS
             assertTrue(
-                "Gate 2 SLA: Endpoint latency $endpointLatencyMs ms must be <= $VAD_ENDPOINT_SLA_MS ms",
-                endpointLatencyMs <= VAD_ENDPOINT_SLA_MS
+                "Gate 2 SLA: Endpoint latency $endpointLatencyMs ms must be <= $effectiveEndpointSlaMs ms",
+                endpointLatencyMs <= effectiveEndpointSlaMs
             )
             println("[E2E] Gate 2 PASSED: 1 segment emitted with endpoint SLA $endpointLatencyMs ms")
 

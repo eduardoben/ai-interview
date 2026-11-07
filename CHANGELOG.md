@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.17.0] - 2026-11-06
+
+### Added
+- **On-Device Lite RAG Subsystem (Curriculum & Job Description Grounding):**
+  - Added support under the **Settings** tab to upload (`.pdf` via `pdfbox-android:2.0.27.0` or `.txt`/`.md`) or paste a **Curriculum / Resume** and a **Job Description (Target Role)**.
+  - Built section-aware sliding window chunker (`RagDocumentChunker`) with normalized soft-hyphen repairs, horizontal space collapsing, and automatic removal of bare contact/email footers (`himmlerbenitez@gmail.com 1/2`).
+  - Added pre-heading identity merging so candidate name, title, and contact links are bound directly to `chunkIndex = 0` (Summary / Overview).
+  - Built high-speed in-memory BM25 + bigram lexical retrieval engine (`LiteRagEngine`) running in `< 0.05 ms` (median ~30 µs) with dynamic section-diverse multi-chunk retrieval (`selectTopDiverseChunks`) yielding up to 3 distinct CV sections (`Summary`, `Experience`, `Education`/`Projects`) plus 1 Target Job chunk.
+  - Implemented dynamic budget allocation allocating ~78% of characters to the Candidate CV and ~22% to the Target Job, with automatic unused budget redistribution from shorter sections (like Education) to longer sections.
+  - Zero-Cloud Privacy: Local storage backed by Room `AppDatabase` v3 (`RagDocumentEntity`, `RagChunkEntity`, `RagDao`), strictly excluded from Android Cloud Backup, device-to-device transfers, and telemetry feedback logs.
+- **First-Person Candidate Grounding & Technical Substance Directive:**
+  - Injected `AppConfig.CANDIDATE_RAG_GROUNDING_DIRECTIVE` and retrieved reference context directly into the user turn (`userTurnText` in `LiteRtGemmaEngine.kt`), grounding Gemma 4 E2B in the candidate's actual projects, degrees, companies, and metrics while enforcing deep technical explanations rather than superficial resume recaps on engineering trade-off questions.
+- **In-App LLM Configuration & Tuning Guide Dialog:**
+  - Added clickable `Tuning Guide` pill and inline `InfoCircle` triggers in `SettingsScreen` next to Response Style and Max Answer Length.
+  - Displays user-friendly breakdowns of `Concise` (3 bullets, `220–260` tokens), `Verbose` (`380–480` tokens), and `Simple` (`120–160` tokens), with a 1-tap **Apply Golden Preset** button (`Concise`, `250` tokens, `temp = 0.20`, `topK = 20`).
+- **Comprehensive Verification & Multi-Turn E2E Test Suite:**
+  - Added unit test evaluation suite (`LiteRagEvaluationTest.kt`) verifying 100% benchmark recall, context budget adherence (`<= 1100` chars), and sub-50 µs retrieval latency.
+  - Converted and added mock interview audio turns to `:test-suite`:
+    - `turn_03_himmler_rag.wav` (Academic progression & professional journey).
+    - `turn_04_ml_deployment.wav` (PyTorch/Docker/FastAPI deployment & latency vs. throughput trade-offs).
+    - `turn_05_feature_pipeline.wav` (Feature pipelines, streaming datasets & training-serving skew).
+  - Executed on physical **Google Pixel 10 Pro XL** (Tensor G5 EdgeTPU), demonstrating sub-1s TTFT (~950 ms) and grounded, technically substantive answers.
+
+### Changed
+- Bumped application `versionCode` to 21 and `versionName` to `1.17.0`.
+
+---
+
 ## [1.16.0] - 2026-11-05
 
 ### Added
