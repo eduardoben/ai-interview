@@ -174,4 +174,101 @@ class LiteRagEngineTest {
 
         assertEquals(expected, normalized)
     }
+
+    @Test
+    fun testCertificationSectionDetectionAndCanonicalStemming() {
+        val chunker = RagDocumentChunker()
+
+        // 1. Assert stemmer canonicalization
+        assertEquals("certif", chunker.stemToken("certified"))
+        assertEquals("certif", chunker.stemToken("certification"))
+        assertEquals("certif", chunker.stemToken("certifications"))
+        assertEquals("certif", chunker.stemToken("certificate"))
+        assertEquals("certif", chunker.stemToken("certificates"))
+        assertEquals("licens", chunker.stemToken("license"))
+        assertEquals("licens", chunker.stemToken("licensed"))
+        assertEquals("licens", chunker.stemToken("licensure"))
+        assertEquals("credential", chunker.stemToken("credentials"))
+        assertEquals("credential", chunker.stemToken("credential"))
+
+        // 2. Assert multi-format certification heading detection
+        val resumeWithCerts = """
+            PROFESSIONAL SUMMARY
+            Lead Cloud Architect with 10 years of experience.
+
+            PROFESSIONAL CERTIFICATIONS
+            • AWS Certified Solutions Architect - Professional
+            • Certified Kubernetes Administrator (CKA)
+            • Google Cloud Professional Cloud Architect
+
+            WORK EXPERIENCE
+            Enterprise Corp - Principal Architect
+            Designed multi-region Kubernetes clusters on AWS and GCP.
+        """.trimIndent()
+
+        val chunks = chunker.chunkDocument("CURRICULUM", resumeWithCerts)
+        val certChunk = chunks.firstOrNull { it.sectionTitle.contains("Certification", ignoreCase = true) }
+        assertNotNull("Must detect Professional Certifications section", certChunk)
+        assertTrue("Tokens CSV must include certif canonical token", certChunk!!.tokensCsv.contains("certif"))
+        assertTrue("Content must contain AWS", certChunk.content.contains("AWS Certified"))
+    }
+
+    @Test
+    fun testCertificationRetrievalAndBudget() {
+        val chunker = RagDocumentChunker()
+        val engine = LiteRagEngineImpl(chunker = chunker)
+
+        val resumeWithCerts = """
+            SUMMARY
+            Experienced Mobile and AI Engineer.
+
+            PROFESSIONAL CERTIFICATIONS
+            • AWS Certified Machine Learning Specialist
+            • Google Professional Machine Learning Engineer
+            • Certified Kubernetes Application Developer (CKAD)
+
+            EDUCATION
+            Master of Science in Computer Science, Stanford University
+
+            WORK EXPERIENCE
+            Tech Innovations - Lead ML Engineer
+            Built end-to-end LLM serving microservices on Kubernetes using PyTorch and FastAPI.
+        """.trimIndent()
+
+        val cvChunks = chunker.chunkDocument("CURRICULUM", resumeWithCerts)
+        engine.updateIndex(cvChunks)
+
+        // 1. Direct query about certifications
+        val q1 = "What professional certifications or licenses do you hold?"
+        val res1 = engine.retrieveFormattedContext(q1, maxChars = 1400)
+
+        assertTrue("Context must not be empty", res1.formattedContext.isNotBlank())
+        assertTrue("Context must contain AWS or Kubernetes certification",
+            res1.formattedContext.contains("AWS", ignoreCase = true) || res1.formattedContext.contains("Kubernetes", ignoreCase = true))
+        assertTrue("Context must cite Certifications section",
+            res1.formattedContext.contains("Certification", ignoreCase = true))
+
+        // 2. Broad background walkthrough query should also include certifications alongside experience
+        val q2 = "Can you walk me through your background and qualifications?"
+        val res2 = engine.retrieveFormattedContext(q2, maxChars = 1400)
+
+        assertTrue("Background query should include certifications",
+            res2.formattedContext.contains("Certification", ignoreCase = true) || res2.formattedContext.contains("AWS", ignoreCase = true))
+        assertTrue("Context length must obey maxChars 1400", res2.formattedContext.length <= 1400)
+    }
+
+    @Test
+    fun testInlineSectionHeaderNormalization() {
+        val extractor = DocumentTextExtractor(context = null)
+        val inlineInput = """
+            PROFESSIONAL SUMMARY
+            Senior engineer.
+            CERTIFICATIONS: AWS Certified Developer, PMP
+            WORK EXPERIENCE
+            Software Engineer at Lenovo.
+        """.trimIndent()
+
+        val normalized = extractor.normalizeText(inlineInput)
+        assertTrue("Should split CERTIFICATIONS to its own line", normalized.contains("CERTIFICATIONS\n• AWS Certified"))
+    }
 }

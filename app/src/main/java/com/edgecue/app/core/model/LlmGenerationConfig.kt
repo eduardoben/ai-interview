@@ -18,7 +18,7 @@ enum class PromptStyle(val displayName: String, val systemInstruction: String) {
 }
 
 data class LlmGenerationConfig(
-    val temperature: Float = 0.2f,
+    val temperature: Float = 0.35f,
     val topK: Int = 20,
     val maxTokens: Int = 200,
     val promptStyle: PromptStyle = PromptStyle.CONCISE,

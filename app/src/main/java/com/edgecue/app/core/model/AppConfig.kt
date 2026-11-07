@@ -59,6 +59,7 @@ class AppConfig(val modelsRootDir: File) {
         }
 
     val sttModelVersionFile = File(modelsRootDir, ".stt_version")
+    val hotwordsVersionFile = File(modelsRootDir, ".hotwords_version")
     val hotwordsFile = File(modelsRootDir, "hotwords.txt")
 
     val offlineWhisperEncoderFile: File
@@ -128,19 +129,25 @@ class AppConfig(val modelsRootDir: File) {
     }
 
     fun ensureHotwordsFile(forceRefresh: Boolean = false): File {
+        val currentVersion = try {
+            if (hotwordsVersionFile.exists()) hotwordsVersionFile.readText().trim() else ""
+        } catch (_: Throwable) { "" }
+
         val needsRefresh = forceRefresh || !hotwordsFile.exists() || hotwordsFile.length() <= 0L ||
+                currentVersion != HOTWORDS_VERSION ||
                 try { hotwordsFile.readText().any { it.isUpperCase() } } catch (_: Throwable) { true }
 
         if (needsRefresh) {
             val keywords = listOf(
-                // General, Behavioral & School / University Admissions
+                // General, Behavioral & School / University Admissions / Students
                 "behavioral", "strengths", "weaknesses", "leadership", "achievement", "challenge",
                 "conflict", "resolution", "star", "situation", "task", "action", "result",
                 "motivation", "collaboration", "communication", "teamwork", "academic", "admissions",
                 "research", "curriculum", "thesis", "undergraduate", "graduate", "dissertation",
                 "extracurricular", "experience", "project", "management", "organization",
-                
-                // Software, Engineering & Computer Science
+                "internship", "coursework", "scholarship", "fellowship", "capstone",
+
+                // Software, Engineering, AI/ML & Computer Science (#1 Specialized Depth)
                 "kotlin", "java", "coroutines", "stateflow", "sharedflow", "mutablestateflow",
                 "viewmodel", "lifecycle", "jetpack", "compose", "dependency injection",
                 "hilt", "dagger", "room", "retrofit", "okhttp", "serialization",
@@ -154,30 +161,62 @@ class AppConfig(val modelsRootDir: File) {
                 "postgresql", "mysql", "mongodb", "redis", "graphql", "rest api",
                 "microservices", "kafka", "rabbitmq", "ci cd", "garbage collection",
                 "heap", "stack", "memory leak", "algorithms", "data structures",
+                "pytorch", "tensorflow", "scikit learn", "latency", "throughput",
+                "distributed systems", "load balancing", "sharding", "caching", "idempotency",
 
-                // Product, Business & Operations
-                "roadmap", "stakeholder", "metrics", "kpi", "kpis", "analytics",
+                // Teachers, Educators & Academic Instruction
+                "pedagogy", "differentiated instruction", "classroom management", "lesson plan",
+                "formative assessment", "summative assessment", "rubric", "iep", "ferpa",
+                "special education", "scaffolding", "student engagement", "instructional design",
+
+                // Physicians, Healthcare, Nursing & Clinical Social Work
+                "clinical", "patient", "diagnosis", "differential diagnosis", "treatment",
+                "pathology", "pharmacology", "anatomy", "oncology", "cardiology", "pediatrics",
+                "surgery", "practice", "inpatient", "outpatient", "triage", "crisis",
+                "care coordination", "discharge", "de escalation", "regulatory compliance",
+                "social work", "biopsychosocial", "palliative", "hipaa", "electronic health record",
+
+                // Biologists, Life Sciences & Laboratory Research
+                "biology", "molecular", "genetics", "genomics", "proteomics", "microbiology",
+                "biochemistry", "cell culture", "assay", "pcr", "sequencing", "microscopy",
+                "chromatography", "spectroscopy", "reproducibility", "hypothesis", "protocol",
+
+                // Lawyers, Legal Counsel & Compliance
+                "litigation", "jurisdiction", "precedent", "statute", "deposition", "discovery",
+                "arbitration", "mediation", "fiduciary", "indemnification", "due diligence",
+                "regulatory", "compliance", "contract", "intellectual property", "tort",
+
+                // Architects, Urban Planning & Structural Design
+                "architectural", "zoning", "building code", "sustainability", "leed",
+                "AutoCAD", "revit", "bim", "structural", "schematic design",
+                "construction administration", "spatial", "rendering", "site analysis",
+
+                // Coaches, Athletics & Performance Leadership
+                "coaching", "mentorship", "athletics", "conditioning", "game plan",
+                "scouting", "player development", "sportsmanship", "rehabilitation", "roster",
+
+                // Secretaries, Executive Assistants & Office Administration
+                "executive assistant", "calendar management", "scheduling", "correspondence",
+                "itinerary", "gatekeeping", "confidentiality", "minutes", "procurement",
+                "stakeholder", "onboarding", "office administration",
+
+                // Product, Business, Finance & Consulting
+                "roadmap", "metrics", "kpi", "kpis", "analytics",
                 "user experience", "prioritization", "agile", "scrum", "strategy",
                 "opportunity", "market", "competitor", "revenue", "growth",
-
-                // Finance, Economics & Consulting
                 "valuation", "ebitda", "profitability", "roi", "balance sheet",
                 "income statement", "cash flow", "portfolio", "financial modeling",
                 "capital", "assets", "equity", "margin",
 
-                // Medicine, Healthcare & Sciences
-                "clinical", "patient", "diagnosis", "treatment", "pathology",
-                "pharmacology", "anatomy", "biology", "oncology", "cardiology",
-                "surgery", "practice",
-
                 // Common Question & Interview conversational patterns
-                "tell me about", "what is the difference between",
-                "how do you handle", "can you explain", "walk me through",
+                "tell me about", "tell us about", "what is the difference between",
+                "how do you handle", "can you explain", "walk me through", "walk us through",
                 "how does", "what are the advantages of", "why would you choose",
-                "what happens when", "how would you design"
+                "what happens when", "how would you design", "give me an example"
             )
             try {
-                hotwordsFile.writeText(keywords.map { it.trim().lowercase() }.filter { it.isNotBlank() }.joinToString("\n"))
+                hotwordsFile.writeText(keywords.map { it.trim().lowercase() }.filter { it.isNotBlank() }.distinct().joinToString("\n"))
+                hotwordsVersionFile.writeText(HOTWORDS_VERSION)
             } catch (_: Exception) {}
         }
         return hotwordsFile
@@ -250,7 +289,7 @@ class AppConfig(val modelsRootDir: File) {
     ): String {
         val trimmed = question.trim().take(2000)
         val contextTrimmed = configOverride.interviewContext.trim().take(500)
-        val safeRagContext = ragContext.trim().take(1200)
+        val safeRagContext = ragContext.trim().take(1500)
 
         val contextSection = when {
             contextTrimmed.isNotBlank() && safeRagContext.isNotBlank() -> {
@@ -272,6 +311,74 @@ class AppConfig(val modelsRootDir: File) {
                contextSection +
                "Question: $trimmed<end_of_turn>\n" +
                "<start_of_turn>model\n"
+    }
+
+    /**
+     * Builds the system prompt for live LiteRT-LM conversations with automatic role/persona adaptation:
+     * 1. If RAG (Resume / JD) and/or Interview Context is provided -> adopts that exact candidate role & background.
+     * 2. If NO context or resume is provided -> dynamically infers the target profession/role from the question
+     *    (with #1 principal-level specialization for Software Engineering & CS, and practitioner-grade STAR rigor across all professions).
+     */
+    fun buildEffectiveSystemPrompt(
+        question: String,
+        configOverride: LlmGenerationConfig = _llmConfig.value,
+        ragContext: String = ""
+    ): String {
+        val base = "$SYSTEM_SAFETY_GUARDRAIL\n${configOverride.promptStyle.systemInstruction}"
+        val contextTrimmed = configOverride.interviewContext.trim().take(500)
+        val safeRag = ragContext.trim().take(1500)
+
+        val contextSection = when {
+            contextTrimmed.isNotBlank() && safeRag.isNotBlank() -> {
+                "<interview_context>\nInterview Context (Role, Program & Domain): $contextTrimmed\n\nTailored Reference Context:\n$safeRag\n</interview_context>\n$CANDIDATE_RAG_GROUNDING_DIRECTIVE"
+            }
+            safeRag.isNotBlank() -> {
+                "<interview_context>\nTailored Reference Context:\n$safeRag\n</interview_context>\n$CANDIDATE_RAG_GROUNDING_DIRECTIVE"
+            }
+            contextTrimmed.isNotBlank() -> {
+                "<interview_context>\nInterview Context (Role, Program & Domain): $contextTrimmed\n</interview_context>\n$EXPLICIT_ROLE_GROUNDING_DIRECTIVE"
+            }
+            else -> {
+                val inferredPersona = inferPersonaFromQuestion(question)
+                "<inferred_persona>\nInferred Role & Domain Persona: $inferredPersona\n</inferred_persona>\n$ZERO_CONTEXT_ADAPTIVE_ROLE_DIRECTIVE"
+            }
+        }
+        return "$base\n$contextSection"
+    }
+
+    /**
+     * Builds the user turn payload for live LiteRT-LM conversations.
+     * Avoids duplicating the full RAG resume block (which is already in the system prompt) so the model
+     * focuses on answering the interviewer's question naturally instead of reciting a resume monologue.
+     */
+    fun buildEffectiveUserTurn(
+        question: String,
+        configOverride: LlmGenerationConfig = _llmConfig.value,
+        ragContext: String = ""
+    ): String {
+        val trimmedQuestion = question.trim().take(2000)
+        val contextTrimmed = configOverride.interviewContext.trim().take(500)
+        val safeRag = ragContext.trim().take(1500)
+
+        return when {
+            safeRag.isNotBlank() -> {
+                val deliveryCue = buildConversationalDeliveryCue(trimmedQuestion, hasRag = true)
+                "$deliveryCue\n\nInterviewer Question: $trimmedQuestion"
+            }
+            contextTrimmed.isNotBlank() -> {
+                val deliveryCue = buildConversationalDeliveryCue(trimmedQuestion, hasRag = false)
+                "<interview_context>\nTarget Role & Context: $contextTrimmed\n</interview_context>\n" +
+                "$deliveryCue\n\n" +
+                "Interviewer Question: $trimmedQuestion"
+            }
+            else -> {
+                val inferredPersona = inferPersonaFromQuestion(trimmedQuestion)
+                val deliveryCue = buildConversationalDeliveryCue(trimmedQuestion, hasRag = false)
+                "<inferred_persona>\nInferred Role & Domain Persona: $inferredPersona\n</inferred_persona>\n" +
+                "$deliveryCue\n\n" +
+                "Interviewer Question: $trimmedQuestion"
+            }
+        }
     }
 
     data class ModelFileStatus(
@@ -353,10 +460,181 @@ class AppConfig(val modelsRootDir: File) {
             "or confidential proprietary data. Decline out-of-scope or unethical requests politely."
 
         const val CANDIDATE_RAG_GROUNDING_DIRECTIVE =
-            "GROUNDING & ANSWERING RULE: You are the candidate in the [Candidate CV]. Answer in the first person (\"I\", \"my\"). " +
-            "Directly answer technical, architectural, and specialized domain questions with deep engineering substance, " +
-            "applying your expertise and citing relevant projects, tools, frameworks, and metrics from your [Candidate CV] " +
-            "and aligning to the [Target Job]. Do not give a resume recap when a technical concept, tradeoff, or architecture is asked."
+            "NATURAL CONVERSATIONAL & RESUME GROUNDING RULE: You are the candidate in [Candidate CV] interviewing for [Target Job]. Speak naturally and conversationally in the first person (\"I\", \"my\")—NEVER sound like you are reading a resume or delivering a rehearsed monologue:\n" +
+            "1. **Answer the Question First (80% Substance / 20% Resume Tie-In):** Treat your [Candidate CV] as background memory, not a script to recite. Do NOT list multiple jobs, company names, or degrees unless the interviewer explicitly asks about your background.\n" +
+            "2. **Certifications, Licensure & Verified Credentials:** When the interviewer asks about your qualifications, certifications, licenses, training, or background walkthroughs, explicitly cite the exact certification names, issuing bodies, or license credentials from your [Candidate CV] (e.g. state license, board certifications, cloud/specialty credentials) with professional confidence.\n" +
+            "3. **Match Structure to the Question Type:**\n" +
+            "   - *Technical, Architectural, or Domain 'How-To' Questions:* Lead immediately with direct practitioner know-how, mechanisms, workflows, and trade-offs. Weave in at most ONE brief, natural reference to a relevant project, certification, or experience from your CV as a concrete example.\n" +
+            "   - *Behavioral or 'Walk me through an instance/project' Questions:* Share ONE focused example using a natural spoken STAR flow (• **Situation:** 1 brief sentence of context; • **Task:** the core challenge; • **Action:** 70% of your answer detailing your hands-on execution, decisions, and trade-offs; • **Result:** the concrete outcome).\n" +
+            "   - *'Tell me about yourself' / Background Walkthroughs:* Deliver a warm, natural spoken narrative connecting your current work, key achievements, verified certifications/credentials, and academic foundation to the role without stiff labels."
+
+        /**
+         * Generates a concise, question-specific delivery cue so the LLM responds naturally to the exact question type
+         * instead of defaulting to a repetitive resume monologue.
+         */
+        fun buildConversationalDeliveryCue(question: String, hasRag: Boolean): String {
+            val lower = question.lowercase()
+            val isIntroOrBackground = lower.contains("tell me about yourself") ||
+                    lower.contains("tell us about yourself") ||
+                    lower.contains("walk me through your background") ||
+                    lower.contains("walk me through your resume") ||
+                    lower.contains("walk me through your career") ||
+                    lower.contains("your career path") ||
+                    lower.contains("introduce yourself")
+
+            val isBehavioralOrProjectStory = lower.contains("describe a situation") ||
+                    lower.contains("describe a time") ||
+                    lower.contains("tell me about a time") ||
+                    lower.contains("specific instance") ||
+                    lower.contains("walk me through an end-to-end project") ||
+                    lower.contains("walk me through a project") ||
+                    lower.contains("conflict")
+
+            val isQualificationOrCert = lower.contains("certif") ||
+                    lower.contains("license") ||
+                    lower.contains("licensure") ||
+                    lower.contains("credential") ||
+                    lower.contains("qualification") ||
+                    lower.contains("accredit")
+
+            return when {
+                isQualificationOrCert && hasRag ->
+                    "DELIVERY NOTE: Answer directly and conversationally, highlighting your verified licenses, certifications, and credentials from your CV alongside relevant practical experience and training."
+
+                isIntroOrBackground && hasRag ->
+                    "DELIVERY NOTE: This is a background introduction question. Speak naturally and conversationally in 3 concise bullet points covering (1) your current role and core focus, (2) a standout achievement/project relevant to the target job, and (3) your academic progression, certifications/credentials, and why this role fits. Sound human and engaging, not like a bulleted resume printout."
+
+                isBehavioralOrProjectStory && hasRag ->
+                    "DELIVERY NOTE: Pick ONE specific example from your background and answer naturally using • **Situation:** (keep setup to 1 short sentence—do not recite your resume), • **Task:** (the core problem), • **Action:** (spend 70% of your answer explaining HOW you solved it, the technical/domain mechanisms, and trade-offs), and • **Result:** (the measurable impact)."
+
+                hasRag ->
+                    "DELIVERY NOTE: Answer the interviewer's question directly and conversationally first—focus 80% of your response on the practical know-how, architecture/workflow, and trade-offs they asked about. Weave in at most one brief, natural touchpoint from your experience without turning the answer into a resume monologue."
+
+                isBehavioralOrProjectStory ->
+                    "DELIVERY NOTE: Answer in the first person using a natural STAR flow (• **Situation:** 1 short sentence, • **Task:** core objective, • **Action:** deep practitioner execution & trade-offs, • **Result:** measurable impact)."
+
+                else ->
+                    "DELIVERY NOTE: Answer directly, naturally, and with deep practitioner know-how—explaining concrete mechanisms, workflows, and trade-offs as a seasoned expert speaking in a real interview."
+            }
+        }
+
+        const val EXPLICIT_ROLE_GROUNDING_DIRECTIVE =
+            "EXPLICIT ROLE & STAR ANSWERING RULE: Embody the exact role, profession, and domain specified in <interview_context> and answer in the first person (\"I\", \"my\"). " +
+            "For behavioral, situational, or experience questions, structure your response using the STAR framework (• **Situation:**, • **Task:**, • **Action:**, • **Result:**) with concrete practitioner workflows and measurable outcomes. " +
+            "For software engineering, computer science, or system design questions, prioritize principal-level technical rigor—explaining underlying mechanisms, algorithms, concurrency/memory models, system architecture, and production trade-offs."
+
+        const val ZERO_CONTEXT_ADAPTIVE_ROLE_DIRECTIVE =
+            "ADAPTIVE PERSONA & ROLE INFERENCE RULE: No resume or explicit role context was provided. " +
+            "Adopt the inferred practitioner persona in <inferred_persona> (or infer the exact profession, industry, and seniority level directly from the interviewer's question) and respond in the first person (\"I\", \"my\") as a seasoned expert in that field. " +
+            "For behavioral, situational, or case-study questions, structure your response using the 4-bullet STAR framework (• **Situation:**, • **Task:**, • **Action:**, • **Result:**) with domain-authentic workflows, standards, and measurable results. " +
+            "For software engineering, machine learning, or system design questions, deliver principal-level technical depth—explicitly detailing internal mechanisms, data structures, concurrency/memory/latency trade-offs, and production architecture."
+
+        const val HOTWORDS_VERSION = "2026-11-v2-universal"
+
+        /**
+         * Zero-latency (<0.1 ms) domain and persona inference when no explicit resume or role context is configured.
+         * Keeps Software Engineering #1 in specialized technical rigor while adapting dynamically to any profession.
+         */
+        fun inferPersonaFromQuestion(question: String): String {
+            val lower = question.lowercase()
+            return when {
+                containsAny(
+                    lower,
+                    "kotlin", "java", "python", "javascript", "typescript", "c++", "rust", "golang",
+                    "coroutine", "stateflow", "compose", "android", "viewmodel", "jni", "sdk",
+                    "api", "rest", "graphql", "grpc", "microservice", "docker", "kubernetes",
+                    "database", "sql", "postgres", "redis", "kafka", "distributed", "sharding",
+                    "latency", "throughput", "concurrency", "multithreading", "mutex", "deadlock",
+                    "garbage collection", "memory leak", "heap", "algorithm", "complexity",
+                    "pytorch", "tensorflow", "scikit", "llm", "rag", "transformer", "mlops",
+                    "ci/cd", "git", "unit test", "refactor", "dependency injection", "system design",
+                    "architecture", "code", "compiler", "backend", "frontend", "fullstack", "devops"
+                ) -> "Staff / Principal Software & Systems Engineer (deliver deep architectural mechanisms, algorithms, concurrency/memory/latency trade-offs, and production-grade engineering rigor)"
+
+                containsAny(
+                    lower,
+                    "patient", "clinical", "hospital", "inpatient", "outpatient", "triage",
+                    "diagnosis", "treatment", "physician", "doctor", "nurse", "nursing", "icu",
+                    "emergency", "discharge", "biopsychosocial", "palliative", "hipaa", "ehr",
+                    "epic", "medicaid", "medicare", "pharmacology", "surgery", "pathology",
+                    "social work", "lcsw", "psychiatric", "de-escalation", "bereavement"
+                ) -> "Senior Healthcare Clinician / Physician / Medical Specialist (ground answer in evidence-based clinical protocols, patient safety, interdisciplinary care coordination, and HIPAA/CMS compliance)"
+
+                containsAny(
+                    lower,
+                    "classroom", "student", "lesson plan", "pedagogy", "curriculum", "teaching",
+                    "teacher", "iep", "504", "ferpa", "rubric", "formative", "summative",
+                    "differentiated instruction", "special education", "parent-teacher", "grade level",
+                    "school district", "principal", "literacy", "scaffolding"
+                ) -> "Lead Educator / Classroom Teacher (ground answer in differentiated pedagogy, instructional design, classroom management, IEP/504 accommodations, and measurable student growth)"
+
+                containsAny(
+                    lower,
+                    "litigation", "contract", "statute", "precedent", "deposition", "discovery",
+                    "court", "judge", "jury", "counsel", "attorney", "lawyer", "legal",
+                    "fiduciary", "indemnification", "arbitration", "mediation", "jurisdiction",
+                    "brief", "motion", "pleading", "regulatory", "nda", "due diligence"
+                ) -> "Senior Legal Counsel / Litigation & Corporate Attorney (ground answer in statutory/contractual precision, precedent analysis, risk mitigation, fiduciary duty, and client advocacy)"
+
+                containsAny(
+                    lower,
+                    "pcr", "qpcr", "assay", "sequencing", "crispr", "dna", "rna", "protein",
+                    "cell culture", "microscopy", "chromatography", "spectroscopy", "reagent",
+                    "specimen", "laboratory", "wet lab", "biologist", "biology", "molecular",
+                    "genetics", "microbiology", "biochemistry", "western blot", "elisa"
+                ) -> "Senior Research Biologist / Life Sciences Scientist (ground answer in experimental controls, assay validation, protocol reproducibility, biosafety/GLP standards, and quantitative data analysis)"
+
+                containsAny(
+                    lower,
+                    "zoning", "building code", "bim", "revit", "autocad", "cad", "leed",
+                    "schematic design", "floor plan", "structural", "elevation", "facade",
+                    "construction administration", "site analysis", "hvac", "mep", "blueprint",
+                    "urban planning", "spatial"
+                ) -> "Licensed Senior Architect / Design Principal (ground answer in spatial & structural systems, building code/ADA compliance, BIM/Revit coordination, sustainability/LEED, and construction administration)"
+
+                containsAny(
+                    lower,
+                    "athlete", "coaching", "coach", "practice plan", "game plan", "scouting",
+                    "conditioning", "roster", "locker room", "halftime", "sportsmanship",
+                    "playoff", "tournament", "player development", "varsity", "Athletic"
+                ) -> "Head Athletic / High-Performance Coach (ground answer in player development, tactical preparation, biomechanical/conditioning safety, team culture, and competitive execution)"
+
+                containsAny(
+                    lower,
+                    "executive assistant", "secretary", "calendar management", "itinerary",
+                    "travel arrangement", "inbox", "gatekeeping", "board meeting", "minutes",
+                    "office management", "front desk", "reception", "correspondence", "c-suite",
+                    "expense report", "scheduling conflict"
+                ) -> "Senior Executive Assistant / Office Operations Manager (ground answer in C-suite calendar & inbox prioritization, diplomatic gatekeeping, strict confidentiality, logistics precision, and operational efficiency)"
+
+                containsAny(
+                    lower,
+                    "admissions", "undergraduate", "graduate school", "scholarship", "dissertation",
+                    "thesis", "gpa", "coursework", "capstone", "campus", "extracurricular",
+                    "internship", "fellowship", "major", "faculty", "semester"
+                ) -> "High-Achieving Academic / University Candidate (ground answer in rigorous coursework, research methodology, intellectual curiosity, collaborative capstone/lab execution, and academic impact)"
+
+                containsAny(
+                    lower,
+                    "ebitda", "valuation", "balance sheet", "cash flow", "p&l", "gaap",
+                    "financial model", "roi", "unit economics", "roadmap", "kpi", "okr",
+                    "go-to-market", "churn", "arr", "mrr", "audit", "cpa", "portfolio"
+                ) -> "Senior Finance & Product Strategy Leader (ground answer in quantitative financial modeling, unit economics, risk-adjusted ROI, stakeholder alignment, and measurable business outcomes)"
+
+                else -> "Infer the exact target profession, industry, and seniority level directly from the interviewer's question and respond as a seasoned, high-performing practitioner in that exact role"
+            }
+        }
+
+        private fun containsAny(lowerText: String, vararg terms: String): Boolean {
+            for (term in terms) {
+                if (term.length <= 3) {
+                    if (Regex("""\b${Regex.escape(term)}\b""").containsMatchIn(lowerText)) return true
+                } else {
+                    if (lowerText.contains(term)) return true
+                }
+            }
+            return false
+        }
 
         const val VAD_URL = "https://huggingface.co/deepghs/silero-vad-onnx/resolve/main/silero_vad.onnx"
         const val STT_MODEL_VERSION = "2023-06-21-gigaspeech"

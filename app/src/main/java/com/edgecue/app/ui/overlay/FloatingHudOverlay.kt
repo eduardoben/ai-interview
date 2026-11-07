@@ -464,44 +464,6 @@ fun FloatingHudOverlay(
 
                 Spacer(modifier = Modifier.height(6.dp))
 
-                // Compact Quick Category Chips Row
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(5.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    InterviewCategory.entries.forEach { category ->
-                        val isSelected = uiState.selectedCategory == category
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(50))
-                                .background(
-                                    if (isSelected) OledAccentIndigo.copy(alpha = 0.22f) else OledSurfaceHigh
-                                )
-                                .border(
-                                    width = if (isSelected) 1.dp else 0.5.dp,
-                                    color = if (isSelected) OledAccentIndigo else OledBorder,
-                                    shape = RoundedCornerShape(50)
-                                )
-                                .clickable { onSelectCategory(category) }
-                                .padding(horizontal = 9.dp, vertical = 3.dp)
-                                .semantics { contentDescription = "Category: ${category.displayName}" },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = category.displayName,
-                                fontSize = 10.5.sp,
-                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                                color = if (isSelected) OledTextPrimary else OledTextSecondary
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(6.dp))
-
                 // Primary Content View (Tabs: Answer or Transcripts)
                 Box(
                     modifier = Modifier

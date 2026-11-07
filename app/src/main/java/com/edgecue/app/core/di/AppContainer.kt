@@ -61,7 +61,7 @@ class AppContainer private constructor(private val context: Context) {
     init {
         // Fast-path initial configuration bootstrap from DataStore / SharedPreferences
         val prefs = context.getSharedPreferences("llm_prefs", Context.MODE_PRIVATE)
-        val temp = prefs.getFloat("temperature", 0.2f)
+        val temp = prefs.getFloat("temperature", 0.35f)
         val topK = prefs.getInt("topK", 20)
         val maxTokens = prefs.getInt("maxTokens", 200)
         val promptStyleStr = prefs.getString("promptStyle", PromptStyle.CONCISE.name) ?: PromptStyle.CONCISE.name

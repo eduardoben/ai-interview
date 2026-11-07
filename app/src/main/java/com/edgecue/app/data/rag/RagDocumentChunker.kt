@@ -16,18 +16,28 @@ class RagDocumentChunker(
 
     companion object {
         private val SECTION_HEADING_REGEX = Regex(
-            """^(?:#+\s*)?(experience|work\s+history|employment|professional\s+experience|""" +
-                    """education|academic\s+background|skills|technical\s+skills|core\s+competencies|technologies|""" +
-                    """projects|key\s+projects|selected\s+projects|summary|professional\s+summary|profile|about\s+me|objective|""" +
-                    """certifications|licenses|awards|publications|patents|languages|""" +
-                    """responsibilities|what\s+you'll\s+do|duties|job\s+duties|role\s+overview|about\s+the\s+role|""" +
+            """^(?:#+\s*)?(?:[•|\-–—*]\s*)?(experience|work\s+history|employment|professional\s+experience|clinical\s+experience|""" +
+                    """teaching\s+experience|instructional\s+experience|classroom\s+experience|curriculum\s+development|""" +
+                    """research\s+experience|laboratory\s+skills|fieldwork|clinical\s+rotations|residency|fellowship|fellowships|""" +
+                    """legal\s+experience|litigation\s+experience|representative\s+matters|bar\s+admissions|clerkships|practice\s+areas|""" +
+                    """coaching\s+experience|athletic\s+experience|team\s+achievements|administrative\s+experience|office\s+management|executive\s+support|""" +
+                    """design\s+experience|selected\s+works|studio\s+projects|exhibitions|""" +
+                    """internships|relevant\s+coursework|coursework|academic\s+projects|extracurricular\s+activities|""" +
+                    """leadership(?:\s*[&/and]+\s*activities)?|volunteer\s+experience|community\s+service|""" +
+                    """grants(?:\s*[&/and]+\s*fellowships)?|honors(?:\s*[&/and]+\s*awards)?|presentations|conferences|affiliations|professional\s+affiliations|memberships|""" +
+                    """education|academic\s+background|skills|technical\s+skills|clinical\s+skills|core\s+competencies(?:\s*[&/and]+\s*(?:clinical|technical)\s+skills)?|technologies|""" +
+                    """projects|key\s+projects|selected\s+projects|case\s+studies|portfolio|summary|professional\s+summary|executive\s+summary|profile|about\s+me|objective|""" +
+                    """licensure(?:\s*[&/and]+\s*certifications?)?|certifications?(?:\s*[&/and]+\s*(?:licensure|licenses|training|courses))?|""" +
+                    """professional\s+certifications?|technical\s+certifications?|certificates|licenses(?:\s*[&/and]+\s*credentials?)?|""" +
+                    """board\s+certifications|credentials|accreditations|security\s+clearances|awards|publications|patents|languages|""" +
+                    """responsibilities|key\s+responsibilities|what\s+you'll\s+do|duties|job\s+duties|role\s+overview|position\s+overview|about\s+the\s+role|""" +
                     """requirements|qualifications|basic\s+qualifications|minimum\s+qualifications|""" +
-                    """preferred\s+qualifications|what\s+we're\s+looking\s+for)[:\s]*$""",
+                    """preferred\s+qualifications|what\s+we're\s+looking\s+for)(?:\s*[:|—\-–])?[:\s]*$""",
             RegexOption.IGNORE_CASE
         )
 
         private val CONTACT_OR_FOOTER_LINE_REGEX = Regex(
-            """^(?:[\w.+-]+@[\w.-]+\.[a-zA-Z]{2,}|https?://\S+|(?:www\.)?(?:linkedin|github)\.com/\S+|\s*[•|-]?\s*)+$""",
+            """^(?:[\w.+-]+@[\w.-]+\.[a-zA-Z]{2,}|https?://\S+|(?:www\.)?(?:linkedin|github)\.com/\S+|\s*[•|-]?\s*|.*curriculum\s+vitae.*page\s+\d+\s+of\s+\d+.*)$""",
             RegexOption.IGNORE_CASE
         )
 
@@ -337,16 +347,32 @@ class RagDocumentChunker(
     private fun getSectionSemanticTokens(sectionTitle: String): List<String> {
         val s = sectionTitle.lowercase()
         return when {
-            s.contains("education") || s.contains("academic") ->
-                listOf("educa", "academ", "degre", "univers", "progres", "school", "graduat", "master", "bachelor")
-            s.contains("experience") || s.contains("work") || s.contains("employment") ->
-                listOf("experi", "profession", "journey", "career", "work", "histori", "role", "compani")
+            s.contains("education") || s.contains("academic") || s.contains("coursework") ->
+                listOf("educa", "academ", "degre", "univers", "progres", "school", "graduat", "master", "bachelor", "coursework", "major")
+            s.contains("teaching") || s.contains("instruction") || s.contains("classroom") || s.contains("curriculum") ->
+                listOf("teach", "educa", "classroom", "curriculum", "pedagogi", "lesson", "student", "experi", "instruct")
+            s.contains("research") || s.contains("laboratori") || s.contains("laboratory") || s.contains("fieldwork") || s.contains("publica") ->
+                listOf("research", "laboratori", "experi", "assay", "scientif", "studi", "protocol", "publica", "method")
+            s.contains("legal") || s.contains("litiga") || s.contains("matter") || s.contains("bar ") || s.contains("clerkship") ->
+                listOf("legal", "litiga", "counsel", "matter", "case", "contract", "statut", "court", "experi", "bar")
+            s.contains("clinical") || s.contains("residen") || s.contains("rotation") || s.contains("fellowship") ->
+                listOf("clinic", "patient", "hospit", "care", "diagnos", "treatment", "experi", "residen", "rotat")
+            s.contains("coach") || s.contains("athlet") ->
+                listOf("coach", "athlet", "team", "player", "train", "mentor", "leadership", "experi")
+            s.contains("administrat") || s.contains("office") || s.contains("executive support") ->
+                listOf("administrat", "execut", "calendar", "schedul", "oper", "coordin", "support", "experi")
+            s.contains("experience") || s.contains("work") || s.contains("employment") || s.contains("internship") ->
+                listOf("experi", "profession", "journey", "career", "work", "histori", "role", "compani", "internship")
             s.contains("summary") || s.contains("overview") || s.contains("profile") || s.contains("objective") ->
                 listOf("summari", "overview", "background", "profil", "introduc", "career", "journey")
-            s.contains("project") ->
-                listOf("project", "portfolio", "built", "architect", "develop", "implement")
-            s.contains("skill") || s.contains("competenc") || s.contains("technolog") || s.contains("certif") ->
-                listOf("skill", "technic", "tool", "framework", "technolog", "certif", "stack")
+            s.contains("project") || s.contains("case stud") || s.contains("portfolio") || s.contains("selected work") || s.contains("studio") ->
+                listOf("project", "portfolio", "built", "architect", "develop", "implement", "end-to-end", "deploy", "pipelin", "model", "produc", "serv", "api", "system", "workflow", "design", "studio")
+            s.contains("certif") || s.contains("licens") || s.contains("credential") || s.contains("accredit") ->
+                listOf("certif", "licens", "credential", "accredit", "board", "qualif", "exam", "clearanc", "charter", "registr", "competenc")
+            s.contains("skill") || s.contains("competenc") || s.contains("technolog") ->
+                listOf("skill", "technic", "clinic", "competenc", "tool", "framework", "technolog", "modalit", "complianc", "stack")
+            s.contains("leadership") || s.contains("extracurricular") || s.contains("volunteer") || s.contains("award") || s.contains("grant") ->
+                listOf("leadership", "achiev", "award", "volunteer", "grant", "initiativ", "mentor", "communiti")
             s.contains("requirement") || s.contains("qualif") || s.contains("responsib") || s.contains("duties") ->
                 listOf("requir", "qualif", "respons", "role", "fit", "expect")
             else -> emptyList()
@@ -364,6 +390,9 @@ class RagDocumentChunker(
             .replace(".net", "dotnet")
             .replace("ci/cd", "cicd")
             .replace("node.js", "nodejs")
+            .replace("do-178b/c", "do178bc")
+            .replace("do-178c", "do178c")
+            .replace("do-178b", "do178b")
 
         // Split on non-alphanumeric characters except hyphen within words
         val rawTokens = normalized.split(Regex("[^a-z0-9_-]+"))
@@ -382,6 +411,12 @@ class RagDocumentChunker(
      * Fast suffix stemming for English technical text.
      */
     fun stemToken(token: String): String {
+        when {
+            token.startsWith("certif") -> return "certif"
+            token.startsWith("licens") -> return "licens"
+            token.startsWith("credential") -> return "credential"
+            token.startsWith("accredit") -> return "accredit"
+        }
         return when {
             token.endsWith("ing") && token.length > 5 -> token.dropLast(3)
             token.endsWith("tion") && token.length > 5 -> token.dropLast(4)

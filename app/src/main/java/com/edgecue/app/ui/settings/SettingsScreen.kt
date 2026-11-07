@@ -646,8 +646,8 @@ fun SettingsScreen(
                 onConfigChange(
                     config.copy(
                         promptStyle = PromptStyle.CONCISE,
-                        maxTokens = 250,
-                        temperature = 0.2f,
+                        maxTokens = 280,
+                        temperature = 0.35f,
                         topK = 20
                     )
                 )
@@ -1011,19 +1011,19 @@ private fun LlmConfigurationGuideDialog(
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Text(
-                        text = "RECOMMENDED GOLDEN PRESET",
+                        text = "RECOMMENDED GOLDEN PRESET (STAR FORMAT)",
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
                         color = OledStatusEmerald
                     )
                     Text(
-                        text = "Style: Concise · Max Length: 250 tokens · Temp: 0.20 · Top-K: 20",
+                        text = "Style: Concise · Max Length: 280 tokens · Temp: 0.35 · Top-K: 20",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = OledTextPrimary
                     )
                     Text(
-                        text = "Delivers 3 structured, glanceable talking points with zero mid-sentence cutoffs and ~950 ms first-token latency on Tensor TPU.",
+                        text = "Delivers structured STAR (Situation, Task, Action, Result) talking points combining your CV projects with deep technical know-how and ~950 ms first-token latency on Tensor TPU.",
                         fontSize = 11.sp,
                         lineHeight = 15.sp,
                         color = OledTextSecondary

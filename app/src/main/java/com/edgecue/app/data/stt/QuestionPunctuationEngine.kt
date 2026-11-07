@@ -15,17 +15,28 @@ import java.util.Locale
  */
 object QuestionPunctuationEngine {
 
-    // Technical acronyms that must always be uppercase
+    // Technical & cross-industry acronyms that must always be uppercase
     private val ACRONYMS_UPPER = setOf(
+        // Software, Computing & AI/ML
         "API", "APIS", "REST", "HTTP", "HTTPS", "JSON", "SQL", "HTML", "CSS", "XML",
         "JVM", "JNI", "SDK", "NDK", "AAR", "APK", "JAR", "URL", "URI", "UUID",
         "CPU", "GPU", "TPU", "NPU", "RAM", "ROM", "SSD", "HDD", "IO", "I/O",
         "TCP", "UDP", "IP", "DNS", "SSH", "SSL", "TLS", "IPC", "RPC", "GRPC",
         "MVVM", "MVI", "MVP", "MVC", "OOP", "SOLID", "DRY", "KISS", "YAGNI",
         "DI", "CI", "CD", "CI/CD", "AWS", "GCP", "BPE", "VAD", "STT", "TTS", "ASR", "LLM",
-        "STAR", "KPI", "KPIS", "ROI", "EBITDA", "P&L", "OKRS", "OKR", "SLA", "SLO", "SLI",
         "QA", "UI", "UX", "PR", "OS", "IDE", "DB", "RDBMS", "ACID", "BASE", "ORM",
-        "AIDL", "HAL", "OOM", "ANR", "FPS", "TTFT", "TPS"
+        "AIDL", "HAL", "OOM", "ANR", "FPS", "TTFT", "TPS",
+        // Business, Finance, Legal & Operations
+        "STAR", "KPI", "KPIS", "ROI", "EBITDA", "P&L", "OKRS", "OKR", "SLA", "SLO", "SLI",
+        "JD", "ABA", "NDA", "MSA", "SOW", "M&A", "IPO", "SEC", "GAAP", "IFRS", "CPA", "CFA",
+        "GDPR", "CCPA", "PMP", "ERP", "CRM", "HR", "ATS",
+        // Healthcare, Medicine & Social Work
+        "HIPAA", "CMS", "EHR", "EMR", "ICU", "NICU", "PICU", "ER", "DNR", "CBT", "DBT", "TIC",
+        "MSW", "LCSW", "BSN", "MSN", "RN", "NP", "MD", "CPR", "BLS", "ACLS", "OSHA", "FDA", "CDC", "NIH",
+        // Education, Science, Biology & Architecture
+        "IEP", "FERPA", "IDEA", "ESL", "ELL", "STEM", "GPA",
+        "PCR", "QPCR", "DNA", "RNA", "MRNA", "CRISPR", "ELISA", "HPLC", "NGS", "GLP", "GMP", "SOP", "IRB",
+        "CAD", "BIM", "LEED", "AIA", "HVAC", "MEP", "RFP"
     )
 
     // Proper nouns with specific casing
@@ -103,7 +114,8 @@ object QuestionPunctuationEngine {
         "can", "could", "would", "should", "will", "shall", "may", "might", "must",
         "is", "are", "do", "does", "did", "have", "has", "had", "was", "were",
         "explain", "describe", "elaborate", "clarify", "discuss",
-        "compare", "contrast", "differentiate"
+        "compare", "contrast", "differentiate", "outline", "define",
+        "suppose", "imagine", "assume"
     )
 
     // Contractions mapping (lowercase token -> expanded or apostrophed form)
@@ -227,10 +239,15 @@ object QuestionPunctuationEngine {
             return true
         }
 
-        // 2. Colloquial interview prompts
-        if (targetSentence.startsWith("tell me about") ||
-            targetSentence.startsWith("walk me through") ||
-            targetSentence.startsWith("share an example") ||
+        // 2. Colloquial & cross-industry interview prompts
+        if (targetSentence.startsWith("tell me") ||
+            targetSentence.startsWith("tell us") ||
+            targetSentence.startsWith("walk me") ||
+            targetSentence.startsWith("walk us") ||
+            targetSentence.startsWith("give me") ||
+            targetSentence.startsWith("give us") ||
+            targetSentence.startsWith("share a") ||
+            targetSentence.startsWith("share an") ||
             targetSentence.startsWith("in your opinion") ||
             targetSentence.startsWith("talk about") ||
             targetSentence.startsWith("what is") ||

@@ -523,7 +523,11 @@ class LiteRagEvaluationTest {
         println("CV Chunks: ${ragResult.cvChunkCount}, JD Chunks: ${ragResult.jdChunkCount}")
         println(ragResult.formattedContext)
 
-        // 1. Must retrieve Technical Skills or Projects or Experience with PyTorch / Docker / APIs
+        // 1. Must retrieve Projects + Technical Skills or Experience with PyTorch / Docker / APIs
+        assertTrue(
+            "Must retrieve candidate Projects section for end-to-end project walkthrough question",
+            ragResult.formattedContext.contains("[Candidate CV - Projects]", ignoreCase = true)
+        )
         assertTrue(
             "Must retrieve relevant technical content (Projects or Technical Skills or Experience)",
             ragResult.formattedContext.contains("Technical Skills", ignoreCase = true) ||
@@ -544,6 +548,203 @@ class LiteRagEvaluationTest {
         val appConfig = AppConfig(File("dummy/path"))
         val prompt = appConfig.formatGemmaPrompt(specializedQuestion, ragContext = ragResult.formattedContext)
         assertTrue(prompt.contains(AppConfig.CANDIDATE_RAG_GROUNDING_DIRECTIVE))
+    }
+
+    // =========================================================================
+    // GATE 7: Cross-Industry Healthcare Verification (Elena Vance LCSW + Hospital JD)
+    // =========================================================================
+
+    @Test
+    fun testHealthcareMedicalSocialWorkerResumeAndJdAcrossThreeClinicalQuestions() {
+        val elenaVanceCv = """
+            ELENA VANCE, LCSW
+            LICENSED CLINICAL SOCIAL WORKER • INPATIENT & CRISIS SPECIALIST
+            Denver, CO • (555) 349-2810 • elena.vance@email.com • linkedin.com/in/elena-vance-lcsw
+
+            PROFESSIONAL SUMMARY
+            Licensed Clinical Social Worker (LCSW) with 8 years of specialized clinical experience delivering high-impact medical case management, acute crisis intervention, and biopsychosocial assessments across emergency and intensive care hospital units. Proven expertise leading interdisciplinary care transitions, mediating complex palliative care decisions, and resolving systemic barriers for vulnerable patient populations through trauma-informed care and robust community resource navigation.
+
+            LICENSURE & CERTIFICATIONS
+            Licensed Clinical Social Worker (LCSW) — License #CSW-098234 Colorado State Board of Social Work Examiners
+            Certified Advanced Children, Youth, and Family Social Worker (C-ACYFSW) National Association of Social Workers (NASW)
+            Certified Crisis Intervention Specialist (CCIS) National Crisis Prevention Institute
+
+            CORE COMPETENCIES & CLINICAL SKILLS
+            Clinical Modalities: Crisis Intervention & De-escalation, Trauma-Informed Care (TIC), Motivational Interviewing, Short-term CBT
+            Inpatient Operations: Biopsychosocial Assessments, Acute Discharge Planning, Care Coordination, Advance Directives, Guardianship
+            Systems & Compliance: Medicaid/Medicare Regulations, CMS Quality Measures, HIPAA Compliance, Epic EHR, Multidisciplinary Rounds
+
+            PROFESSIONAL EXPERIENCE
+            Senior Medical Social Worker 2021 – Present
+            Valley Health Medical Center Denver, CO
+            • Manage an active caseload of 25–30 acute inpatient admissions weekly across Emergency and Intensive Care Units.
+            • Conduct comprehensive biopsychosocial assessments, chemical dependency screenings, and social determinant evaluations within 24 hours of hospital admission.
+            • Coordinate safe, post-acute care transitions with skilled nursing facilities, home health agencies, and hospice teams, reducing 30-day readmissions by 12%.
+            • Facilitate interdisciplinary family conferences to mediate complex end-of-life choices, Medical Durable Power of Attorney, and palliative consults.
+            • Lead departmental crisis response protocols for sudden bereavement, trauma resuscitations, and domestic violence interventions.
+
+            Clinical Case Manager 2018 – 2021
+            Hope Valley Behavioral Health Services Aurora, CO
+            • Delivered short-term Cognitive Behavioral Therapy (CBT) and motivational interviewing to adults managing severe chronic psychiatric conditions.
+            • Conducted immediate clinical crisis evaluations and de-escalation for patients presenting with active suicidal ideation, initiating mental health holds when required.
+            • Connected over 150 low-income clients annually with vital safety-net benefits, including Medicaid enrollment, SNAP, and transitional supportive housing.
+            • Collaborated closely with county human services, legal aid clinics, and community psychiatrists to formulate comprehensive outpatient recovery plans.
+
+            EDUCATION
+            Master of Social Work (MSW) — Health & Behavioral Health Concentration 2018
+            University of Denver Denver, CO
+            Bachelor of Arts (B.A.) in Psychology — Magna Cum Laude 2016
+            Colorado State University Fort Collins, CO
+            Elena Vance, LCSW — Curriculum Vitae Page 1 of 1
+        """.trimIndent()
+
+        val stJudeJd = """
+            Medical Social Worker (LCSW) – Inpatient Care
+            Facility: St. Jude Regional Hospital
+            Department: Social Services & Care Coordination
+            Employment Type: Full-time
+            Location: Denver, CO
+
+            Position Overview
+            St. Jude Regional Hospital is seeking a full-time Licensed Clinical Social Worker (LCSW) to join our Inpatient Care Coordination team. The Medical Social Worker will assess the psychosocial needs of patients and families, design discharge plans for high-risk patients, and provide crisis support within acute medical units.
+
+            Key Responsibilities
+            Complete comprehensive biopsychosocial assessments within 24 hours of patient admission.
+            Collaborate with physicians, registered nurses, and physical therapists to coordinate safe discharge and continuum-of-care plans.
+            Deliver crisis intervention for trauma, domestic violence, psychiatric emergencies, and sudden bereavement.
+            Facilitate advanced healthcare planning, including DNR orders, Medical Durable Power of Attorney, and palliative care consults.
+            Identify barriers to care, including housing instability, insurance gaps, and transportation, connecting patients with community partners.
+            Maintain complete and timely clinical documentation within the hospital's Electronic Health Record (Epic) complying with CMS and HIPAA regulations.
+
+            Requirements
+            Master of Social Work (MSW) from a CSWE-accredited program.
+            Current, unencumbered LCSW license in the State of Colorado.
+            Minimum of 3 years of clinical social work experience, preferably in a hospital or acute healthcare setting.
+            Demonstrated competency in crisis de-escalation and complex discharge planning.
+            Familiarity with Medicare/Medicaid regulations and regional public assistance programs.
+
+            Preferred Qualifications
+            Prior experience with Epic EHR software.
+            Bilingual (English/Spanish).
+            Certification in Healthcare Social Work (C-SWHC) or Palliative Care.
+        """.trimIndent()
+
+        val extractor = DocumentTextExtractor(context = null)
+        val cvChunks = chunker.chunkDocument("CURRICULUM", extractor.normalizeText(elenaVanceCv))
+        val jdChunks = chunker.chunkDocument("JOB_DESCRIPTION", extractor.normalizeText(stJudeJd))
+
+        val customEngine = LiteRagEngineImpl(chunker)
+        customEngine.updateIndex(cvChunks + jdChunks)
+
+        val q1 = "Could you tell us about yourself, your career path in clinical social work, and what draws you specifically to inpatient crisis and care coordination in a hospital setting?"
+        val res1 = customEngine.retrieveFormattedContext(q1, maxChars = 1100)
+        println("=== LCSW Q1 (INTRO & CAREER PATH) ===")
+        println(res1.formattedContext)
+        assertTrue(res1.formattedContext.contains("ELENA VANCE", ignoreCase = true) || res1.formattedContext.contains("Licensed Clinical Social Worker", ignoreCase = true))
+        assertTrue(res1.formattedContext.contains("Valley Health", ignoreCase = true) || res1.formattedContext.contains("University of Denver", ignoreCase = true))
+        assertFalse("Page footer must be stripped", res1.formattedContext.contains("Page 1 of 1"))
+
+        val q2 = "In an acute hospital environment, situations escalate quickly. Can you walk me through a specific instance where a patient or family member was in severe crisis or refusing necessary medical care, and how you used clinical de-escalation to resolve the situation?"
+        val res2 = customEngine.retrieveFormattedContext(q2, maxChars = 1100)
+        println("=== LCSW Q2 (CRISIS DE-ESCALATION) ===")
+        println(res2.formattedContext)
+        assertTrue(res2.formattedContext.contains("crisis", ignoreCase = true) || res2.formattedContext.contains("de-escalation", ignoreCase = true))
+
+        val q3 = "We frequently see vulnerable patients facing significant social barriers, such as homelessness, lack of insurance, or cognitive decline with no next of kin. How do you design and execute a discharge plan under those constraints while ensuring patient safety and regulatory compliance?"
+        val res3 = customEngine.retrieveFormattedContext(q3, maxChars = 1100)
+        println("=== LCSW Q3 (DISCHARGE PLANNING & COMPLIANCE) ===")
+        println(res3.formattedContext)
+        assertTrue(res3.formattedContext.contains("discharge", ignoreCase = true) || res3.formattedContext.contains("readmissions", ignoreCase = true) || res3.formattedContext.contains("HIPAA", ignoreCase = true))
+    }
+
+    // =========================================================================
+    // GATE 8: Universal Cross-Profession RAG & Adaptive Persona Verification
+    // =========================================================================
+
+    @Test
+    fun testCrossProfessionChunkingRetrievalAndAdaptivePersonaInference() {
+        // 1. Verify section recognition and retrieval across Teacher, Lawyer, Biologist, and Architect CVs
+        val multiDomainCv = """
+            DR. MARCUS CHEN
+            
+            TEACHING EXPERIENCE
+            Lead AP Biology & STEM Educator — Lincoln High School (2021 – Present)
+            • Designed differentiated instruction and IEP accommodations for 140+ students, improving AP exam pass rates by 28%.
+            
+            RESEARCH EXPERIENCE
+            Molecular Biology Fellow — Stanford Genomics Lab (2018 – 2021)
+            • Executed CRISPR-Cas9 gene editing, qPCR assays, and next-generation sequencing (NGS) protocols with 99.4% reproducibility.
+            
+            REPRESENTATIVE MATTERS
+            Patent & Regulatory Technical Advisor — BioLaw Clinic
+            • Drafted regulatory compliance briefs, NDA agreements, and prior-art patent litigation analyses.
+            
+            SELECTED WORKS
+            Sustainable Lab Facility Redesign
+            • Coordinated BIM/Revit spatial layouts and LEED Gold laboratory ventilation requirements.
+        """.trimIndent()
+
+        val chunks = chunker.chunkDocument("CURRICULUM", multiDomainCv)
+        val sectionTitles = chunks.map { it.sectionTitle.lowercase() }.toSet()
+        assertTrue("Must recognize Teaching Experience heading", sectionTitles.contains("teaching experience"))
+        assertTrue("Must recognize Research Experience heading", sectionTitles.contains("research experience"))
+        assertTrue("Must recognize Representative Matters heading", sectionTitles.contains("representative matters"))
+        assertTrue("Must recognize Selected Works heading", sectionTitles.contains("selected works"))
+
+        val multiEngine = LiteRagEngineImpl(chunker)
+        multiEngine.updateIndex(chunks)
+
+        val teacherRes = multiEngine.retrieveFormattedContext("How do you implement differentiated instruction and IEP accommodations in your classroom?", maxChars = 1100)
+        assertTrue(teacherRes.formattedContext.contains("IEP", ignoreCase = true) || teacherRes.formattedContext.contains("Teaching Experience", ignoreCase = true))
+
+        val bioRes = multiEngine.retrieveFormattedContext("Walk us through your experience with qPCR assays and CRISPR protocols in the laboratory.", maxChars = 1100)
+        assertTrue(bioRes.formattedContext.contains("CRISPR", ignoreCase = true) || bioRes.formattedContext.contains("Research Experience", ignoreCase = true))
+
+        // 2. Verify Dynamic Persona / Role Adaptation (Zero-Context vs. Provided-Context)
+        val appConfig = AppConfig(File("dummy/path"))
+
+        // Case A: Zero context -> infers Software Engineering (#1 priority) from technical question
+        val sweSysPrompt = appConfig.buildEffectiveSystemPrompt(
+            question = "How would you design a distributed rate limiter in Kotlin using Redis and coroutines?",
+            configOverride = LlmGenerationConfig(interviewContext = ""),
+            ragContext = ""
+        )
+        assertTrue(sweSysPrompt.contains("Staff / Principal Software & Systems Engineer"))
+        assertTrue(sweSysPrompt.contains(AppConfig.ZERO_CONTEXT_ADAPTIVE_ROLE_DIRECTIVE))
+
+        // Case B: Zero context -> infers Teacher/Educator from classroom question
+        val teacherSysPrompt = appConfig.buildEffectiveSystemPrompt(
+            question = "How do you handle classroom management and lesson plan scaffolding for struggling students?",
+            configOverride = LlmGenerationConfig(interviewContext = ""),
+            ragContext = ""
+        )
+        assertTrue(teacherSysPrompt.contains("Lead Educator / Classroom Teacher"))
+        assertTrue(teacherSysPrompt.contains(AppConfig.ZERO_CONTEXT_ADAPTIVE_ROLE_DIRECTIVE))
+
+        // Case C: Zero context -> infers Attorney/Legal Counsel from litigation question
+        val lawyerSysPrompt = appConfig.buildEffectiveSystemPrompt(
+            question = "Walk me through how you prepare for a complex deposition and motion for summary judgment in commercial litigation.",
+            configOverride = LlmGenerationConfig(interviewContext = ""),
+            ragContext = ""
+        )
+        assertTrue(lawyerSysPrompt.contains("Senior Legal Counsel"))
+
+        // Case D: Explicit interviewContext provided -> takes that exact role
+        val explicitRolePrompt = appConfig.buildEffectiveSystemPrompt(
+            question = "Tell me about a time you handled a tight deadline.",
+            configOverride = LlmGenerationConfig(interviewContext = "Senior Commercial Airline Pilot at Delta Air Lines"),
+            ragContext = ""
+        )
+        assertTrue(explicitRolePrompt.contains("Senior Commercial Airline Pilot at Delta Air Lines"))
+        assertTrue(explicitRolePrompt.contains(AppConfig.EXPLICIT_ROLE_GROUNDING_DIRECTIVE))
+
+        // Case E: RAG context provided -> takes the candidate CV & Target Job role
+        val ragRolePrompt = appConfig.buildEffectiveSystemPrompt(
+            question = "Tell me about yourself.",
+            configOverride = LlmGenerationConfig(interviewContext = ""),
+            ragContext = teacherRes.formattedContext
+        )
+        assertTrue(ragRolePrompt.contains(AppConfig.CANDIDATE_RAG_GROUNDING_DIRECTIVE))
     }
 }
 

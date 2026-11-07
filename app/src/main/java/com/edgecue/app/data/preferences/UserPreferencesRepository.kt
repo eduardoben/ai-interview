@@ -140,7 +140,7 @@ class UserPreferencesRepository(
     }
 
     private fun mapUserPreferences(preferences: Preferences): LlmGenerationConfig {
-        val temp = preferences[PreferencesKeys.TEMPERATURE] ?: 0.2f
+        val temp = preferences[PreferencesKeys.TEMPERATURE] ?: 0.35f
         val topK = preferences[PreferencesKeys.TOP_K] ?: 20
         val maxTokens = preferences[PreferencesKeys.MAX_TOKENS] ?: 200
         val promptStyleStr = preferences[PreferencesKeys.PROMPT_STYLE] ?: PromptStyle.CONCISE.name

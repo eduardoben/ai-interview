@@ -22,7 +22,10 @@
       "objectives",
       "trade-offs",
       "features",
-      "agreed"
+      "agreed",
+      "Situation",
+      "Action",
+      "Result"
     ],
     "expectLikelyQuestion": true,
     "maxAllowedWer": 0.15,
@@ -72,7 +75,9 @@
       "QA",
       "Sonora",
       "Artificial Intelligence",
-      "Biomedical"
+      "Biomedical",
+      "automation",
+      "Python"
     ],
     "expectLikelyQuestion": true,
     "maxAllowedWer": 0.15,
@@ -129,5 +134,83 @@
     "expectLikelyQuestion": true,
     "maxAllowedWer": 0.15,
     "audioDurationSec": 16.500
+  },
+  {
+    "turnId": "turn_06_lcsw_intro",
+    "id": "turn_06_lcsw_intro",
+    "filename": "turn_06_lcsw_intro.wav",
+    "topic": "Healthcare Social Work Intro & Career Path (Elena Vance LCSW + Hospital JD)",
+    "groundTruthRaw": "Could you tell us about yourself, your career path in clinical social work, and what draws you specifically to inpatient crisis and care coordination in a hospital setting?",
+    "groundTruthNormalized": "could you tell us about yourself your career path in clinical social work and what draws you specifically to inpatient crisis and care coordination in a hospital setting",
+    "mustContainHotwords": [
+      "clinical",
+      "social work",
+      "inpatient",
+      "crisis",
+      "care coordination"
+    ],
+    "expectedLlmKeywords": [
+      "LCSW",
+      "Valley Health",
+      "crisis",
+      "inpatient",
+      "biopsychosocial",
+      "Denver"
+    ],
+    "expectLikelyQuestion": true,
+    "maxAllowedWer": 0.15,
+    "audioDurationSec": 9.800
+  },
+  {
+    "turnId": "turn_07_lcsw_crisis",
+    "id": "turn_07_lcsw_crisis",
+    "filename": "turn_07_lcsw_crisis.wav",
+    "topic": "Healthcare Acute Crisis De-escalation (Refusing Medical Care / Family Crisis)",
+    "groundTruthRaw": "In an acute hospital environment, situations escalate quickly. Can you walk me through a specific instance where a patient or family member was in severe crisis or refusing necessary medical care, and how you used clinical de-escalation to resolve the situation?",
+    "groundTruthNormalized": "in an acute hospital environment situations escalate quickly can you walk me through a specific instance where a patient or family member was in severe crisis or refusing necessary medical care and how you used clinical de escalation to resolve the situation",
+    "mustContainHotwords": [
+      "hospital",
+      "patient",
+      "crisis",
+      "clinical",
+      "situation"
+    ],
+    "expectedLlmKeywords": [
+      "crisis",
+      "de-escalation",
+      "trauma",
+      "patient",
+      "family",
+      "motivational"
+    ],
+    "expectLikelyQuestion": true,
+    "maxAllowedWer": 0.15,
+    "audioDurationSec": 16.000
+  },
+  {
+    "turnId": "turn_08_lcsw_discharge",
+    "id": "turn_08_lcsw_discharge",
+    "filename": "turn_08_lcsw_discharge.wav",
+    "topic": "Healthcare Vulnerable Discharge Planning & Compliance (Homelessness, Medicaid, HIPAA/CMS)",
+    "groundTruthRaw": "We frequently see vulnerable patients facing significant social barriers, such as homelessness, lack of insurance, or cognitive decline with no next of kin. How do you design and execute a discharge plan under those constraints while ensuring patient safety and regulatory compliance?",
+    "groundTruthNormalized": "we frequently see vulnerable patients facing significant social barriers such as homelessness lack of insurance or cognitive decline with no next of kin how do you design and execute a discharge plan under those constraints while ensuring patient safety and regulatory compliance",
+    "mustContainHotwords": [
+      "patients",
+      "discharge",
+      "patient",
+      "regulatory compliance"
+    ],
+    "expectedLlmKeywords": [
+      "discharge",
+      "Medicaid",
+      "housing",
+      "HIPAA",
+      "readmissions",
+      "CMS",
+      "Epic"
+    ],
+    "expectLikelyQuestion": true,
+    "maxAllowedWer": 0.15,
+    "audioDurationSec": 17.350
   }
 ]

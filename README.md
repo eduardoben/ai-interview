@@ -196,14 +196,14 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 You can view this guide directly inside the app by tapping the **Tuning Guide (`i`)** icon in the **Settings** tab (which also includes a one-tap **Apply Golden Preset** button).
 
-### 1. The "Golden Preset" for Live Interviews
+### 1. The "Golden Preset" for Live Interviews (STAR Format)
 | Setting | Recommended Value | Why It Works Best for Gemma 4 E2B |
 |---|---|---|
-| **Response Style** | **`Concise`** | Produces **3 structured, glanceable bullet points** you can read in 2 seconds while speaking naturally. |
-| **Max Answer Length** | **`250 tokens`** (`220–280` range) | (~190 words). Gives enough room to finish 3 deep technical bullets cleanly with a 30-token safety buffer against mid-sentence cutoffs. |
-| **Temperature** | **`0.20`** (`0.15–0.25` range) | Keeps answers factual, deterministic, and strictly grounded in your CV and technical mechanisms. |
+| **Response Style** | **`Concise`** | Produces **4 structured STAR (`Situation`, `Task`, `Action`, `Result`) bullet points** when RAG is active (or 3 concise talking points without RAG) that you can scan in 2 seconds. |
+| **Max Answer Length** | **`280 tokens`** (`250–300` range) | (~210 words). Gives enough room to finish all 4 STAR bullets cleanly—anchoring your CV project in **Situation**, defining the goal in **Task**, detailing deep technical architecture & trade-offs in **Action**, and citing metrics in **Result**. |
+| **Temperature** | **`0.35`** (`0.30–0.40` range) | Provides the optimal balance of expressive practitioner know-how without parroting the prompt or hallucinating facts. |
 | **Top-K Sampling** | **`20`** (`20–30` range) | Focuses token selection on high-confidence domain terminology. |
-| **Hardware Delegate** | **`NPU_GOOGLE_TENSOR`** | Delivers sub-1s TTFT (`~950 ms` with RAG context) on Pixel Tensor TPU. |
+| **Hardware Delegate** | **`NPU_GOOGLE_TENSOR`** | Delivers sub-1s TTFT (`~820–950 ms` with RAG context) on Pixel Tensor TPU. |
 
 ### 2. Choosing Between Response Styles (`Concise`, `Verbose`, `Simple`)
 - **`Concise` (Recommended Default — 90% of Interviews):**

@@ -194,18 +194,9 @@ fun PrompterScreenContent(
                 onToggleFocusMode = onToggleFocusMode
             )
 
-            // 2. Category Filter Strip (collapses in focus mode)
-            CategoryChipRow(
-                selectedCategory = uiState.selectedCategory,
-                isFocusMode = isFocusMode,
-                onSelectCategory = onSelectCategory
-            )
+            Spacer(modifier = Modifier.height(6.dp))
 
-            if (isFocusMode) {
-                Spacer(modifier = Modifier.height(6.dp))
-            }
-
-            // 3. Top-Weighted Teleprompter Reading Zone
+            // 2. Top-Weighted Teleprompter Reading Zone
             TeleprompterDisplay(
                 activeQuestion = uiState.activeQuestion,
                 activeAnswer = uiState.activeAnswer,

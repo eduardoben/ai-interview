@@ -36,6 +36,13 @@ class DocumentTextExtractor(private val context: Context? = null) {
         private val EXCESSIVE_NEWLINES_REGEX = Regex("\n{3,}")
         private val HORIZONTAL_SPACES_REGEX = Regex("[ \\t]{2,}")
         private val BROKEN_HYPHEN_REGEX = Regex("(?<=\\p{L})[\u00AD\uFFFD](?=\\p{L})")
+        private val UNICODE_BULLET_REGEX = Regex("^[ \t]*[▪▸◦●‣⁃–—][ \t]*", RegexOption.MULTILINE)
+        private val INLINE_SECTION_HEADER_REGEX = Regex(
+            """^(?:[#•|\-–—*]\s*)?(certifications?|licensure(?:\s*[&/and]+\s*certifications?)?|""" +
+                    """professional\s+certifications?|technical\s+certifications?|licenses(?:\s*[&/and]+\s*credentials?)?|""" +
+                    """credentials|education|technical\s+skills|skills|work\s+experience|experience)[:—–]\s*(.+)$""",
+            RegexOption.IGNORE_CASE
+        )
     }
 
     init {
@@ -63,6 +70,7 @@ class DocumentTextExtractor(private val context: Context? = null) {
             PDDocument.load(inputStream).use { pdDoc ->
                 val stripper = PDFTextStripper().apply {
                     sortByPosition = true
+                    setShouldSeparateByBeads(true)
                 }
                 stripper.getText(pdDoc) ?: ""
             }
@@ -98,11 +106,28 @@ class DocumentTextExtractor(private val context: Context? = null) {
         text = text.replace("\r\n", "\n").replace("\r", "\n")
         text = BROKEN_HYPHEN_REGEX.replace(text, "-")
         text = CONTROL_CHARS_REGEX.replace(text, "")
+        text = UNICODE_BULLET_REGEX.replace(text, "• ")
         text = EXCESSIVE_NEWLINES_REGEX.replace(text, "\n\n")
 
-        text = text.lines().joinToString("\n") { line ->
-            HORIZONTAL_SPACES_REGEX.replace(line.trimEnd(), " ")
-        }.trim()
+        val processedLines = mutableListOf<String>()
+        for (rawLine in text.lines()) {
+            val line = HORIZONTAL_SPACES_REGEX.replace(rawLine.trimEnd(), " ")
+            val trimmed = line.trim()
+            val inlineMatch = INLINE_SECTION_HEADER_REGEX.matchEntire(trimmed)
+            if (inlineMatch != null && inlineMatch.groupValues.size >= 3) {
+                val header = inlineMatch.groupValues[1].trim()
+                val body = inlineMatch.groupValues[2].trim()
+                processedLines.add(header)
+                if (body.isNotEmpty()) {
+                    val formattedBody = if (body.startsWith("•") || body.startsWith("-")) body else "• $body"
+                    processedLines.add(formattedBody)
+                }
+            } else {
+                processedLines.add(line)
+            }
+        }
+
+        text = processedLines.joinToString("\n").trim()
 
         if (text.length > MAX_DOCUMENT_CHARS) {
             val truncated = text.take(MAX_DOCUMENT_CHARS)

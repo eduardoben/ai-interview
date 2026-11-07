@@ -193,8 +193,9 @@ class E2ePipelineHarness(
             appConfig: AppConfig? = null,
             warmupPrompt: String? = null
         ): SharedWarmLlmEngineWrapper {
-            val config = appConfig ?: AppContainer.getInstance(context).appConfig
-            val rawEngine = LiteRtGemmaEngine(context, config)
+            val container = AppContainer.getInstance(context)
+            val config = appConfig ?: container.appConfig
+            val rawEngine = LiteRtGemmaEngine(context, config, ragEngine = container.liteRagEngine)
             val wrapper = SharedWarmLlmEngineWrapper(rawEngine)
             wrapper.warmUp(warmupPrompt).getOrThrow()
             return wrapper

@@ -22,7 +22,7 @@ interface LiteRagEngine {
      * Synchronously retrieves and formats the top candidate CV and target JD chunks
      * within the strict [maxChars] budget.
      */
-    fun retrieveFormattedContext(question: String, maxChars: Int = 700): FormattedRagContext
+    fun retrieveFormattedContext(question: String, maxChars: Int = 1400): FormattedRagContext
 
     /**
      * Atomically swaps the in-memory lexical index snapshot.
@@ -82,7 +82,7 @@ class LiteRagEngineImpl(
         var usedFallback = false
 
         val maxCvChunks = when {
-            maxChars >= 900 -> 3
+            maxChars >= 1100 -> if (questionCategory == QuestionCategory.ROLE_FIT || questionCategory == QuestionCategory.GENERAL) 4 else 3
             maxChars >= 550 -> if (questionCategory == QuestionCategory.ROLE_FIT || questionCategory == QuestionCategory.GENERAL) 3 else 2
             maxChars >= 350 -> 2
             else -> 1
@@ -135,11 +135,15 @@ class LiteRagEngineImpl(
         val seenSections = HashSet<String>()
 
         // Pass 1: Section-diverse selection (pick top chunk from each relevant section)
-        val crossSectionMinRatio = if (preferInitialSectionChunks) 0.22 else 0.42
+        val crossSectionMinRatio = if (preferInitialSectionChunks) 0.22 else 0.38
         for (sc in positive) {
             if (selected.size >= maxChunks) break
             val secKey = sc.chunk.entity.sectionTitle.lowercase()
-            if (secKey !in seenSections && sc.score >= topScore * crossSectionMinRatio) {
+            val isCertOrCredential = secKey.contains("certif") || secKey.contains("licens") ||
+                    secKey.contains("credential") || secKey.contains("accredit")
+            val thresholdRatio = if (isCertOrCredential) 0.20 else crossSectionMinRatio
+
+            if (secKey !in seenSections && sc.score >= topScore * thresholdRatio) {
                 // For broad overview/walkthrough questions, prefer the first chunk of each section
                 // (e.g., most recent Experience role) if its score is close to the top chunk in that section.
                 val chosenChunk = if (preferInitialSectionChunks) {
@@ -163,7 +167,7 @@ class LiteRagEngineImpl(
         if (selected.size < maxChunks) {
             for (sc in positive) {
                 if (selected.size >= maxChunks) break
-                if (sc.chunk !in selected && sc.score >= topScore * 0.45) {
+                if (sc.chunk !in selected && sc.score >= topScore * 0.40) {
                     selected.add(sc.chunk)
                 }
             }
@@ -210,7 +214,12 @@ class LiteRagEngineImpl(
             val lexicalScore = bm25 + bigramScore
             var sectionBoost = 0.0
             if (lexicalScore > 0.0 && isSectionBoosted(c.entity.sectionTitle, category)) {
-                sectionBoost = sectionBoostWeight
+                val s = c.entity.sectionTitle.lowercase()
+                sectionBoost = if (category == QuestionCategory.TECHNICAL && (s.contains("project") || s.contains("experience"))) {
+                    sectionBoostWeight * 1.5
+                } else {
+                    sectionBoostWeight
+                }
             }
 
             val totalScore = lexicalScore + sectionBoost
@@ -232,12 +241,23 @@ class LiteRagEngineImpl(
         val lower = question.lowercase()
         return when {
             lower.contains("tell me about yourself") ||
-                    lower.contains("walk me through your") ||
+                    lower.contains("tell us about yourself") ||
+                    lower.contains("walk me through your background") ||
+                    lower.contains("walk me through your resume") ||
+                    lower.contains("walk me through your career") ||
+                    lower.contains("your career path") ||
+                    lower.contains("what draws you") ||
                     lower.contains("introduce yourself") ||
                     lower.contains("why this role") ||
                     lower.contains("why our company") ||
                     lower.contains("why should we hire you") ||
-                    lower.contains("fit for this role") -> QuestionCategory.ROLE_FIT
+                    lower.contains("fit for this role") ||
+                    lower.contains("certif") ||
+                    lower.contains("license") ||
+                    lower.contains("licensure") ||
+                    lower.contains("credential") ||
+                    lower.contains("accredit") ||
+                    lower.contains("qualification") -> QuestionCategory.ROLE_FIT
 
             lower.contains("describe a time") ||
                     lower.contains("tell me about a time") ||
@@ -251,6 +271,22 @@ class LiteRagEngineImpl(
 
             lower.contains("how") ||
                     lower.contains("what is") ||
+                    lower.contains("project") ||
+                    lower.contains("end-to-end") ||
+                    lower.contains("deploy") ||
+                    lower.contains("serving") ||
+                    lower.contains("pytorch") ||
+                    lower.contains("scikit") ||
+                    lower.contains("fastapi") ||
+                    lower.contains("flask") ||
+                    lower.contains("docker") ||
+                    lower.contains("latency") ||
+                    lower.contains("throughput") ||
+                    lower.contains("pipeline") ||
+                    lower.contains("feature") ||
+                    lower.contains("drift") ||
+                    lower.contains("retrain") ||
+                    lower.contains("mlops") ||
                     lower.contains("code") ||
                     lower.contains("architecture") ||
                     lower.contains("concurrency") ||
@@ -265,7 +301,28 @@ class LiteRagEngineImpl(
                     lower.contains("vad") ||
                     lower.contains("stt") ||
                     lower.contains("llm") ||
-                    lower.contains("optim") -> QuestionCategory.TECHNICAL
+                    lower.contains("optim") ||
+                    lower.contains("clinical") ||
+                    lower.contains("patient") ||
+                    lower.contains("discharge") ||
+                    lower.contains("triage") ||
+                    lower.contains("diagnosis") ||
+                    lower.contains("classroom") ||
+                    lower.contains("curriculum") ||
+                    lower.contains("pedagogy") ||
+                    lower.contains("iep") ||
+                    lower.contains("litigation") ||
+                    lower.contains("contract") ||
+                    lower.contains("statute") ||
+                    lower.contains("assay") ||
+                    lower.contains("pcr") ||
+                    lower.contains("laboratory") ||
+                    lower.contains("bim") ||
+                    lower.contains("revit") ||
+                    lower.contains("zoning") ||
+                    lower.contains("calendar") ||
+                    lower.contains("scheduling") ||
+                    lower.contains("coaching") -> QuestionCategory.TECHNICAL
 
             else -> QuestionCategory.GENERAL
         }
@@ -275,14 +332,27 @@ class LiteRagEngineImpl(
         val s = sectionTitle.lowercase()
         return when (category) {
             QuestionCategory.TECHNICAL ->
-                s.contains("skill") || s.contains("technolog") || s.contains("experience") || s.contains("project")
+                s.contains("skill") || s.contains("competenc") || s.contains("technolog") ||
+                        s.contains("experience") || s.contains("project") || s.contains("licens") ||
+                        s.contains("certif") || s.contains("credential") || s.contains("accredit") ||
+                        s.contains("research") || s.contains("laboratori") ||
+                        s.contains("laboratory") || s.contains("matter") || s.contains("clinical") ||
+                        s.contains("teaching") || s.contains("portfolio") || s.contains("studio") ||
+                        s.contains("coursework") || s.contains("internship")
             QuestionCategory.BEHAVIORAL ->
-                s.contains("experience") || s.contains("project") || s.contains("work history") || s.contains("employment")
+                s.contains("experience") || s.contains("project") || s.contains("work history") ||
+                        s.contains("employment") || s.contains("leadership") || s.contains("coaching") ||
+                        s.contains("teaching") || s.contains("clinical") || s.contains("matter")
             QuestionCategory.ROLE_FIT ->
                 s.contains("summary") || s.contains("overview") || s.contains("experience") ||
-                        s.contains("education") || s.contains("requirement") || s.contains("qualification") || s.contains("responsibilit")
+                        s.contains("education") || s.contains("certif") || s.contains("licens") ||
+                        s.contains("credential") || s.contains("accredit") || s.contains("requirement") ||
+                        s.contains("qualification") || s.contains("responsibilit") || s.contains("teaching") ||
+                        s.contains("research") || s.contains("clinical") || s.contains("legal")
             QuestionCategory.GENERAL ->
-                s.contains("summary") || s.contains("overview") || s.contains("experience") || s.contains("education")
+                s.contains("summary") || s.contains("overview") || s.contains("experience") ||
+                        s.contains("education") || s.contains("certif") || s.contains("licens") ||
+                        s.contains("credential") || s.contains("accredit") || s.contains("research")
         }
     }
 
@@ -298,12 +368,81 @@ class LiteRagEngineImpl(
         }
 
         if (lower.contains("tell me about yourself") ||
-            lower.contains("walk me through") ||
+            lower.contains("tell us about yourself") ||
+            lower.contains("walk me through your background") ||
+            lower.contains("walk me through your resume") ||
+            lower.contains("walk me through your career") ||
+            lower.contains("your career path") ||
             lower.contains("your background") ||
             lower.contains("your resume") ||
             lower.contains("introduce yourself")
         ) {
-            addStemmed("summary", "overview", "experience", "background", "education", "engineer", "lead")
+            addStemmed("summary", "overview", "experience", "background", "education", "role", "lead", "senior", "specialist", "licensed", "certified", "certifications", "credentials", "university", "degree", "master", "bachelor")
+        }
+
+        if (lower.contains("certif") ||
+            lower.contains("license") ||
+            lower.contains("licensure") ||
+            lower.contains("credential") ||
+            lower.contains("qualification") ||
+            lower.contains("accredit")
+        ) {
+            addStemmed("certification", "certified", "license", "licensure", "credential", "qualifications", "accreditation", "board", "training")
+        }
+
+        // Software Engineering, AI/ML & Systems Design specialized expansion (#1 Priority)
+        if (lower.contains("project") ||
+            lower.contains("end-to-end") ||
+            lower.contains("deploy") ||
+            lower.contains("serving") ||
+            lower.contains("pytorch") ||
+            lower.contains("scikit") ||
+            lower.contains("fastapi") ||
+            lower.contains("flask") ||
+            lower.contains("docker") ||
+            lower.contains("pipeline") ||
+            lower.contains("feature") ||
+            lower.contains("streaming") ||
+            lower.contains("latency") ||
+            lower.contains("throughput") ||
+            lower.contains("architecture") ||
+            lower.contains("microservice") ||
+            lower.contains("concurrency") ||
+            lower.contains("coroutine") ||
+            lower.contains("algorithm") ||
+            lower.contains("database")
+        ) {
+            addStemmed("project", "portfolio", "experience", "built", "architect", "designed", "implemented", "developed", "deployed", "pipeline", "system", "framework", "workflow", "production", "api", "model")
+        }
+
+        // Cross-Industry Domain & Methodology expansion (Healthcare, Education, Law, Biology, Architecture, Coaching, Admin)
+        if (lower.contains("system") ||
+            lower.contains("workflow") ||
+            lower.contains("implementation") ||
+            lower.contains("strategy") ||
+            lower.contains("process") ||
+            lower.contains("protocol") ||
+            lower.contains("clinical") ||
+            lower.contains("patient") ||
+            lower.contains("discharge") ||
+            lower.contains("classroom") ||
+            lower.contains("curriculum") ||
+            lower.contains("lesson") ||
+            lower.contains("student") ||
+            lower.contains("litigation") ||
+            lower.contains("contract") ||
+            lower.contains("matter") ||
+            lower.contains("assay") ||
+            lower.contains("experiment") ||
+            lower.contains("laboratory") ||
+            lower.contains("zoning") ||
+            lower.contains("design") ||
+            lower.contains("calendar") ||
+            lower.contains("executive") ||
+            lower.contains("coaching") ||
+            lower.contains("athlete")
+        ) {
+            addStemmed("experience", "skills", "competencies", "project", "portfolio", "clinical", "teaching", "research", "legal", "design", "coaching", "administrative", "workflow", "protocol", "compliance")
         }
 
         if (lower.contains("academic") ||
@@ -315,9 +454,12 @@ class LiteRagEngineImpl(
             lower.contains("studied") ||
             lower.contains("study") ||
             lower.contains("master") ||
-            lower.contains("bachelor")
+            lower.contains("bachelor") ||
+            lower.contains("coursework") ||
+            lower.contains("thesis") ||
+            lower.contains("dissertation")
         ) {
-            addStemmed("education", "academic", "degree", "university", "universidad", "progression", "master", "bachelor", "candidate")
+            addStemmed("education", "academic", "degree", "university", "universidad", "progression", "master", "bachelor", "candidate", "coursework", "research", "thesis")
         }
 
         if (lower.contains("professional") ||
@@ -327,7 +469,7 @@ class LiteRagEngineImpl(
             lower.contains("previous role") ||
             lower.contains("experience")
         ) {
-            addStemmed("experience", "professional", "journey", "career", "work", "role", "company", "lead", "engineer")
+            addStemmed("experience", "professional", "journey", "career", "work", "role", "company", "lead", "senior", "specialist")
         }
 
         if (lower.contains("why this role") ||

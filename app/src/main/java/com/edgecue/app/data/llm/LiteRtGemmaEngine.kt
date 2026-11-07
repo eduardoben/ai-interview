@@ -198,7 +198,7 @@ class LiteRtGemmaEngine(
     }
 
     override fun generateAnswerStream(question: String): Flow<LlmStreamEvent> = callbackFlow {
-        val retrievedRag = ragEngine?.retrieveFormattedContext(question, maxChars = 1100)?.formattedContext ?: ""
+        val retrievedRag = ragEngine?.retrieveFormattedContext(question, maxChars = 1400)?.formattedContext ?: ""
 
         if (customBackend != null) {
             if (!_isInitialized.value) {
@@ -283,29 +283,10 @@ class LiteRtGemmaEngine(
             )
         }
 
-        val contextTrimmed = llmConfig.interviewContext.trim().take(500)
-        val safeRag = retrievedRag.trim().take(1200)
+        val safeRag = retrievedRag.trim().take(1500)
 
-        val effectiveSystemPrompt = systemPrompt?.takeIf { it.isNotBlank() } ?: run {
-            val base = "${AppConfig.SYSTEM_SAFETY_GUARDRAIL}\n${llmConfig.promptStyle.systemInstruction}"
-            val contextSection = when {
-                contextTrimmed.isNotBlank() && safeRag.isNotBlank() -> {
-                    "<interview_context>\nInterview Context (Role, Program & Domain): $contextTrimmed\n\nTailored Reference Context:\n$safeRag\n</interview_context>\n${AppConfig.CANDIDATE_RAG_GROUNDING_DIRECTIVE}"
-                }
-                contextTrimmed.isNotBlank() -> {
-                    "<interview_context>\nInterview Context (Role, Program & Domain): $contextTrimmed\n</interview_context>"
-                }
-                safeRag.isNotBlank() -> {
-                    "<interview_context>\nTailored Reference Context:\n$safeRag\n</interview_context>\n${AppConfig.CANDIDATE_RAG_GROUNDING_DIRECTIVE}"
-                }
-                else -> ""
-            }
-            if (contextSection.isNotBlank()) {
-                "$base\n$contextSection"
-            } else {
-                base
-            }
-        }
+        val effectiveSystemPrompt = systemPrompt?.takeIf { it.isNotBlank() }
+            ?: config.buildEffectiveSystemPrompt(question, llmConfig, safeRag)
         val sysPromptContents = effectiveSystemPrompt.ifBlank { null }?.let { SystemPromptHelper.createSystemPromptContents(it) }
 
         val conversationConfig = ConversationConfig(
@@ -327,13 +308,7 @@ class LiteRtGemmaEngine(
         tracker.startTracking()
         val accumulatedText = StringBuilder()
 
-        val userTurnText = if (safeRag.isNotBlank()) {
-            "<interview_context>\n$safeRag\n</interview_context>\n" +
-            "${AppConfig.CANDIDATE_RAG_GROUNDING_DIRECTIVE}\n\n" +
-            "Interviewer Question: $question"
-        } else {
-            question
-        }
+        val userTurnText = config.buildEffectiveUserTurn(question, llmConfig, safeRag)
 
         newConversation.sendMessageAsync(
             Contents.of(Content.Text(userTurnText)),

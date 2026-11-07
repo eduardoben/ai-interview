@@ -223,6 +223,100 @@ class RealDevicePipelineIntegrationTest {
     }
 
     @Test
+    fun testRealDeviceRagCertificationRetrievalAndAnswer() = runBlocking {
+        println("=== REAL DEVICE RAG & CERTIFICATION RETRIEVAL BENCHMARK ===")
+        val chunker = com.edgecue.app.data.rag.RagDocumentChunker()
+        val extractor = com.edgecue.app.data.rag.DocumentTextExtractor(appContext)
+
+        val sampleCvWithCerts = """
+            Elena Vance, LCSW
+            Denver, CO • elena.vance@email.com
+
+            PROFESSIONAL SUMMARY
+            Licensed Clinical Social Worker (LCSW) with 8 years of specialized acute inpatient care coordination and crisis de-escalation experience.
+
+            LICENSURE & CERTIFICATIONS
+            • Licensed Clinical Social Worker (LCSW) — License #CSW-098234 Colorado State Board of Social Work Examiners
+            • Certified Advanced Children, Youth, and Family Social Worker (C-ACYFSW) National Association of Social Workers
+            • Certified Crisis Intervention Specialist (CCIS) National Crisis Prevention Institute
+
+            PROFESSIONAL EXPERIENCE
+            Valley Health Medical Center - Senior Medical Social Worker
+            Led acute crisis response protocols and multidisciplinary discharge planning across ICU and Emergency units.
+        """.trimIndent()
+
+        val sampleJd = """
+            Medical Social Worker (LCSW) – Inpatient Care
+            St. Jude Regional Hospital
+            Requirements:
+            • Current, unencumbered LCSW license in the State of Colorado.
+            • Minimum of 3 years of clinical social work experience in acute care.
+            • Demonstrated competency in crisis de-escalation and complex discharge planning.
+        """.trimIndent()
+
+        val cvChunks = chunker.chunkDocument("CURRICULUM", extractor.normalizeText(sampleCvWithCerts))
+        val jdChunks = chunker.chunkDocument("JOB_DESCRIPTION", extractor.normalizeText(sampleJd))
+
+        val certChunk = cvChunks.firstOrNull { it.sectionTitle.contains("Certification", ignoreCase = true) || it.sectionTitle.contains("Licensure", ignoreCase = true) }
+        assertNotNull("Licensure & Certifications chunk must be parsed as a distinct section", certChunk)
+        println("Found Certifications Chunk: [${certChunk!!.sectionTitle}] -> '${certChunk.content}'")
+
+        appContainer.liteRagEngine.updateIndex(cvChunks + jdChunks)
+
+        val question = "Could you walk me through your qualifications and what professional certifications or licenses you hold?"
+        val retrieved = appContainer.liteRagEngine.retrieveFormattedContext(question, maxChars = 1400)
+
+        println("Retrieved RAG Context for Certification Question (latency=${retrieved.retrievalLatencyMicros}µs):")
+        println("--------------------------------------------------")
+        println(retrieved.formattedContext)
+        println("--------------------------------------------------")
+
+        assertTrue("Retrieved context must not be blank", retrieved.formattedContext.isNotBlank())
+        assertTrue("Context must cite Licensure or Certifications section",
+            retrieved.formattedContext.contains("Licensure", ignoreCase = true) || retrieved.formattedContext.contains("Certification", ignoreCase = true))
+        assertTrue("Context must contain LCSW or Colorado license",
+            retrieved.formattedContext.contains("LCSW", ignoreCase = true) || retrieved.formattedContext.contains("CSW-098234", ignoreCase = true))
+
+        // Now test LLM inference with RAG on the real Pixel hardware
+        val engine = LiteRtGemmaEngine(appContext, appConfig, ragEngine = appContainer.liteRagEngine)
+        val initRes = engine.initialize()
+        assertTrue("LiteRT Engine must initialize: ${initRes.exceptionOrNull()?.message}", initRes.isSuccess)
+
+        val events = mutableListOf<LlmStreamEvent>()
+        val startGenNs = System.nanoTime()
+        try {
+            engine.generateAnswerStream(question).toList(events)
+        } catch (e: Exception) {
+            println("Generation caught exception: ${e.message}")
+        }
+        val genDurationMs = (System.nanoTime() - startGenNs) / 1_000_000.0
+
+        val partialTokens = events.filterIsInstance<LlmStreamEvent.PartialToken>()
+        val completedEvent = events.filterIsInstance<LlmStreamEvent.Completed>().firstOrNull()
+
+        val fullAnswer = completedEvent?.fullText ?: partialTokens.lastOrNull()?.accumulatedText ?: ""
+        println("=== REAL PIXEL 10 PRO XL GENERATED ANSWER ===")
+        println(fullAnswer)
+        println("=============================================")
+        println("Generation Time: ${genDurationMs}ms, TTFT: ${completedEvent?.ttftMs ?: partialTokens.firstOrNull()?.ttftMs}ms, Tokens: ${completedEvent?.tokenCount ?: partialTokens.size}")
+
+        assertTrue("Generated answer must not be blank", fullAnswer.isNotBlank())
+        // Verify answer specifically cites certifications or licensure
+        val citesLicensureOrCerts = fullAnswer.contains("LCSW", ignoreCase = true) ||
+                fullAnswer.contains("Licensed Clinical Social Worker", ignoreCase = true) ||
+                fullAnswer.contains("Colorado", ignoreCase = true) ||
+                fullAnswer.contains("license", ignoreCase = true) ||
+                fullAnswer.contains("certified", ignoreCase = true) ||
+                fullAnswer.contains("crisis intervention", ignoreCase = true)
+
+        println("Answer Cites Licensure/Certifications: $citesLicensureOrCerts")
+        assertTrue("Generated answer must cite candidate's license or certifications", citesLicensureOrCerts)
+
+        engine.release()
+        println("=== RAG & CERTIFICATION BENCHMARK COMPLETE ===")
+    }
+
+    @Test
     fun testModelDownloadServiceContract() {
         assertEquals("com.edgecue.app.action.DOWNLOAD_SPEECH", com.edgecue.app.service.ModelDownloadService.ACTION_DOWNLOAD_SPEECH)
         assertEquals("com.edgecue.app.action.DOWNLOAD_RESCORER", com.edgecue.app.service.ModelDownloadService.ACTION_DOWNLOAD_RESCORER)

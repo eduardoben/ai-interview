@@ -33,7 +33,7 @@ class UserPreferencesRepositoryTest {
         )
 
         val initialConfig = repo.userPreferencesFlow.first()
-        assertEquals(0.2f, initialConfig.temperature, 0.001f)
+        assertEquals(0.35f, initialConfig.temperature, 0.001f)
         assertEquals(200, initialConfig.maxTokens)
         assertEquals(PromptStyle.CONCISE, initialConfig.promptStyle)
 
