@@ -56,8 +56,8 @@ fun LuminanceDimmerDialog(
                     valueRange = 0f..0.70f,
                     steps = 6,
                     colors = SliderDefaults.colors(
-                        thumbColor = OledAccentIndigo,
-                        activeTrackColor = OledAccentIndigo,
+                        thumbColor = OledPrimaryAction,
+                        activeTrackColor = OledAccentIndigoSoft,
                         inactiveTrackColor = OledSurfaceHigh
                     )
                 )

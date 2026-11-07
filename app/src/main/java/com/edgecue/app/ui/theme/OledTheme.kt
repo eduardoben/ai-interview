@@ -10,27 +10,34 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
-// Low-Glare OLED Palette — Refined for Minimal Elegance & Tonal Depth
-val OledBackground = Color(0xFF06070A)
-val OledSurface = Color(0xFF0E1017)
-val OledSurfaceHigh = Color(0xFF161922)
-@Suppress("unused")
-val OledSurfaceElevated = Color(0xFF1E222E)
+// Low-Glare OLED Palette — Solid Luxury & High-Contrast Hardware Specification
+val OledBackground = Color(0xFF07080B)       // surface-canvas: Deepest root canvas; true solid pitch obsidian
+val OledSurface = Color(0xFF0E1118)          // surface-card-base: Solid midnight slate cards & modules
+val OledSurfaceHigh = Color(0xFF161B26)      // surface-card-elevated: Solid elevated titanium overlays & callouts
+val OledSurfaceElevated = Color(0xFF1E2433)  // surface-card-subtle: Solid surface wells, secondary chips, active turns
+val OledSurfaceInput = Color(0xFF0A0C11)     // surface-input: Deep inset solid wells & code block cards
 
-val OledBorder = Color(0xFF1C202B)
-@Suppress("unused")
-val OledBorderSubtle = Color(0xFF151821)
-val OledBorderHigh = Color(0xFF282E3E)
+val OledBorder = Color(0xFF1D2230)           // border-hairline: Solid 0.5dp machined hardware edge (no milky haze)
+val OledBorderSubtle = Color(0xFF2A3247)     // border-subtle: Solid interactive outline on focus/hover
+val OledBorderHigh = Color(0xFF3E4A68)       // border-selected: Solid active tab pill outline & focused inputs
 
-val OledTextPrimary = Color(0xFFF3F4F6)
-val OledTextSecondary = Color(0xFF9CA3AF)
-val OledTextMuted = Color(0xFF646B78)
+val OledTextPrimary = Color(0xFFFFFFFF)      // text-primary: 100% Solid White headings, active questions, STAR keywords
+val OledTextSecondary = Color(0xFFCBD5E1)    // text-secondary: Solid crisp silver teleprompter stream body & descriptions
+val OledTextMuted = Color(0xFF8892B0)        // text-tertiary: Solid slate steel section overlines, TTFT metadata, disclaimers
+val OledTextWhisper = Color(0xFF5A647E)      // text-whisper: Solid subtle steel hardware parameters & disabled tags
+val OledTextInverted = Color(0xFF000000)     // text-inverted: Pure pitch black typography for solid white buttons
 
-val OledAccentIndigo = Color(0xFF6366F1)
-val OledAccentIndigoSoft = Color(0xFF818CF8)
-val OledStatusEmerald = Color(0xFF10B981)
-val OledStatusAmber = Color(0xFFF59E0B)
-val OledStatusCoral = Color(0xFFEF4444)
+// Primary Action Tokens (Option A: Solid Pure White Surface)
+val OledPrimaryAction = Color(0xFFFFFFFF)       // btn-primary-bg: Solid pure white execution CTA (19.5:1 contrast)
+val OledPrimaryActionPressed = Color(0xFFE2E8F0)// btn-primary-pressed: Active tactile feedback
+
+// Solid Radiant Jewel State & Hardware Matrix
+val OledAccentIndigo = Color(0xFF6366F1)     // Solid Electric Indigo: Hardware acceleration & LiteRT indicators
+val OledAccentIndigoSoft = Color(0xFF6366F1) // Solid Electric Indigo: Overlines, metric badges, slider tracks, links
+val OledStatusEmerald = Color(0xFF30A46C)    // Solid Botanical Pine Emerald: Calm, non-neon solid listening indicator & bullets
+val OledStatusAmber = Color(0xFFFFA800)      // Solid Radiant Amber Gold: Synthesizing, paused, thermal warning
+val OledStatusCoral = Color(0xFFFF453A)      // Solid Precision Crimson Coral: Error banners & destructive stop controls
+val OledStatusNeutral = Color(0xFF5A647E)    // Solid Slate Steel: Inactive state dots & badges
 
 /**
  * Strict 4-Size, 2-Weight Typography System:
@@ -89,20 +96,20 @@ val OledTypography = Typography(
     ),
     labelSmall = TextStyle(
         fontFamily = FontFamily.SansSerif,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 11.sp,
-        lineHeight = 16.sp,
-        letterSpacing = 0.5.sp
+        fontWeight = FontWeight.Medium,
+        fontSize = 10.sp,
+        lineHeight = 14.sp,
+        letterSpacing = 1.0.sp
     )
 )
 
 private val OledColorScheme = darkColorScheme(
-    primary = OledAccentIndigo,
-    onPrimary = Color.White,
+    primary = OledPrimaryAction,
+    onPrimary = OledTextInverted,
     primaryContainer = OledSurfaceHigh,
     onPrimaryContainer = OledTextPrimary,
     secondary = OledStatusEmerald,
-    onSecondary = Color.Black,
+    onSecondary = OledTextInverted,
     background = OledBackground,
     onBackground = OledTextPrimary,
     surface = OledSurface,

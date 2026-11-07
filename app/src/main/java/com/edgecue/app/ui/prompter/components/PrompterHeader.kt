@@ -124,6 +124,7 @@ fun PrompterHeader(
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "• ${lastTtftMs}ms",
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
                         fontSize = 10.sp,
                         color = OledTextMuted
                     )
@@ -161,8 +162,8 @@ fun PrompterHeader(
                 modifier = Modifier
                     .size(34.dp)
                     .clip(CircleShape)
-                    .background(if (displayDimmerAlpha > 0f) OledAccentIndigo.copy(alpha = 0.16f) else OledSurface)
-                    .border(0.5.dp, if (displayDimmerAlpha > 0f) OledAccentIndigo.copy(alpha = 0.5f) else OledBorder, CircleShape)
+                    .background(if (displayDimmerAlpha > 0f) OledSurfaceElevated else OledSurface)
+                    .border(0.5.dp, if (displayDimmerAlpha > 0f) OledBorderHigh else OledBorder, CircleShape)
                     .clickable { onToggleDimmer() },
                 contentAlignment = Alignment.Center
             ) {
@@ -178,8 +179,8 @@ fun PrompterHeader(
                 modifier = Modifier
                     .size(34.dp)
                     .clip(CircleShape)
-                    .background(if (isFocusMode) OledAccentIndigo.copy(alpha = 0.16f) else OledSurface)
-                    .border(0.5.dp, if (isFocusMode) OledAccentIndigo.copy(alpha = 0.5f) else OledBorder, CircleShape)
+                    .background(if (isFocusMode) OledSurfaceElevated else OledSurface)
+                    .border(0.5.dp, if (isFocusMode) OledBorderHigh else OledBorder, CircleShape)
                     .clickable { onToggleFocusMode() },
                 contentAlignment = Alignment.Center
             ) {

@@ -156,10 +156,13 @@ fun UsageScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(48.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = OledAccentIndigo),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = OledPrimaryAction,
+                        contentColor = OledTextInverted
+                    ),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("Share Q&A", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                    Text("Share Q&A", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = OledTextInverted)
                 }
                 Spacer(modifier = Modifier.height(24.dp))
             }

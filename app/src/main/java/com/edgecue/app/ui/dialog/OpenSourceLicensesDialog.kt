@@ -230,13 +230,16 @@ fun OpenSourceLicensesDialog(
             Button(
                 onClick = onDismiss,
                 shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = OledAccentIndigo)
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = OledPrimaryAction,
+                    contentColor = OledTextInverted
+                )
             ) {
                 Text(
                     text = "Close",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color.White
+                    color = OledTextInverted
                 )
             }
         }

@@ -32,8 +32,8 @@ An on-device, real-time **AI Interview Copilot** for Android powered by **Sherpa
   - Hardware-grounded test suite (`RealDevicePipelineIntegrationTest`) running directly on physical Pixel 10 Pro XL hardware.
   - Validates EdgeTPU NPU execution, Sherpa-ONNX streaming Zipformer frame processing latency (<8ms), question truecasing latency (<0.25ms), and foreground download service contracts.
 
-- **🖥️ Stealth OLED Teleprompter & Floating System Overlay HUD:**
-  - **Multi-Tab Stealth AppShell:** Full-screen low-glare OLED teleprompter (`PrompterScreen`), live telemetry & Q&A session history (`UsageScreen`), hyperparameter & context controls (`SettingsScreen`), and hardware/asset diagnostics (`InfoScreen`).
+- **🖥️ Solid Luxury OLED Teleprompter & Floating System Overlay HUD:**
+  - **Multi-Tab Stealth AppShell:** Full-screen low-glare OLED teleprompter (`PrompterScreen`), live telemetry & Q&A session history (`UsageScreen`), hyperparameter & context controls (`SettingsScreen`), and hardware/asset diagnostics (`InfoScreen`) engineered with the **Solid Luxury & High-Contrast OLED** design system (`design.md`).
   - **Draggable Floating Overlay (`FloatingHudOverlay`):** Compact `TYPE_APPLICATION_OVERLAY` accessible over any app with intelligent `autoFollowStream` scrolling, 44dp accessible hit targets, live TTFT metrics, and quick-action category chips (*General*, *System Design*, *Algorithms*, *Behavioral STAR*, *QA / Code Review*).
 
 ---
@@ -56,6 +56,7 @@ graph TD
 
 ```
 EdgeCue/
+├── design.md                                  # Solid Luxury & High-Contrast OLED Design System Specification
 ├── docs/
 │   └── production_readiness_plan.md           # Production Readiness Audit, Play Store Compliance & Roadmap
 ├── app/

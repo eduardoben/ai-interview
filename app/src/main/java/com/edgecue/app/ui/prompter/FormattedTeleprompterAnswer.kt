@@ -30,6 +30,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.edgecue.app.ui.theme.OledAccentIndigo
 import com.edgecue.app.ui.theme.OledBorder
+import com.edgecue.app.ui.theme.OledStatusEmerald
+import com.edgecue.app.ui.theme.OledSurfaceInput
 import com.edgecue.app.ui.theme.OledTextPrimary
 import com.edgecue.app.ui.theme.OledTextSecondary
 
@@ -89,7 +91,7 @@ fun FormattedTeleprompterAnswer(
                         modifier = Modifier
                             .padding(top = 8.dp)
                             .size(4.dp)
-                            .background(OledAccentIndigo, CircleShape)
+                            .background(OledStatusEmerald, CircleShape)
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
@@ -98,7 +100,7 @@ fun FormattedTeleprompterAnswer(
                             fontSize = fontSize,
                             lineHeight = (fontSize.value * 1.48f).sp
                         ),
-                        color = OledTextPrimary,
+                        color = OledTextSecondary,
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -109,7 +111,7 @@ fun FormattedTeleprompterAnswer(
                         fontSize = fontSize,
                         lineHeight = (fontSize.value * 1.48f).sp
                     ),
-                    color = OledTextPrimary,
+                    color = OledTextSecondary,
                     modifier = Modifier.padding(vertical = 4.dp)
                 )
             }
@@ -135,7 +137,7 @@ private fun androidx.compose.ui.text.AnnotatedString.Builder.parseMarkdownSpans(
             append(text.substring(nextBold))
             break
         }
-        withStyle(SpanStyle(color = Color.White, fontWeight = FontWeight.SemiBold)) {
+        withStyle(SpanStyle(color = OledTextPrimary, fontWeight = FontWeight.SemiBold)) {
             append(text.substring(nextBold + 2, endBold))
         }
         i = endBold + 2
@@ -148,7 +150,7 @@ private fun CodeBlockCard(code: String) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 8.dp)
-            .background(Color(0xFF040508), RoundedCornerShape(8.dp))
+            .background(OledSurfaceInput, RoundedCornerShape(8.dp))
             .border(0.5.dp, OledBorder, RoundedCornerShape(8.dp))
             .padding(12.dp)
             .horizontalScroll(rememberScrollState())

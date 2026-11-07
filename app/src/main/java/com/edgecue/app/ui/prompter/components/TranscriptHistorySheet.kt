@@ -83,10 +83,11 @@ fun TranscriptHistorySheet(
                     singleLine = true,
                     shape = RoundedCornerShape(10.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = OledAccentIndigo,
+                        focusedBorderColor = OledAccentIndigoSoft,
                         unfocusedBorderColor = OledBorder,
                         focusedTextColor = OledTextPrimary,
-                        unfocusedTextColor = OledTextPrimary
+                        unfocusedTextColor = OledTextPrimary,
+                        cursorColor = OledAccentIndigoSoft
                     )
                 )
                 Spacer(modifier = Modifier.width(10.dp))
@@ -98,10 +99,20 @@ fun TranscriptHistorySheet(
                     },
                     modifier = Modifier.height(52.dp),
                     shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = OledAccentIndigo),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = OledPrimaryAction,
+                        contentColor = OledTextInverted,
+                        disabledContainerColor = OledSurfaceHigh,
+                        disabledContentColor = OledTextMuted
+                    ),
                     enabled = customQuestionInput.isNotBlank()
                 ) {
-                    Text("Ask", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        "Ask",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (customQuestionInput.isNotBlank()) OledTextInverted else OledTextMuted
+                    )
                 }
             }
 

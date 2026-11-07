@@ -179,9 +179,12 @@ fun InfoScreen(
                                     .weight(1f)
                                     .heightIn(min = 48.dp),
                                 shape = RoundedCornerShape(10.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = OledAccentIndigo)
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = OledPrimaryAction,
+                                    contentColor = OledTextInverted
+                                )
                             ) {
-                                Text("Grant Mic & Notif", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                Text("Grant Mic & Notif", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = OledTextInverted)
                             }
                         }
                         if (!hasOverlay) {
@@ -304,13 +307,16 @@ fun InfoScreen(
                                     .fillMaxWidth()
                                     .heightIn(min = 48.dp),
                                 shape = RoundedCornerShape(12.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = OledAccentIndigo)
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = OledPrimaryAction,
+                                    contentColor = OledTextInverted
+                                )
                             ) {
                                 Text(
                                     "Download Missing Assets (~$mb MB)",
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = Color.White
+                                    color = OledTextInverted
                                 )
                             }
                             OutlinedButton(
@@ -402,9 +408,12 @@ fun InfoScreen(
                                         .weight(1f)
                                         .heightIn(min = 48.dp),
                                     shape = RoundedCornerShape(10.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = OledAccentIndigo)
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = OledPrimaryAction,
+                                        contentColor = OledTextInverted
+                                    )
                                 ) {
-                                    Text("Retry Download", fontSize = 12.sp)
+                                    Text("Retry Download", fontSize = 12.sp, color = OledTextInverted)
                                 }
                                 OutlinedButton(
                                     onClick = onImportLlmFileClick,

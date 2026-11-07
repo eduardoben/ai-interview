@@ -44,11 +44,11 @@ fun CategoryChipRow(
                     modifier = Modifier
                         .clip(RoundedCornerShape(50))
                         .background(
-                            if (isSelected) OledAccentIndigo.copy(alpha = 0.18f) else OledSurface
+                            if (isSelected) OledSurfaceElevated else OledSurface
                         )
                         .border(
                             width = if (isSelected) 1.dp else 0.5.dp,
-                            color = if (isSelected) OledAccentIndigo else OledBorder,
+                            color = if (isSelected) OledBorderHigh else OledBorder,
                             shape = RoundedCornerShape(50)
                         )
                         .clickable { onSelectCategory(category) }

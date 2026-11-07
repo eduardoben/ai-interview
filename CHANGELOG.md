@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.19.0] - 2026-11-06
+
+### Added
+- **Design System Specification & Solid Luxury High-Contrast Architecture (`design.md`):**
+  - Formulated comprehensive project design specification establishing the **Solid Luxury & High-Contrast OLED** system based on `/high-end-visual-design` and `/imagegen-frontend-mobile` principles.
+  - Zero structural changes: 100% preservation of all layouts, component hierarchies, and touch-target distributions across `PrompterScreen`, `SettingsScreen`, `UsageScreen`, `InfoScreen`, and `FloatingHudOverlay`.
+- **Option A High-Contrast Hero Action CTA:**
+  - Standardized primary execution triggers (`"Start Practice Copilot"`, `"Answer Now"`, `"Apply Golden Preset"`, `"Submit"`) to a solid pure white (`#FFFFFF`) surface with pitch-black (`#000000`) typography, delivering a 19.5:1 contrast ratio and thumb-zone tactile punch.
+- **Solid Radiant Jewel State & Accent Matrix (`OledTheme.kt`):**
+  - **Active Listening & Bullets (`OledStatusEmerald`):** Calibrated to solid botanical pine emerald (`#30A46C`, non-neon, 71% saturation, 42% luminance) eliminating phosphorescent glare while preserving unmistakable color presence.
+  - **Hardware & AI Accent (`OledAccentIndigo` / `OledAccentIndigoSoft`):** Solid electric indigo (`#6366F1`) powering Tensor G5 NPU badges, question accent bars, and slider tracks.
+  - **Synthesizing & Standby (`OledStatusAmber`):** Solid warm amber gold (`#FFA800`).
+  - **Stop & Destructive States (`OledStatusCoral`):** Solid precision crimson coral (`#FF453A`).
+- **Solid Midnight Slate Surfaces & Machined Hairlines:**
+  - Replaced milky translucent alpha borders with solid 0.5dp machined hairline borders (`#1D2230`, `#2A3247`, `#3E4A68`).
+  - Root canvas anchored in solid pitch obsidian (`#07080B`), with solid midnight slate card containers (`#0E1118`).
+- **High-Contrast Teleprompter Reading Typography:**
+  - Headings, active questions, and bold STAR anchors rendered in 100% solid pure white (`#FFFFFF`).
+  - Teleprompter reading body stream rendered in solid crisp silver (`#CBD5E1`) for effortless scannability.
+  - Metadata, TTFT readouts, and section overlines rendered in solid slate steel (`#8892B0`) with monospace tabular numbers.
+
+### Changed
+- Bumped application `versionCode` to 24 and `versionName` to `1.19.0`.
+
+---
+
 ## [1.18.1] - 2026-11-06
 
 ### Changed

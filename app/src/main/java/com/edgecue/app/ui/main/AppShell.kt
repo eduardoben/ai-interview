@@ -107,7 +107,7 @@ fun AppShell(
                                             when (destination) {
                                                 AppDestination.PROMPTER -> {
                                                     PrompterIcons.Prompter(
-                                                        color = if (selected) OledAccentIndigoSoft else OledTextSecondary,
+                                                        color = if (selected) OledTextPrimary else OledTextSecondary,
                                                         size = 20.dp
                                                     )
                                                     if (isListening) {
@@ -120,15 +120,15 @@ fun AppShell(
                                                     }
                                                 }
                                                 AppDestination.SETTINGS -> PrompterIcons.Sliders(
-                                                    color = if (selected) OledAccentIndigoSoft else OledTextSecondary,
+                                                    color = if (selected) OledTextPrimary else OledTextSecondary,
                                                     size = 20.dp
                                                 )
                                                 AppDestination.USAGE -> PrompterIcons.ActivityBar(
-                                                    color = if (selected) OledAccentIndigoSoft else OledTextSecondary,
+                                                    color = if (selected) OledTextPrimary else OledTextSecondary,
                                                     size = 20.dp
                                                 )
                                                 AppDestination.INFO -> PrompterIcons.InfoCircle(
-                                                    color = if (selected) OledAccentIndigoSoft else OledTextSecondary,
+                                                    color = if (selected) OledTextPrimary else OledTextSecondary,
                                                     size = 20.dp
                                                 )
                                             }
@@ -143,9 +143,9 @@ fun AppShell(
                                         )
                                     },
                                     colors = NavigationBarItemDefaults.colors(
-                                        selectedIconColor = OledAccentIndigoSoft,
+                                        selectedIconColor = OledTextPrimary,
                                         selectedTextColor = OledTextPrimary,
-                                        indicatorColor = OledAccentIndigo.copy(alpha = 0.16f),
+                                        indicatorColor = OledSurfaceElevated,
                                         unselectedIconColor = OledTextSecondary,
                                         unselectedTextColor = OledTextMuted
                                     )
@@ -289,7 +289,7 @@ fun AppShell(
                                             when (destination) {
                                                 AppDestination.PROMPTER -> {
                                                     PrompterIcons.Prompter(
-                                                        color = if (selected) OledAccentIndigoSoft else OledTextSecondary,
+                                                        color = if (selected) OledTextPrimary else OledTextSecondary,
                                                         size = 20.dp
                                                     )
                                                     if (isListening) {
@@ -302,15 +302,15 @@ fun AppShell(
                                                     }
                                                 }
                                                 AppDestination.SETTINGS -> PrompterIcons.Sliders(
-                                                    color = if (selected) OledAccentIndigoSoft else OledTextSecondary,
+                                                    color = if (selected) OledTextPrimary else OledTextSecondary,
                                                     size = 20.dp
                                                 )
                                                 AppDestination.USAGE -> PrompterIcons.ActivityBar(
-                                                    color = if (selected) OledAccentIndigoSoft else OledTextSecondary,
+                                                    color = if (selected) OledTextPrimary else OledTextSecondary,
                                                     size = 20.dp
                                                 )
                                                 AppDestination.INFO -> PrompterIcons.InfoCircle(
-                                                    color = if (selected) OledAccentIndigoSoft else OledTextSecondary,
+                                                    color = if (selected) OledTextPrimary else OledTextSecondary,
                                                     size = 20.dp
                                                 )
                                             }
@@ -325,9 +325,9 @@ fun AppShell(
                                         )
                                     },
                                     colors = NavigationBarItemDefaults.colors(
-                                        selectedIconColor = OledAccentIndigoSoft,
+                                        selectedIconColor = OledTextPrimary,
                                         selectedTextColor = OledTextPrimary,
-                                        indicatorColor = OledAccentIndigo.copy(alpha = 0.16f),
+                                        indicatorColor = OledSurfaceElevated,
                                         unselectedIconColor = OledTextSecondary,
                                         unselectedTextColor = OledTextMuted
                                     )

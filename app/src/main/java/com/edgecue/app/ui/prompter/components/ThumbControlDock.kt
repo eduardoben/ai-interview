@@ -37,8 +37,8 @@ fun ThumbControlDock(
                     .fillMaxWidth()
                     .height(52.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = OledAccentIndigo,
-                    contentColor = Color.White
+                    containerColor = OledPrimaryAction,
+                    contentColor = OledTextInverted
                 ),
                 shape = RoundedCornerShape(14.dp)
             ) {
@@ -46,7 +46,8 @@ fun ThumbControlDock(
                     "Start Practice Copilot",
                     fontSize = 15.sp,
                     letterSpacing = 0.2.sp,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.SemiBold,
+                    color = OledTextInverted
                 )
             }
         } else {
@@ -62,7 +63,10 @@ fun ThumbControlDock(
                         .weight(1.4f)
                         .fillMaxHeight(),
                     contentPadding = PaddingValues(horizontal = 8.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = OledAccentIndigo),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = OledPrimaryAction,
+                        contentColor = OledTextInverted
+                    ),
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Text(
@@ -70,7 +74,7 @@ fun ThumbControlDock(
                         fontSize = 13.sp,
                         maxLines = 1,
                         fontWeight = FontWeight.SemiBold,
-                        color = Color.White
+                        color = OledTextInverted
                     )
                 }
 
@@ -117,7 +121,7 @@ fun ThumbControlDock(
                         .fillMaxHeight(),
                     contentPadding = PaddingValues(horizontal = 6.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = OledStatusCoral.copy(alpha = 0.1f),
+                        containerColor = OledStatusCoral.copy(alpha = 0.12f),
                         contentColor = OledStatusCoral
                     ),
                     shape = RoundedCornerShape(12.dp),

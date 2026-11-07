@@ -151,11 +151,11 @@ fun FloatingHudOverlay(
                     elevation = 16.dp,
                     shape = RoundedCornerShape(50),
                     ambientColor = Color.Black,
-                    spotColor = OledAccentIndigo.copy(alpha = 0.45f)
+                    spotColor = Color.Black.copy(alpha = 0.50f)
                 )
                 .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
                 .clip(RoundedCornerShape(50))
-                .background(Color(0xF506070A))
+                .background(Color(0xF507080B))
                 .border(0.5.dp, OledBorderHigh, RoundedCornerShape(50))
                 .clickable { onToggleMinimize() }
                 .semantics { contentDescription = "Expand EdgeCue HUD" }
@@ -239,9 +239,9 @@ fun FloatingHudOverlay(
                     elevation = 16.dp,
                     shape = RoundedCornerShape(16.dp),
                     ambientColor = Color.Black,
-                    spotColor = OledAccentIndigo.copy(alpha = 0.40f)
+                    spotColor = Color.Black.copy(alpha = 0.50f)
                 )
-                .background(Color(0xF506070A), RoundedCornerShape(16.dp))
+                .background(Color(0xF507080B), RoundedCornerShape(16.dp))
                 .border(0.5.dp, OledBorderHigh, RoundedCornerShape(16.dp))
         ) {
             Column(
@@ -337,7 +337,7 @@ fun FloatingHudOverlay(
                                 Box(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(14.dp))
-                                        .background(if (isTabSelected) OledAccentIndigo else Color.Transparent)
+                                        .background(if (isTabSelected) OledPrimaryAction else Color.Transparent)
                                         .clickable { selectedTab = tab }
                                         .padding(horizontal = 7.dp, vertical = 3.dp)
                                         .semantics { contentDescription = "Switch to ${tab.title} view" },
@@ -348,14 +348,14 @@ fun FloatingHudOverlay(
                                             text = tab.title,
                                             fontSize = 10.5.sp,
                                             fontWeight = if (isTabSelected) FontWeight.Bold else FontWeight.Normal,
-                                            color = if (isTabSelected) Color.White else OledTextSecondary
+                                            color = if (isTabSelected) OledTextInverted else OledTextSecondary
                                         )
                                         if (tab == HudTab.TRANSCRIPTS && uiState.transcriptHistory.isNotEmpty()) {
                                             Spacer(modifier = Modifier.width(3.dp))
                                             Box(
                                                 modifier = Modifier
                                                     .background(
-                                                        if (isTabSelected) Color.White.copy(alpha = 0.25f) else OledBorderHigh,
+                                                        if (isTabSelected) OledTextInverted.copy(alpha = 0.15f) else OledBorderHigh,
                                                         CircleShape
                                                     )
                                                     .padding(horizontal = 4.dp, vertical = 1.dp)
@@ -364,7 +364,7 @@ fun FloatingHudOverlay(
                                                     text = "${uiState.transcriptHistory.size}",
                                                     fontSize = 8.sp,
                                                     fontWeight = FontWeight.Bold,
-                                                    color = if (isTabSelected) Color.White else OledTextMuted
+                                                    color = if (isTabSelected) OledTextInverted else OledTextMuted
                                                 )
                                             }
                                         }
@@ -645,7 +645,7 @@ fun FloatingHudOverlay(
                                     .padding(bottom = 6.dp)
                                     .shadow(6.dp, RoundedCornerShape(50))
                                     .clip(RoundedCornerShape(50))
-                                    .background(OledAccentIndigo.copy(alpha = 0.94f))
+                                    .background(OledPrimaryAction.copy(alpha = 0.96f))
                                     .clickable {
                                         autoFollowStream = true
                                         coroutineScope.launch {
@@ -661,7 +661,7 @@ fun FloatingHudOverlay(
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     PrompterIcons.ChevronUp(
-                                        color = Color.White,
+                                        color = OledTextInverted,
                                         size = 10.dp,
                                         modifier = Modifier.rotate(180f)
                                     )
@@ -670,7 +670,7 @@ fun FloatingHudOverlay(
                                         text = "Auto-scroll",
                                         fontSize = 10.5.sp,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = Color.White
+                                        color = OledTextInverted
                                     )
                                 }
                             }
@@ -891,8 +891,10 @@ fun FloatingHudOverlay(
                             .height(36.dp)
                             .semantics { contentDescription = "Force immediate answer generation" },
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = OledAccentIndigo,
-                            disabledContainerColor = OledSurfaceHigh
+                            containerColor = OledPrimaryAction,
+                            contentColor = OledTextInverted,
+                            disabledContainerColor = OledSurfaceHigh,
+                            disabledContentColor = OledTextMuted
                         ),
                         shape = RoundedCornerShape(8.dp),
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
@@ -902,7 +904,7 @@ fun FloatingHudOverlay(
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = if (uiState.pipelineState !is AssistantState.Paused &&
-                                uiState.pipelineState !is AssistantState.GeneratingAnswer) Color.White else OledTextMuted
+                                uiState.pipelineState !is AssistantState.GeneratingAnswer) OledTextInverted else OledTextMuted
                         )
                     }
 
@@ -1146,10 +1148,13 @@ fun ReportAiContentOverlayCard(
                         val commentOrNull = userComment.trim().ifEmpty { null }
                         onSubmit(selectedReason, commentOrNull)
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = OledAccentIndigo),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = OledPrimaryAction,
+                        contentColor = OledTextInverted
+                    ),
                     shape = RoundedCornerShape(6.dp)
                 ) {
-                    Text("Submit", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                    Text("Submit", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = OledTextInverted)
                 }
             }
         }

@@ -124,8 +124,10 @@ fun MicrophoneDisclosureDialog(
                 onClick = onConfirm,
                 enabled = isConsentChecked,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = OledAccentIndigo,
-                    disabledContainerColor = OledSurfaceHigh
+                    containerColor = OledPrimaryAction,
+                    contentColor = OledTextInverted,
+                    disabledContainerColor = OledSurfaceHigh,
+                    disabledContentColor = OledTextMuted
                 ),
                 shape = RoundedCornerShape(8.dp)
             ) {
@@ -133,7 +135,7 @@ fun MicrophoneDisclosureDialog(
                     text = "I Understand & Agree",
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 13.sp,
-                    color = if (isConsentChecked) Color.White else OledTextMuted
+                    color = if (isConsentChecked) OledTextInverted else OledTextMuted
                 )
             }
         },

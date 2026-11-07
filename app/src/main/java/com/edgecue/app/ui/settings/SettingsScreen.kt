@@ -106,8 +106,8 @@ fun SettingsScreen(
             Row(
                 modifier = Modifier
                     .clip(RoundedCornerShape(10.dp))
-                    .background(OledAccentIndigo.copy(alpha = 0.14f))
-                    .border(0.5.dp, OledAccentIndigo.copy(alpha = 0.4f), RoundedCornerShape(10.dp))
+                    .background(OledSurfaceHigh)
+                    .border(0.5.dp, OledBorderSubtle, RoundedCornerShape(10.dp))
                     .clickable { showLlmConfigGuideDialog = true }
                     .padding(horizontal = 10.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -168,7 +168,7 @@ fun SettingsScreen(
                         modifier = Modifier
                             .weight(1f)
                             .clip(RoundedCornerShape(8.dp))
-                            .background(if (isSelected) OledAccentIndigo else Color.Transparent)
+                            .background(if (isSelected) OledPrimaryAction else Color.Transparent)
                             .clickable { onConfigChange(config.copy(promptStyle = style)) }
                             .padding(vertical = 8.dp),
                         contentAlignment = Alignment.Center
@@ -177,7 +177,7 @@ fun SettingsScreen(
                             text = style.displayName,
                             fontSize = 12.sp,
                             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                            color = if (isSelected) Color.White else OledTextSecondary
+                            color = if (isSelected) OledTextInverted else OledTextSecondary
                         )
                     }
                 }
@@ -215,7 +215,7 @@ fun SettingsScreen(
                 ),
                 shape = RoundedCornerShape(10.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = OledAccentIndigo,
+                    focusedBorderColor = OledAccentIndigoSoft,
                     unfocusedBorderColor = OledBorder,
                     focusedLabelColor = OledAccentIndigoSoft,
                     unfocusedLabelColor = OledTextMuted,
@@ -422,8 +422,8 @@ fun SettingsScreen(
                 onValueChange = { onConfigChange(config.copy(maxTokens = it.toInt())) },
                 valueRange = 64f..512f,
                 colors = SliderDefaults.colors(
-                    thumbColor = OledAccentIndigo,
-                    activeTrackColor = OledAccentIndigo,
+                    thumbColor = OledPrimaryAction,
+                    activeTrackColor = OledAccentIndigoSoft,
                     inactiveTrackColor = OledSurfaceHigh
                 )
             )
@@ -703,6 +703,7 @@ private fun LabeledSlider(
             Text(
                 text = valueText,
                 fontSize = 12.sp,
+                fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.SemiBold,
                 color = OledTextPrimary
             )
@@ -713,8 +714,8 @@ private fun LabeledSlider(
             valueRange = valueRange,
             steps = steps,
             colors = SliderDefaults.colors(
-                thumbColor = OledAccentIndigo,
-                activeTrackColor = OledAccentIndigo,
+                thumbColor = OledPrimaryAction,
+                activeTrackColor = OledAccentIndigoSoft,
                 inactiveTrackColor = OledSurfaceHigh
             )
         )
@@ -756,8 +757,8 @@ private fun SettingsToggleRow(
             checked = checked,
             onCheckedChange = onCheckedChange,
             colors = SwitchDefaults.colors(
-                checkedThumbColor = Color.White,
-                checkedTrackColor = OledAccentIndigo,
+                checkedThumbColor = OledPrimaryAction,
+                checkedTrackColor = OledAccentIndigoSoft,
                 uncheckedThumbColor = OledTextSecondary,
                 uncheckedTrackColor = OledSurfaceHigh,
                 uncheckedBorderColor = OledBorderHigh
@@ -944,10 +945,11 @@ private fun RagPasteDialog(
                     textStyle = LocalTextStyle.current.copy(fontSize = 12.sp, color = OledTextPrimary),
                     shape = RoundedCornerShape(8.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = OledAccentIndigo,
+                        focusedBorderColor = OledAccentIndigoSoft,
                         unfocusedBorderColor = OledBorder,
                         focusedTextColor = OledTextPrimary,
-                        unfocusedTextColor = OledTextPrimary
+                        unfocusedTextColor = OledTextPrimary,
+                        cursorColor = OledAccentIndigoSoft
                     )
                 )
             }
@@ -956,10 +958,20 @@ private fun RagPasteDialog(
             Button(
                 onClick = { onSave(text) },
                 enabled = text.isNotBlank(),
-                colors = ButtonDefaults.buttonColors(containerColor = OledAccentIndigo),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = OledPrimaryAction,
+                    contentColor = OledTextInverted,
+                    disabledContainerColor = OledSurfaceHigh,
+                    disabledContentColor = OledTextMuted
+                ),
                 shape = RoundedCornerShape(8.dp)
             ) {
-                Text("Save to RAG", color = Color.White, fontSize = 12.sp)
+                Text(
+                    "Save to RAG",
+                    color = if (text.isNotBlank()) OledTextInverted else OledTextMuted,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 12.sp
+                )
             }
         },
         dismissButton = {
@@ -1074,10 +1086,13 @@ private fun LlmConfigurationGuideDialog(
         confirmButton = {
             Button(
                 onClick = onApplyGoldenPreset,
-                colors = ButtonDefaults.buttonColors(containerColor = OledAccentIndigo),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = OledPrimaryAction,
+                    contentColor = OledTextInverted
+                ),
                 shape = RoundedCornerShape(8.dp)
             ) {
-                Text("Apply Golden Preset", color = Color.White, fontSize = 12.sp)
+                Text("Apply Golden Preset", color = OledTextInverted, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
             }
         },
         dismissButton = {

@@ -165,14 +165,17 @@ fun ReportAiContentDialog(
                     val commentOrNull = userComment.trim().ifEmpty { null }
                     onSubmit(selectedReason, commentOrNull)
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = OledAccentIndigo),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = OledPrimaryAction,
+                    contentColor = OledTextInverted
+                ),
                 shape = RoundedCornerShape(8.dp)
             ) {
                 Text(
                     text = "Submit Report",
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 13.sp,
-                    color = Color.White
+                    color = OledTextInverted
                 )
             }
         },

@@ -183,14 +183,19 @@ fun SendFeedbackDialog(
                     onDismiss()
                 },
                 enabled = canSend,
-                colors = ButtonDefaults.buttonColors(containerColor = OledAccentIndigo),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = OledPrimaryAction,
+                    contentColor = OledTextInverted,
+                    disabledContainerColor = OledSurfaceHigh,
+                    disabledContentColor = OledTextMuted
+                ),
                 shape = RoundedCornerShape(8.dp)
             ) {
                 Text(
                     text = "Send Feedback",
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 13.sp,
-                    color = Color.White
+                    color = if (canSend) OledTextInverted else OledTextMuted
                 )
             }
         },
