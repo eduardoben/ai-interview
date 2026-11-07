@@ -7,7 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.17.0] - 2026-11-06
+## [1.18.0] - 2026-11-06
+
+### Added
+- **Layout-Aware PDF Extraction & Multi-Column Bead Separation (`DocumentTextExtractor`):**
+  - Configured `PDFTextStripper.setShouldSeparateByBeads(true)` and `sortByPosition = true` to isolate multi-column sidebars, preventing certification and skill entries from being interleaved across column gutters.
+  - Added Unicode bullet normalization (`▪`, `▸`, `◦`, `●`, `‣`, `⁃`, `–`, `—`) into standardized atomic list units (`• `).
+  - Implemented `INLINE_SECTION_HEADER_REGEX` to automatically parse and unpack inline section headers (e.g., `CERTIFICATIONS: ...` or `Certifications — ...`) onto dedicated lines for clean downstream section detection.
+- **Certification-Aware Section Parsing & Lexical Canonicalization (`RagDocumentChunker`):**
+  - Expanded `SECTION_HEADING_REGEX` to recognize all certification and credential heading formats, including `Professional Certifications`, `Technical Certifications`, `Certificates`, `Licensure & Certifications`, `Licenses & Credentials`, `Board Certifications`, `Accreditations`, and `Security Clearances`, with support for decorative glyphs and prefixes.
+  - Added a dedicated semantic bucket in `getSectionSemanticTokens()` injecting credential tokens (`certif`, `licens`, `credential`, `accredit`, `board`, `qualif`, `exam`, `clearanc`, `charter`, `registr`).
+  - Implemented canonical stemmer normalization in `stemToken()`, unifying certification variants (`certified`, `certification`, `certifications`, `certificate`, `certificates` $\rightarrow$ `certif`) and license variants (`license`, `licensed`, `licensure` $\rightarrow$ `licens`) to eliminate vocabulary mismatch during Okapi BM25 and bigram matching.
+- **Dynamic Retrieval Budgeting & Adaptive Multi-Chunk Selection (`LiteRagEngine`):**
+  - Expanded the RAG retrieval budget from 1,100 to **1,400 characters** (and LLM `safeRag` cap from 1,200 to **1,500 characters**), optimal for on-device Gemma 4 E2B attention windows.
+  - Raised `maxCvChunks` to up to **4 diverse CV chunks** for qualification, role-fit, and background queries (up to 3 for technical queries), allowing compact certification sections (~100–200 chars) to be retrieved alongside Experience and Projects.
+  - Lowered the section-diversity threshold ratio to `0.20` for credential chunks, ensuring compact certifications are preserved even when verbose Experience chunks have higher raw BM25 totals.
+  - Added credential query expansion in `expandQueryTokens()` for queries referencing certifications, licenses, qualifications, and credentials.
+- **Verified Credential Citation Prompt Grounding (`AppConfig`):**
+  - Added explicit instructions in `CANDIDATE_RAG_GROUNDING_DIRECTIVE` and `buildConversationalDeliveryCue()` directing the LLM to cite verified certification names, state licensing boards, and credentials with professional confidence when addressing qualifications, background, or domain authority.
+- **Cross-Domain Verification Suite & Physical Pixel 10 Pro XL Fleet Benchmarks:**
+  - Added new unit tests in `LiteRagEngineTest.kt` verifying stemmer canonicalization, multi-format heading detection, inline heading unpacking, and 1,400-char budgeted credential retrieval.
+  - Added physical device hardware benchmark `testRealDeviceRagCertificationRetrievalAndAnswer` in `RealDevicePipelineIntegrationTest.kt`.
+  - Added mock interview audio turns in `:test-suite` for healthcare inpatient crisis & care coordination:
+    - `turn_06_lcsw_intro.wav` (Healthcare Social Work intro, career path & licensure).
+    - `turn_07_lcsw_crisis.wav` (Acute crisis de-escalation).
+    - `turn_08_lcsw_discharge.wav` (Complex discharge planning & regulatory compliance).
+  - Executed on physical **Google Pixel 10 Pro XL** (Tensor G5, API 37) with **100% pass rate** across all 8 parameterized turns (Gate 1–6) and sub-1.2s TTFT.
+
+### Changed
+- Bumped application `versionCode` to 22 and `versionName` to `1.18.0`.
+
+---
 
 ### Added
 - **On-Device Lite RAG Subsystem (Curriculum & Job Description Grounding):**
